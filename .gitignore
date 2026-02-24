@@ -1,0 +1,22 @@
+# Personal workspace data (never commit)
+workspace/
+job-applications/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+package-lock.json
+
+# Eval workspace outputs (large, temporary)
+*-workspace/

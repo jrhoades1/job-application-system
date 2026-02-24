@@ -1,0 +1,23 @@
+{
+  "skill_name": "interview-debrief",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I just finished my first interview with HealthFirst for the VP of Engineering role. The hiring manager Sarah Chen spent most of the time asking about team building and AI integration. She seemed really interested when I talked about scaling the team at MedQuest from 0 to 22. She asked about HITRUST specifically which caught me off guard. She said they'd schedule a technical panel next week.",
+      "expected_output": "Structured interview-notes.md created with Sarah Chen as interviewer, team building and AI as primary interests, MedQuest scaling story as what resonated, HITRUST as surprising question/gap probe. metadata.json updated with interview_date, round 1, interview_notes_file. Follow-up date set. Learning flag about HITRUST being important for healthcare VP roles.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Had my second round at HealthFirst today. Panel with the CTO, a principal engineer, and the head of product. Very different vibe from the first interview. The CTO asked deep technical questions about FHIR integration and microservices patterns. The principal engineer was skeptical about my Kubernetes experience. Product person wanted to know about roadmap prioritization with competing stakeholders.",
+      "expected_output": "Interview-notes.md updated for round 2 panel. Each interviewer's focus area noted separately. K8s skepticism flagged as a gap that needs stronger evidence. Metadata updated to round 2. Cross-interview pattern check performed.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Quick call with Netflix recruiter. Pretty standard screen. Salary expectations aligned. She asked why I'm interested in DevOps when my background is more architecture/CTO. I explained the platform engineering angle but I don't think she fully bought it. Next step is hiring manager call.",
+      "expected_output": "Interview-notes.md created noting recruiter screen, salary alignment as positive, 'why DevOps' as concerning signal. Bridge for architecture→DevOps needs work flagged in learning_flags. Metadata updated with round 1 recruiter screen.",
+      "files": []
+    }
+  ]
+}

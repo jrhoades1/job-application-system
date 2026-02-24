@@ -1,0 +1,23 @@
+{
+  "skill_name": "application-outcome-logger",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Got a rejection from Netflix. They said they were looking for someone with dedicated platform engineering experience, not someone transitioning from a CTO role.",
+      "expected_output": "metadata.json updated: status=rejected, rejection_date=today, rejection_reason=skill_gap: dedicated platform engineering, rejection_insights logged. learning_flags updated. Pattern check performed across all applications. Tracker synced.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Never heard back from that startup I applied to last month. I followed up twice.",
+      "expected_output": "Identifies the application (asks if ambiguous). Categorizes as no_response. Updates metadata. Checks if no_response is a recurring pattern. Notes that cold applications may need strategy adjustment if this is the 3rd+ no-response.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "I'm pulling my application from Cognizant. Decided the role isn't the right fit after thinking about it more.",
+      "expected_output": "metadata.json updated: status=withdrawn, rejection_date=today, rejection_reason=withdrawn: user decided role not right fit. No pattern escalation needed for withdrawals. Tracker synced. Confirmation message.",
+      "files": []
+    }
+  ]
+}

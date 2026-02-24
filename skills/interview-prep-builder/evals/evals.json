@@ -1,0 +1,23 @@
+{
+  "skill_name": "interview-prep-builder",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I have an interview with HealthFirst for the VP of Engineering role on Friday. Help me prepare.",
+      "expected_output": "Loads HealthFirst metadata (strong match), job description, achievements, and narrative. Creates interview-prep.md with 3 talking points mapped to their requirements (AI/ML, team scaling, healthcare compliance), gap bridges for HITRUST and SOC2, likely questions for VP Eng role type, questions to ask them, and numbers cheat sheet.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Netflix wants to do a technical panel for the DevOps Platform Lead role. This is a stretch match and I'm nervous about the Kubernetes and Terraform questions.",
+      "expected_output": "Loads Netflix metadata (stretch match with hard gaps). Creates prep focused on bridging gaps: frames CI/CD and cloud architecture as adjacent to platform engineering. Prepares talking points that lead with transferable skills. Acknowledges the stretch honestly. Generates panel-specific prep (multiple interviewer perspectives). Includes gap bridge scripts for Kubernetes and Terraform.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Second round at HealthFirst — this time with the CTO and a principal engineer. My first interview went well but they were curious about HITRUST.",
+      "expected_output": "References the first interview debrief (if it exists). Prepares for CTO (strategic questions, vision alignment) and principal engineer (technical depth, architecture decisions). Specifically prepares a stronger HITRUST answer since it came up in round 1. Adjusts talking points for a more technical audience.",
+      "files": []
+    }
+  ]
+}
