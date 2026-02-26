@@ -26,8 +26,15 @@ recommended_model:
 
 # Job Intake — Parse, Score, and Track Job Applications
 
-Take a raw job description, extract what matters, score it against the candidate's
-background, and set up a tracked application folder so nothing gets lost.
+## Intent
+
+1. **Be honest about match quality** — a "long shot" assessment that saves hours of wasted effort is more valuable than false encouragement
+2. **Surface red flags without burying them** — unrealistic requirements, vague language, or signs of dysfunction deserve the same prominence as match strengths
+3. **Accumulate durable knowledge** — every evaluation should make achievements.md richer, improving all future scoring
+4. **Prevent wasted applications** — screen out poor-fit roles early so effort concentrates on strong and good matches
+5. **Create reliable structured data** — downstream skills depend on accurate metadata; garbage in means garbage out across the entire pipeline
+6. **Never create folders from partial information** — premature folder creation pollutes the workspace with incomplete data that misleads downstream skills
+7. **Process a full intake in under 10 minutes** — speed matters, but never at the cost of honest scoring or incomplete data
 
 ## Why this skill exists
 
@@ -47,6 +54,43 @@ This skill expects a workspace at `job-applications/` with:
 If any of these are missing, tell the user and offer to help set them up before proceeding.
 
 ## Workflow
+
+### Step 0: Check for duplicate applications
+
+**Before doing any evaluation work**, check for an existing application matching the
+company+role the user is asking about. This check must happen first — it's fast, and
+it prevents wasted effort and duplicate folders.
+
+```
+Primary:  Read job-applications/applications/index.json
+          Match on: (company name, role title) — case-insensitive, fuzzy on company variants
+Fallback: If index.json doesn't exist, scan job-applications/applications/*/metadata.json
+          (slower with 300+ folders — rebuild index.json afterward)
+```
+
+**After creating any new application folder** (Step 4), append the new entry to
+`index.json` so future lookups stay fast.
+
+**If a match is found**, tell the user immediately and show the existing application's
+status. The response depends on the state of the existing application:
+
+| Existing status | What to say |
+|----------------|-------------|
+| `evaluating` | "You started evaluating this role on [date] but didn't finish. Want me to pick up where you left off, or start fresh?" |
+| `ready_to_apply` | "You already have a tailored resume and cover letter ready for this one. Want to review them or submit?" |
+| `applied` | "You already applied to this on [applied_date]. Follow-up date is [date]. Want to check status instead?" |
+| `interviewing` | "You're already in the interview process for this role. Want to prep or update status?" |
+| `rejected` | "You were previously rejected for this role on [date]. Want to re-apply with a fresh application?" |
+| `withdrawn` | "You previously withdrew from this role. Want to re-apply?" |
+
+**For re-applications** (rejected or withdrawn): create a new folder with today's date.
+The old folder stays as history.
+
+**For stalled evaluations** (evaluating with no progress): offer to resume in the
+existing folder rather than creating a duplicate. Only create a new folder if the
+user explicitly wants to start over.
+
+**If no match is found**, proceed to Step 1.
 
 ### Step 1: Accept the job description
 
@@ -266,5 +310,5 @@ The metadata.json created by this skill is the contract that downstream skills r
   clear about what you can't assess, and ask for the full posting. Don't create folders.
 - **Internal referrals** — If the user mentions a referral or connection, capture it in
   the metadata contact field and notes.
-- **Reprocessing** — If a folder already exists for this company+role, warn the user and
-  ask if they want to update it or create a new version.
+- **Reprocessing** — Handled by Step 0 duplicate detection. The user is warned before
+  any work begins and can choose to resume, update, or start fresh.

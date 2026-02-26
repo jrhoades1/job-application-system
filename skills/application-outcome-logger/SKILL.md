@@ -23,8 +23,15 @@ recommended_model:
 
 # Application Outcome Logger — Learn from Every No
 
-Log rejections and closures with context so the system can learn. A single rejection
-is a data point. Three rejections for the same reason is a strategy change.
+## Intent
+
+1. **Never guess at rejection reasons** — if the candidate does not know why, log "no_reason_given"; fabricating explanations creates false patterns that poison strategy
+2. **Pattern threshold is 3, not 1** — a single rejection is noise; two is a coincidence; three with the same reason is a signal worth acting on
+3. **Respectful framing of outcomes** — rejections are data, not verdicts; the language in summaries and pattern reports reflects that the candidate is a person, not a pipeline metric
+4. **User context matters** — "overqualified" from a startup means something different than from an enterprise; category alone is insufficient without context notes
+5. **Learning accumulation** — every logged outcome enriches the dataset that analytics and search-optimizer consume; even "no_reason_given" carries signal about which channels ghost
+6. **Signal detection feeds strategy change** — the purpose of logging is not record-keeping; it is detecting the point where individual rejections become a pattern that demands adjustment
+7. **Outcome capture under 1 minute; pattern detection triggers at 3+ matching rejections** — logging should be frictionless so it actually happens after every outcome
 
 ## Why this skill exists
 

@@ -23,9 +23,15 @@ recommended_model:
 
 # Interview Prep Builder — Walk In Ready
 
-Generate a custom preparation document for an upcoming interview. Pulls from the
-job description, your match score, past interview debriefs, and your achievements
-to create role-specific talking points, likely questions, and gap bridges.
+## Intent
+
+1. **Talking points must trace to real achievements** — every story, number, and claim must exist in achievements.md or base-resume.docx; preparing the candidate to say something they cannot substantiate is sabotage
+2. **Gap bridges must be genuine** — "my AWS work translates to GCP" is honest positioning; "I've been learning GCP on my own" without evidence is fabrication
+3. **Customized per company and role** — generic interview prep is available everywhere; the value is connecting THIS candidate's specific achievements to THIS role's specific requirements
+4. **Practice over perfection** — the prep doc is a study guide, not a script; the candidate should internalize talking points, not memorize paragraphs
+5. **Confidence from preparation** — knowing your best stories and how they connect to the role reduces anxiety and improves performance
+6. **Learning loop from past interviews** — previous debrief patterns inform question prediction; prep improves with every interview in the system
+7. **Prep document in 15-20 minutes; 3 talking points minimum; 10-15 likely questions** — comprehensive enough to be useful, concise enough to actually be reviewed before the interview
 
 ## Why this skill exists
 

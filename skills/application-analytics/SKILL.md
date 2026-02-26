@@ -23,8 +23,15 @@ recommended_model:
 
 # Application Analytics — What's Working?
 
-Turn raw application metadata into insights. This skill scans all application folders,
-calculates conversion metrics, identifies patterns, and surfaces actionable findings.
+## Intent
+
+1. **Minimum data threshold before claiming patterns** — with fewer than 5 applications in a category, say "early signal" not "trend"; extrapolating from 2 data points is worse than having no data
+2. **Honesty about confidence levels** — flag when sample sizes are too small, when time periods are uneven, or when a pattern might be coincidence
+3. **Urgency hierarchy in reporting** — overdue follow-ups and stalled applications surface before conversion rates and trend analysis; actionable now beats interesting later
+4. **Make the invisible visible** — without analytics, job searching is guesswork; this skill reveals which sources, match levels, and strategies actually lead to interviews
+5. **Data-driven strategy over gut feeling** — every recommendation traces back to a number, not an opinion
+6. **Feed the learning loop** — analytics reports are consumed by search-optimizer; reliable data in means reliable recommendations out
+7. **Full pipeline scan completes instantaneously; confidence flagging mandatory on every metric** — speed enables frequent check-ins, but every number must carry its confidence context
 
 ## Why this skill exists
 

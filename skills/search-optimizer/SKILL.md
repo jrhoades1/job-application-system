@@ -25,9 +25,15 @@ recommended_model:
 
 # Search Optimizer — Data-Driven Strategy
 
-Recommend where to focus your job search based on what's actually working. This
-skill consumes analytics data, interview debriefs, and rejection patterns to
-produce specific, actionable strategy adjustments.
+## Intent
+
+1. **User preferences are constraints, not suggestions** — "only remote" or "won't go below Director" are boundaries to optimize within, not objections to overcome
+2. **Career goals guide interpretation of data** — the same conversion rate means different things depending on whether the candidate is pivoting industries or climbing within one
+3. **Empathy in framing** — job searching is stressful; frame recommendations as optimization, not criticism; "your referrals convert 3x better" is actionable, "you're wasting time on LinkedIn" is demoralizing
+4. **Data-backed claims only** — every recommendation traces to a specific number or pattern; gut feelings belong to the candidate, not the advisor
+5. **Strategic clarity over information overload** — 3-5 specific recommendations with evidence beats a 20-point listicle
+6. **Burnout prevention through focus** — concentration of effort on high-converting channels prevents the spray-and-pray exhaustion that kills job searches
+7. **Meaningful recommendations require 5+ outcomes; 3-5 adjustments per review; trigger monthly or per 5 new outcomes** — frequency and depth match the data available
 
 ## Why this skill exists
 

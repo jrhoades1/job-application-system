@@ -14,7 +14,9 @@ the complexity of the work.
 |-------|------------------|-----------|
 | **job-intake** | Sonnet | Structured extraction, pattern matching, file creation. Well-defined tasks with clear criteria. |
 | **resume-tailor** | Sonnet / Opus | Sonnet for keyword insertion and section reordering. Upgrade to Opus when the positioning requires creative framing of gaps or career pivots. |
-| **cover-letter-writer** | Opus | Persuasive writing that needs to sound human, not templated. Tone, narrative arc, and specificity matter. This is where model quality directly affects outcomes. |
+| **cover-letter-writer** | Sonnet | Sonnet produces solid cover letters fast. Upgrade to Opus for long-shot roles, gap-heavy applications, or when the user asks for maximum polish. |
+| **interview-debrief** | Sonnet | Structured extraction from interview accounts. Upgrade to Opus for unstructured debriefs with subtle signals to interpret. |
+| **offer-evaluator** | Sonnet | Single-offer evaluation and formatting. Upgrade to Opus for multi-offer comparisons or complex negotiation strategy. |
 | **job-tracker** | Haiku | Pure file operations — reading metadata.json files, updating spreadsheet rows. No reasoning needed. |
 
 ## Decision framework
@@ -46,13 +48,15 @@ Rough token estimates for a single job application through the full pipeline:
 |-------|-------------|---------------|-------|-----------|
 | job-intake | ~3,000 | ~2,000 | Sonnet | ~$0.02 |
 | resume-tailor | ~5,000 | ~3,000 | Sonnet | ~$0.04 |
-| cover-letter-writer | ~4,000 | ~2,000 | Opus | ~$0.25 |
+| cover-letter-writer | ~4,000 | ~2,000 | Sonnet | ~$0.05 |
+| interview-debrief | ~3,000 | ~2,000 | Sonnet | ~$0.02 |
+| offer-evaluator | ~3,000 | ~2,000 | Sonnet | ~$0.02 |
 | job-tracker | ~1,000 | ~500 | Haiku | ~$0.001 |
-| **Total per application** | | | | **~$0.31** |
+| **Total per application** | | | | **~$0.15** |
 
-At 50 applications, that's roughly $15.50. Without model optimization (Opus for
-everything), the same 50 applications would cost ~$62.50. Smart model selection
-saves ~75%.
+At 50 applications, that's roughly $7.50. Upgrading individual skills to Opus
+when needed (long-shot cover letters, complex negotiations) adds ~$0.20 per
+upgrade — still far cheaper than running Opus by default on every call.
 
 ## When to override the recommendation
 

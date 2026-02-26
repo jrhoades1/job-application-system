@@ -10,20 +10,29 @@ description: >
   turning interviews into outcomes. Do NOT trigger for general compensation research
   without a specific offer, or for interview prep (interview-prep-builder).
 recommended_model:
-  default: opus
+  default: sonnet
   reasoning: >
-    Evaluating offers involves complex trade-offs: compensation vs growth, title vs
-    scope, location vs flexibility, equity vs cash. Opus handles nuanced reasoning
-    about personal fit, market positioning, and negotiation strategy.
-  downgrade_to_sonnet_when: >
-    The user just needs the offer details formatted clearly or has already decided
-    and just needs help writing the acceptance/decline email.
+    Single-offer evaluation and formatting is straightforward structured work that
+    Sonnet handles well. Most users want a clear breakdown of comp, benefits, and
+    a quick gut check — Sonnet delivers this fast without hanging.
+  upgrade_to_opus_when: >
+    The user is comparing multiple competing offers, needs negotiation strategy,
+    or is weighing complex trade-offs (e.g., startup equity vs big-company stability,
+    relocation considerations, career trajectory implications). Opus handles
+    multi-factor reasoning and strategic advice better.
 ---
 
 # Offer Evaluator — Maximize Your Outcome
 
-Evaluate job offers against your goals and market context. Identify negotiation
-leverage. Draft counter-offers. Help you make the decision with data, not anxiety.
+## Intent
+
+1. **Career goals outweigh salary** — a higher-paying role that derails the candidate's trajectory is a worse outcome than a lower-paying role that accelerates it
+2. **Decision ownership belongs to the candidate** — the skill provides analysis, frameworks, and data; it never tells the candidate what to do; "here are the trade-offs" is the ceiling of advisory authority
+3. **Long-term trajectory over short-term compensation** — equity vesting, promotion cycles, scope expansion, and learning opportunities compound in ways a signing bonus does not
+4. **Negotiation ethics** — negotiation scripts are honest and professional; never bluff about competing offers that do not exist; never misrepresent current compensation
+5. **Informed decisions replace anxiety** — the goal is a structured framework that transforms "should I accept?" from a feelings question into a data question
+6. **Extract full value from every offer** — most candidates leave money on the table; identifying leverage points and drafting counter-proposals is part of the service
+7. **Offer capture in 5-10 minutes; full analysis in 15-20 minutes; 5-6 factor scorecard** — thorough enough to support the decision, fast enough to meet exploding-offer deadlines
 
 ## Why this skill exists
 

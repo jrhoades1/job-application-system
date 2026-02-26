@@ -11,22 +11,29 @@ description: >
   interview prep. Do NOT trigger for pre-interview preparation (interview-prep-builder)
   or status updates without interview details (job-tracker).
 recommended_model:
-  default: opus
+  default: sonnet
   reasoning: >
-    Extracting meaningful signals from conversational interview accounts requires
-    nuanced reasoning. The user will describe their interview informally — Opus
-    can parse subtext, identify what's strategically important, and connect signals
-    to the broader job search.
-  downgrade_to_sonnet_when: >
-    The user provides a pre-structured debrief (e.g., bullet points of what happened).
-    Sonnet handles structured-to-structured just fine.
+    Most interview debriefs involve structured extraction — what questions were asked,
+    what went well, what to improve. Sonnet handles this reliably and responds fast
+    enough that the user doesn't lose momentum while the interview is fresh.
+  upgrade_to_opus_when: >
+    The user gives a long, unstructured account with subtle signals to interpret
+    (e.g., "the interviewer seemed hesitant when I mentioned X" or "I got a weird
+    vibe about the team dynamics"). Opus is better at reading between the lines
+    and connecting signals to strategic implications.
 ---
 
 # Interview Debrief — Turn Interviews into Learning
 
-After an interview, capture what happened in a way that helps future applications.
-What did they care about? What resonated? What gap did they probe? This skill
-converts informal reflections into structured intelligence.
+## Intent
+
+1. **Conversational, not interrogative** — the debrief should feel like talking to a trusted advisor, not filling out a form; open-ended questions first, structured capture second
+2. **A single interview signal is not a pattern** — one interviewer asking about Kubernetes is a data point; three interviewers asking is a market signal; never upgrade a single observation to a trend
+3. **Empathy first, analysis second** — if the candidate is excited, share the excitement before structuring notes; if discouraged, acknowledge it before pivoting to learning
+4. **Learning framing for every outcome** — even a bad interview produces usable intelligence about what the market cares about, which gap bridges work, and which stories land
+5. **Pattern detection feeds strategy** — cross-interview signals are the most valuable output; they change how the candidate prepares and which roles to target
+6. **Achievement discovery** — candidates mention accomplishments in conversation that never made it to achievements.md; capturing these expands the inventory for all future applications
+7. **Debrief conversation 5-10 minutes; pattern flagging at 3+ signals; new achievements tagged with [learned] date** — capture while the interview is fresh, but never rush past the conversational layer
 
 ## Why this skill exists
 
