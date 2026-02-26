@@ -21,3 +21,9 @@ pipeline_config.json
 pipeline/staging/
 pipeline/fingerprints.json
 pipeline/processed/
+
+# DSF runtime data
+data/*.db
+data/*.db-journal
+memory/logs/
+.tmp/
