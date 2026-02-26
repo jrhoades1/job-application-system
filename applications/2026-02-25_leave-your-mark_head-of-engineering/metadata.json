@@ -1,0 +1,93 @@
+{
+  "company": "Leave Your Mark (client unnamed)",
+  "role": "Head of Engineering",
+  "location": "United States (Remote)",
+  "compensation": null,
+  "applied_date": null,
+  "source": "LinkedIn",
+  "source_url": "https://www.linkedin.com/jobs/view/4369826457/",
+  "status": "ready_to_apply",
+  "follow_up_date": null,
+  "contact": "",
+  "resume_version": "resume.docx",
+  "cover_letter": "cover-letter.docx",
+  "former_employer": false,
+  "former_employer_role": null,
+  "notes": "Posted by Leave Your Mark staffing agency (2-10 employees). Client company unnamed — uses AI and behavioral science for personalized experiences. Enterprise B2B/B2C SaaS platform. 775+ applicants. Reports to CTO alongside Chief Architect. No compensation listed. Healthcare exposure explicitly called out as a plus. One of the strongest overall matches seen — hits nearly every requirement directly.",
+  "match_score": {
+    "overall": "strong",
+    "requirements_matched": [
+      "10+ years engineering experience with senior leadership — 20+ years experience, 10+ years at CTO/VP/Director/Chief Architect level",
+      "Building and scaling modern B2B/B2C production systems — ilumed B2B healthcare platform (50K→90K users), Red Spot B2C scheduling (200K+ appointments)",
+      "Distributed systems, microservices, cloud platforms (AWS/Azure), DevOps — Monolith-to-microservices (Cognizant), AWS/Azure/GCP across all roles, CI/CD improving deployment frequency 50% (Red Spot)",
+      "Leading Agile teams — Agile/Scrum methodology across entire career",
+      "Executive partnership and cross-functional communication — CTO-level partnerships at ilumed and Red Spot, cross-functional with Product/Clinical/Ops",
+      "Managing distributed engineering teams across time zones — 50+ developers across US, Ukraine, Central America (Cognizant), offshore resources at MedQuest and Red Spot",
+      "High-growth SaaS or platform companies (preferred) — Scaled ilumed platform 50K→90K users, Red Spot from inception to 200K+ transactions",
+      "AI-enabled or data-driven systems (preferred) — AI/ML integration at ilumed, Perceptive (30% faster dev cycles, 40% feature adoption), Red Spot (18% cost reduction)",
+      "Regulated, security-conscious environments (preferred) — HIPAA compliance, SOC2/HITRUST certification, security architecture across career",
+      "Healthcare exposure (preferred) — Entire 20+ year career in healthcare IT"
+    ],
+    "requirements_partial": [
+      "Hands-on technical leadership — Architectural and strategic rather than daily coding, but deep technical background with design review and prototyping capability. Role frames it as 'roll up sleeves as needed' which fits",
+      "SaaS and PaaS platform evolution with internal tooling — Strong SaaS experience but PaaS/internal developer platform tooling less prominent in history",
+      "Behavioral science alignment — No specific behavioral science experience, but healthcare personalization and AI-driven patient engagement are adjacent"
+    ],
+    "gaps": [
+      "Anonymous client company — Cannot assess culture, size, stage, or domain fit beyond what's in the posting",
+      "No compensation listed — Cannot evaluate financial fit"
+    ],
+    "addressable_gaps": [
+      "Anonymous client — Can be resolved through recruiter conversation. Staffing agency postings are common for confidential searches",
+      "No compensation — Can be addressed early in recruiter screening"
+    ],
+    "hard_gaps": [],
+    "keywords": [
+      "head of engineering",
+      "engineering leadership",
+      "SaaS platform",
+      "PaaS",
+      "microservices",
+      "cloud-native",
+      "distributed systems",
+      "AWS",
+      "Azure",
+      "DevOps",
+      "CI/CD",
+      "AI",
+      "data-driven",
+      "behavioral science",
+      "developer productivity",
+      "engineering metrics",
+      "OKRs",
+      "reliability",
+      "security",
+      "compliance",
+      "regulated environment",
+      "healthcare",
+      "distributed teams",
+      "Agile",
+      "technical strategy",
+      "privacy-by-design",
+      "data governance"
+    ]
+  },
+  "tailoring_intensity": "light",
+  "interview_date": null,
+  "interview_round": null,
+  "interview_type": null,
+  "interview_notes_file": null,
+  "rejection_date": null,
+  "rejection_reason": null,
+  "rejection_insights": null,
+  "offer": {
+    "salary": null,
+    "equity": null,
+    "signing_bonus": null,
+    "remote": null,
+    "benefits_notes": null,
+    "decision_deadline": null
+  },
+  "offer_accepted": null,
+  "learning_flags": []
+}

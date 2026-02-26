@@ -1,0 +1,85 @@
+{
+  "company": "SandboxAQ",
+  "role": "Director of Product Engineering",
+  "location": "United States (Remote)",
+  "compensation": "$222,934 - $384,000/yr + equity",
+  "applied_date": "2026-02-25",
+  "source": "LinkedIn",
+  "source_url": "https://www.linkedin.com/jobs/view/4363154710/",
+  "status": "applied",
+  "follow_up_date": "2026-03-04",
+  "contact": "",
+  "resume_version": "resume.docx",
+  "cover_letter": "cover-letter.docx",
+  "former_employer": false,
+  "former_employer_role": null,
+  "notes": "Alphabet spinoff (2022). AI + quantum tech company. Cybersecurity group — Cryptographic Posture Management and AI Security Posture Management products. High-growth, well-funded (T. Rowe Price, Eric Schmidt, etc). 348 on LinkedIn. NOT healthcare. Cybersecurity domain. Strong comp range up to $384K + equity.",
+  "match_score": {
+    "overall": "good",
+    "requirements_matched": [
+      "10+ years software engineering — 20+ years experience across 5 companies",
+      "4+ years leading managers or multiple teams — Led engineering orgs at CTO/Director level for 15+ years, managed managers at MedQuest (team of 22 with QA/Product leads), Cognizant (50+ developers across countries)",
+      "Strong track record delivering complex systems — Diagnostic imaging across 100 centers (MedQuest), HIPAA-compliant platform with 99.9% uptime (ilumed), microservices transformation (Cognizant)",
+      "Experience defining and executing technical strategy — Multi-quarter roadmaps at ilumed, technology strategy at Red Spot driving 12% client growth, architectural direction at Cognizant",
+      "Excellent cross-functional communication — CTO-level stakeholder management, partnered with product/clinical/ops teams across all roles",
+      "Proven ability to scale teams and processes — Built 3 teams from zero, instituted DevOps/CI/CD practices, established engineering standards",
+      "Sound technical judgment and operational mindset — Architecture decisions across microservices, cloud, compliance; 99.9% uptime, 35% reliability improvement",
+      "AWS and Kubernetes (highly desired) — AWS integrations (Cognizant, Red Spot), Kubernetes in technical stack",
+      "CI/CD pipelines (highly desired) — Instituted CI/CD improving deployment frequency 50% (Red Spot)",
+      "Build scalable team structures and processes — Three teams from inception with hiring, culture, delivery processes"
+    ],
+    "requirements_partial": [
+      "Lead and develop engineering managers — Has led large teams and likely managed sub-leads/managers at MedQuest (22-person org with QA/Product) and Cognizant (50+ developers), but explicit manager-of-managers experience not prominently documented",
+      "Cybersecurity/cryptography domain — SOC2/HITRUST certification experience and HIPAA security architecture are adjacent to security posture management, but cryptographic posture management is a specialized domain"
+    ],
+    "gaps": [
+      "Kotlin, Golang, Rust (highly desired) — None of these in documented tech stack. Python, Java, C#, Node.js are the documented languages",
+      "Cybersecurity product domain — No direct cybersecurity product experience. Security compliance (HIPAA, SOC2) is adjacent but different from building security posture management products",
+      "DataDog monitoring (highly desired) — Not documented"
+    ],
+    "addressable_gaps": [
+      "Kotlin/Golang/Rust — Highly desired not required. Strong polyglot foundation (Python, Java, C#, Node.js) demonstrates language adaptability. This role is Director-level, not IC — language-specific expertise is less critical than technical judgment",
+      "DataDog — Operational monitoring tool, straightforward to adopt. Has operational mindset with 99.9% uptime achievement",
+      "Cybersecurity domain — Security compliance experience (HIPAA, SOC2/HITRUST) provides foundation for understanding security posture. The gap is product domain, not security thinking"
+    ],
+    "hard_gaps": [],
+    "keywords": [
+      "product engineering",
+      "engineering leadership",
+      "cybersecurity",
+      "cryptographic posture management",
+      "AI security",
+      "technical strategy",
+      "engineering managers",
+      "delivery",
+      "operational excellence",
+      "system reliability",
+      "AWS",
+      "Kubernetes",
+      "CI/CD",
+      "cross-functional",
+      "scale teams",
+      "Kotlin",
+      "Golang",
+      "Rust"
+    ]
+  },
+  "tailoring_intensity": "moderate",
+  "interview_date": null,
+  "interview_round": null,
+  "interview_type": null,
+  "interview_notes_file": null,
+  "rejection_date": null,
+  "rejection_reason": null,
+  "rejection_insights": null,
+  "offer": {
+    "salary": null,
+    "equity": null,
+    "signing_bonus": null,
+    "remote": null,
+    "benefits_notes": null,
+    "decision_deadline": null
+  },
+  "offer_accepted": null,
+  "learning_flags": []
+}

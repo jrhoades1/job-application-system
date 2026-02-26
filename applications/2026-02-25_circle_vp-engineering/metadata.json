@@ -1,0 +1,90 @@
+{
+  "company": "Circle",
+  "role": "VP, Engineering",
+  "location": "Greater Tampa Bay Area (Remote)",
+  "compensation": "$317,500 - $365,000/yr",
+  "applied_date": null,
+  "source": "LinkedIn",
+  "source_url": "https://www.linkedin.com/jobs/view/4360520873/",
+  "status": "withdrawn",
+  "follow_up_date": null,
+  "contact": "",
+  "resume_version": null,
+  "cover_letter": null,
+  "former_employer": false,
+  "former_employer_role": null,
+  "notes": "NYSE-listed (CRCL). Internet financial platform — USDC stablecoin, Circle Payments Network, Arc blockchain. 1,390 employees. VP1 level — leads through directors and senior managers. Regulated fintech/blockchain. Tampa Bay area but remote. Highest comp seen so far ($317K-$365K base). NOT healthcare. Fintech/blockchain/crypto domain.",
+  "match_score": {
+    "overall": "good",
+    "requirements_matched": [
+      "15+ years software engineering including 8+ years senior leadership — 20+ years experience, 10+ years at CTO/VP/Director/Chief Architect level",
+      "Strong technical background building large-scale distributed systems — Monolith-to-microservices transformation (Cognizant), 99.9% uptime platform (ilumed), multi-cloud architecture (Red Spot)",
+      "Balance long-term platform strategy with near/mid-term execution — Multi-quarter roadmaps (ilumed), aligned technical roadmaps with business needs (Red Spot), strategic + delivery across all roles",
+      "Experience partnering with Product and cross-functional executives — CTO-level executive partnership at ilumed and Red Spot, cross-functional collaboration with product/clinical/ops at every company",
+      "Passion for developing leaders, building teams, culture of accountability — Built 3 teams from zero, mentored engineers increasing velocity 15%, cultivated high-performing culture delivering 4 launches annually",
+      "Experience leading globally distributed teams — Managed 50+ developers across US, Ukraine, and Central America (Cognizant), offshore resources at MedQuest and Red Spot",
+      "Comfort operating in fast-paced environments with autonomy — Three startup builds from zero, CTO-level autonomy at ilumed and Red Spot",
+      "Background in regulated, security-sensitive, compliance-heavy environments (preferred) — HIPAA compliance, SOC2/HITRUST certification, security architecture across entire career",
+      "Experience scaling platforms in high-growth companies (preferred) — Expanded platform from 50K to 90K users (ilumed), 200K+ transactions (Red Spot), 100 centers in 13 states (MedQuest)"
+    ],
+    "requirements_partial": [
+      "Managing leaders of leaders (directors and senior managers) — Led large orgs (22 at MedQuest with QA/Product leads, 50+ at Cognizant) but explicit director-of-directors experience not prominently documented. Has managed team leads and sub-team managers but not clearly at the directors-managing-directors level this role requires",
+      "Leading platform or infrastructure engineering in product-centric environment — Built product platforms but not internal developer platforms or shared infrastructure services specifically. The distinction between product engineering and platform engineering matters here",
+      "Expertise running critical high-traffic platforms (observability, scaling, incident response, reliability engineering) — 99.9% uptime and DevOps/CI/CD demonstrate operational excellence, but formal SRE practices, observability tooling, and incident response frameworks not specifically documented",
+      "Building internal developer platforms or shared services (preferred) — No documented experience building internal developer tooling or platform-as-a-service for other engineering teams"
+    ],
+    "gaps": [
+      "Fintech/blockchain/crypto domain — No financial services, digital assets, or blockchain experience",
+      "Platform engineering vs product engineering — Role is specifically about product-enabling platforms (internal infrastructure), not customer-facing products. This is a distinct engineering discipline",
+      "Scale of leadership — VP1 leading through directors and senior managers implies managing an org of 100+ engineers. Jimmy's largest direct org was 22 (MedQuest) and 50+ in a matrix at Cognizant. This is a step up in organizational scale"
+    ],
+    "addressable_gaps": [
+      "Fintech/blockchain domain — Preferred, not required. The role is about platform engineering leadership, not domain expertise. Compliance-heavy background transfers well to regulated fintech",
+      "Platform engineering — Has built foundational infrastructure (microservices, APIs, CI/CD pipelines) that other teams build on. The formal 'platform engineering' framing is different but the technical work overlaps"
+    ],
+    "hard_gaps": [
+      "Organizational scale — VP1 at a 1,390-person NYSE company leading through directors is a significant step up from CTO at a small company or Chief Architect in a consulting role. The span of control (likely 100+ engineers across multiple platform domains) exceeds documented experience. Circle may see this as a stretch for someone who hasn't operated at this organizational scale before."
+    ],
+    "keywords": [
+      "platform engineering",
+      "VP engineering",
+      "distributed systems",
+      "technical vision",
+      "engineering standards",
+      "reliability",
+      "scalability",
+      "security",
+      "compliance",
+      "regulated environment",
+      "developer experience",
+      "technical debt",
+      "leaders of leaders",
+      "remote-first",
+      "globally distributed",
+      "observability",
+      "incident response",
+      "multi-year roadmap",
+      "fintech",
+      "blockchain",
+      "USDC"
+    ]
+  },
+  "tailoring_intensity": null,
+  "interview_date": null,
+  "interview_round": null,
+  "interview_type": null,
+  "interview_notes_file": null,
+  "rejection_date": null,
+  "rejection_reason": null,
+  "rejection_insights": null,
+  "offer": {
+    "salary": null,
+    "equity": null,
+    "signing_bonus": null,
+    "remote": null,
+    "benefits_notes": null,
+    "decision_deadline": null
+  },
+  "offer_accepted": null,
+  "learning_flags": []
+}

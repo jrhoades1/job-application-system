@@ -1,0 +1,30 @@
+{
+  "company": "HealthFirst Technologies",
+  "role": "VP of Engineering",
+  "applied_date": "2026-02-24",
+  "source": "LinkedIn",
+  "source_url": "https://example.com/job/healthfirst-vp-eng",
+  "status": "applied",
+  "follow_up_date": "2026-03-10",
+  "contact": "",
+  "resume_version": "base-resume-healthfirst-tailored.docx",
+  "cover_letter": "cover-letter-healthfirst.docx",
+  "notes": "Sample application for testing folder structure. Strong match on healthcare AI and team scaling.",
+  "match_score": {
+    "overall": "strong",
+    "keywords_matched": [
+      "value-based care",
+      "AI/ML",
+      "HL7/FHIR",
+      "HIPAA",
+      "AWS",
+      "team scaling",
+      "roadmap",
+      "budget management"
+    ],
+    "gaps": [
+      "HITRUST certification experience",
+      "SOC2 audit experience"
+    ]
+  }
+}

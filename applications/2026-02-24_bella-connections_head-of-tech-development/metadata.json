@@ -1,0 +1,63 @@
+{
+  "company": "Bella Connections",
+  "role": "Head of Tech & Development",
+  "location": "Remote (USA, Canada, UK, France preferred)",
+  "compensation": "$160,000 - $200,000 + Performance Bonus",
+  "applied_date": null,
+  "source": "Company Website",
+  "source_url": "https://bellaconnections.com/job-postings/head-of-tech-development/",
+  "status": "evaluating",
+  "follow_up_date": null,
+  "contact": "",
+  "resume_version": null,
+  "cover_letter": null,
+  "former_employer": false,
+  "former_employer_role": null,
+  "notes": "DTC ecommerce role — significant domain mismatch with healthcare background. Checkout Champ is listed as essential.",
+  "match_score": {
+    "overall": "long_shot",
+    "requirements_matched": [
+      "Engineering leadership and structured process management experience",
+      "Business-to-technical translation ability",
+      "High ownership mindset with revenue accountability",
+      "Quick problem-solving with high technical standards"
+    ],
+    "requirements_partial": [
+      "Multi-brand management (has multi-tenant architecture, not DTC multi-brand)",
+      "Internal dashboard or reporting tool development",
+      "High-growth environment background (startup experience at Perceptive)",
+      "Attribution and automation systems (has automation, not marketing attribution)"
+    ],
+    "gaps": [
+      "DTC/ecommerce operational experience",
+      "Funnels, CRO, attribution, and analytics",
+      "Checkout Champ experience (essential)",
+      "GA4, pixel tracking, event-based architecture",
+      "Split testing / CRO testing",
+      "Page speed optimization and funnel stability"
+    ],
+    "addressable_gaps": [
+      "Multi-brand management could be positioned through multi-tenant architecture experience"
+    ],
+    "hard_gaps": [
+      "DTC/ecommerce operational experience — entire career is healthcare IT",
+      "Checkout Champ experience — essential requirement with no substitute",
+      "Funnels, CRO, attribution — no conversion optimization background",
+      "GA4, pixel tracking — no marketing analytics experience"
+    ],
+    "keywords": [
+      "DTC ecommerce",
+      "Checkout Champ",
+      "CRO",
+      "funnels",
+      "conversion optimization",
+      "split testing",
+      "GA4",
+      "pixel tracking",
+      "attribution",
+      "page speed",
+      "multi-brand",
+      "BI reporting"
+    ]
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "company": "Flex",
+  "role": "Head of Engineering",
+  "location": "United States (Remote)",
+  "compensation": null,
+  "applied_date": "2026-02-24",
+  "source": "LinkedIn",
+  "source_url": "https://www.linkedin.com/jobs/view/4376144266/",
+  "status": "applied",
+  "follow_up_date": "2026-03-03",
+  "contact": "",
+  "resume_version": "resume.docx",
+  "cover_letter": "cover-letter.docx",
+  "former_employer": false,
+  "former_employer_role": null,
+  "notes": "HSA/FSA payment infrastructure for health & wellness ecommerce brands. Early-stage startup (11-50 employees, seed-to-Series B range). 700% engineering growth over 2 years. Partner directly with founders. Hands-on expected. Healthcare-adjacent (payments, not clinical). $150B TAM in HSA/FSA spending.",
+  "match_score": {
+    "overall": "good",
+    "requirements_matched": [
+      "8+ years engineering experience with 2-3 years leadership — 20+ years experience, CTO/VP/Director roles spanning 5 companies",
+      "Proven team builder — Built 3 teams from zero (0→22 MedQuest, 0→15 Red Spot, 0→10 Perceptive), hired/mentored/retained engineers",
+      "Architectural thinker — Designed and scaled distributed systems: monolith-to-microservices (Cognizant), multi-tenant architecture, 99.9% uptime (ilumed)",
+      "Own technical roadmap with founders — Multi-quarter roadmaps driving 20% operational efficiency (ilumed), $2M budget alignment (MedQuest), CTO-level strategic partnership at multiple companies",
+      "Set engineering standards — Instituted DevOps/CI/CD improving reliability 35% and deployment frequency 50% (Red Spot), agile best practices increasing velocity 15%",
+      "Drive delivery — Managed execution delivering 4 product launches annually (Red Spot), 4 mobile apps (Perceptive), diagnostic imaging across 100 centers (MedQuest)",
+      "Engage cross-functionally — Collaborated with operations, product, clinical teams; aligned technical roadmaps with business needs growing client base 12%",
+      "Startup experience — Built from zero at Perceptive (startup), Red Spot (startup), led in resource-constrained fast-moving environments",
+      "AWS familiarity (strong plus) — AWS integrations accelerating deployment 25% (Cognizant), multi-cloud AWS/Azure/SaaS platform (Red Spot)",
+      "Low ego, comfortable with ambiguity — Built 3 companies from nothing, repeatedly navigated startup uncertainty"
+    ],
+    "requirements_partial": [
+      "Depth in backend systems and APIs, conversant across full stack — Strong backend/API/architecture experience but recent roles are leadership-heavy, not hands-on coding. NodeJS, Python, Java in stack but daily coding contribution may be rusty at the IC level",
+      "Hands-on contributor to codebase — CTO/VP-level for past 10+ years. Can architect and review but active coding contribution is likely limited compared to what an early-stage startup expects",
+      "TypeScript, Rust, Postgres, Redis (strong plus) — SQL Server, MySQL, Oracle, DynamoDB in stack but TypeScript and Rust not documented. Postgres is adjacent to SQL Server/MySQL. Redis not documented"
+    ],
+    "gaps": [
+      "TypeScript and Rust — Not in documented technical stack",
+      "Redis — Not in documented technical stack",
+      "Payments/fintech domain — No payment infrastructure or checkout experience documented",
+      "Hands-on coding expectation — At CTO/VP level for 10+ years, may not meet the 'roll up sleeves and code' expectation of a 40-person startup"
+    ],
+    "addressable_gaps": [
+      "TypeScript/Rust — Strong plus not must-have. TypeScript is adjacent to NodeJS experience. Rust is a different paradigm but learnable for a seasoned engineer",
+      "Redis — Adjacent to DynamoDB and other data stores in stack. Straightforward to pick up",
+      "Payments domain — Healthcare IT involves complex data flows, compliance, and transaction processing. HSA/FSA payments bridge healthcare and fintech, which is actually a unique positioning angle"
+    ],
+    "hard_gaps": [
+      "Hands-on coding — This could be a real mismatch. They want someone who 'rolls up sleeves' and contributes to the codebase. At a 40-person startup, the Head of Eng likely codes 30-40% of their time. Jimmy's recent decade has been leadership-focused. This depends on how current his hands-on skills are."
+    ],
+    "keywords": [
+      "engineering leadership",
+      "team building",
+      "technical roadmap",
+      "backend systems",
+      "APIs",
+      "distributed systems",
+      "startup",
+      "payments infrastructure",
+      "HSA",
+      "FSA",
+      "TypeScript",
+      "Rust",
+      "Postgres",
+      "Redis",
+      "AWS",
+      "hands-on",
+      "architect for scale",
+      "checkout",
+      "cross-functional"
+    ]
+  },
+  "tailoring_intensity": "moderate",
+  "interview_date": null,
+  "interview_round": null,
+  "interview_type": null,
+  "interview_notes_file": null,
+  "rejection_date": null,
+  "rejection_reason": null,
+  "rejection_insights": null,
+  "offer": {
+    "salary": null,
+    "equity": null,
+    "signing_bonus": null,
+    "remote": null,
+    "benefits_notes": null,
+    "decision_deadline": null
+  },
+  "offer_accepted": null,
+  "learning_flags": []
+}

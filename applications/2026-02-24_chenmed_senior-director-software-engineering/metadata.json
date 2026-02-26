@@ -1,0 +1,73 @@
+{
+  "company": "ChenMed",
+  "role": "Senior Director, Software Engineering",
+  "location": "Miami, FL (on-site)",
+  "compensation": "$198,000 - $282,857 + bonuses/commissions",
+  "applied_date": null,
+  "source": "LinkedIn",
+  "source_url": "https://careers.chenmed.com/us/en/job/CHENUSR0046888EXTERNALENUS/Senior-Director-Software-Engineering",
+  "status": "ready_to_apply",
+  "follow_up_date": null,
+  "contact": "",
+  "resume_version": "resume.docx",
+  "cover_letter": "cover-letter.docx",
+  "former_employer": false,
+  "former_employer_role": null,
+  "notes": "Healthcare company focused on value-based care for low-income seniors. Exceptional domain alignment. On-site Miami — confirm location viability. 25% travel required.",
+  "match_score": {
+    "overall": "strong",
+    "requirements_matched": [
+      "15+ years in Information Technology (has 20+)",
+      "10+ years in IT management and strategy (CTO/Director across multiple orgs)",
+      "Software design/architecture process (monolith-to-microservices, multi-tenant architecture)",
+      "Cloud-native application design (AWS, Azure, Google Cloud)",
+      "Multi-cloud IaaS/PaaS experience (AWS, Azure, GCP)",
+      "CI/CD and DevOps proficiency (instituted practices, 35% reliability improvement, 50% deployment frequency increase)",
+      "Expert-level software development (Python, Java, C#, NodeJS, SQL)",
+      "Agile methodologies — Scrum (led agile transformations, 15% velocity improvement)",
+      "Large-scale product experience (200K+ appointments, 90K beneficiaries, 100 centers in 13 states)",
+      "AWS platform expertise (AWS integrations, 25% faster deployment across 5 projects)",
+      "Bachelor's degree in MIS (University of Alabama Birmingham)",
+      "Master's degree — MBA (Shorter University)",
+      "Strategic planning and multi-year roadmaps (multi-quarter roadmaps, 20% operational efficiency growth)",
+      "Quality assurance and data protection (HIPAA compliance, 99.9% uptime, SOC2/HITRUST)",
+      "Team performance management and talent development (built teams 0→22, 0→15, 0→10)",
+      "Healthcare domain expertise (EHR, HL7, FHIR, claims processing, value-based care)",
+      "Executive-level presentation (CTO/Director roles with cross-functional leadership)"
+    ],
+    "requirements_partial": [
+      "SAFe methodology (strong Agile/Scrum, SAFe not explicitly demonstrated)",
+      "CISSP or CPCA certification (preferred, not required — has SOC2/HITRUST audit experience)"
+    ],
+    "gaps": [],
+    "addressable_gaps": [
+      "SAFe — extensive Agile experience makes this a minor positioning exercise",
+      "CISSP/CPCA — SOC2/HITRUST certification leadership demonstrates equivalent security governance"
+    ],
+    "hard_gaps": [],
+    "keywords": [
+      "software engineering",
+      "technical strategy",
+      "AWS",
+      "cloud-native",
+      "microservices",
+      "CI/CD",
+      "DevOps",
+      "Agile",
+      "Scrum",
+      "SAFe",
+      "multi-cloud",
+      "IaaS",
+      "PaaS",
+      "data protection",
+      "HIPAA",
+      "quality assurance",
+      "technical debt",
+      "value-based care",
+      "healthcare",
+      "software architecture",
+      "talent development",
+      "multi-year technology strategy"
+    ]
+  }
+}

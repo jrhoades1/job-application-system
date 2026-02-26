@@ -1,0 +1,82 @@
+{
+  "company": "Upstart",
+  "role": "Senior Engineering Manager, Offer Delivery",
+  "location": "United States (Remote)",
+  "compensation": "$195,300 - $270,400/yr + bonus + equity",
+  "applied_date": null,
+  "source": "LinkedIn",
+  "source_url": "https://www.linkedin.com/jobs/view/4373716745/",
+  "status": "withdrawn",
+  "follow_up_date": null,
+  "contact": "",
+  "resume_version": null,
+  "cover_letter": null,
+  "former_employer": false,
+  "former_employer_role": null,
+  "notes": "AI lending marketplace (NASDAQ: UPST). Offer Delivery / PLG team — personalized credit offers, growth engineering, recommendation systems, ML collaboration. Public company, 1,821 employees, 3.5yr median tenure. Strong comp + equity. NOT healthcare. Title is Senior EM, not VP — potential step down in title from CTO/VP roles.",
+  "match_score": {
+    "overall": "stretch",
+    "requirements_matched": [
+      "Bachelor's degree + 8 years experience — MBA + BS MIS + 20+ years experience, far exceeds minimum",
+      "3+ years managing a team directly — 20+ years of direct team management across 5 companies",
+      "Experience leading product-oriented teams with quantifiable user impact — Led teams delivering patient-facing platforms, mobile apps with measurable adoption, scheduling platform increasing efficiency 45%",
+      "Convey complex technical information to variety of audiences — CTO-level executive communication, cross-functional collaboration with product/clinical/ops teams",
+      "Proven track record of leading and growing engineering teams (preferred) — Built 3 teams from zero (22, 15, 10), managed 50+ at Cognizant",
+      "Success driving initiatives spanning multiple teams (preferred) — Multi-team coordination across US/Ukraine/Central America at Cognizant, cross-functional roadmaps at ilumed",
+      "Skilled in scaling systems technically and organizationally (preferred) — Monolith-to-microservices (Cognizant), 99.9% uptime (ilumed), team scaling from zero repeatedly"
+    ],
+    "requirements_partial": [
+      "Experience working on a product with marketplace dynamics (preferred) — Red Spot's scheduling platform connected patients with providers (marketplace-adjacent), but not a two-sided lending marketplace",
+      "Engineering roadmap for personalized recommendations — Built AI-driven analytics and ML integrations, but not personalization/recommendation systems specifically"
+    ],
+    "gaps": [
+      "Growth engineering product stacks (Optimizations, Experimentation, Personalization, Recommendation Systems) — No documented experience with A/B testing frameworks, experimentation platforms, personalization engines, or recommendation systems. This is the core domain of the role.",
+      "Fintech/lending domain — Entire career in healthcare IT, no lending, credit, or financial services experience",
+      "Title mismatch — Role is Senior Engineering Manager; candidate has been CTO/VP/Director for 10+ years. Significant step down in title and likely scope"
+    ],
+    "addressable_gaps": [
+      "Fintech domain — Addressable at this level; engineering leadership patterns transfer across domains",
+      "Marketplace dynamics — Red Spot's multi-sided scheduling platform is adjacent"
+    ],
+    "hard_gaps": [
+      "Growth engineering / experimentation / personalization — This is the core technical domain of the role. The team builds recommendation systems, runs experiments, and optimizes conversion funnels. Jimmy has no documented experience in any of these areas. AI/ML experience is in healthcare workflows, not user-facing personalization or growth engineering.",
+      "Title/scope mismatch — Going from CTO to Senior Engineering Manager is a significant step back. The role manages a single team within a larger org, not an entire engineering function. This may signal overqualification to the hiring team."
+    ],
+    "keywords": [
+      "engineering manager",
+      "growth engineering",
+      "personalization",
+      "recommendation systems",
+      "experimentation",
+      "A/B testing",
+      "offer generation",
+      "marketplace",
+      "AI lending",
+      "ML",
+      "cross-functional",
+      "data-driven",
+      "PLG",
+      "product-led growth",
+      "conversion optimization",
+      "user engagement"
+    ]
+  },
+  "tailoring_intensity": null,
+  "interview_date": null,
+  "interview_round": null,
+  "interview_type": null,
+  "interview_notes_file": null,
+  "rejection_date": null,
+  "rejection_reason": null,
+  "rejection_insights": null,
+  "offer": {
+    "salary": null,
+    "equity": null,
+    "signing_bonus": null,
+    "remote": null,
+    "benefits_notes": null,
+    "decision_deadline": null
+  },
+  "offer_accepted": null,
+  "learning_flags": []
+}

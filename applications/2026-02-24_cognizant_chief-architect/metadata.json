@@ -1,0 +1,43 @@
+{
+  "company": "Cognizant Softvision",
+  "role": "Chief Architect",
+  "location": "Not specified",
+  "compensation": null,
+  "applied_date": null,
+  "source": "Direct",
+  "source_url": "",
+  "status": "evaluating",
+  "follow_up_date": null,
+  "contact": "",
+  "resume_version": null,
+  "cover_letter": null,
+  "notes": "This is the user's former employer (Chief Architect, Mar 2021 - Aug 2022). Flagged for awareness.",
+  "match_score": {
+    "overall": "strong",
+    "requirements_matched": [
+      "10+ years architecture experience — 20+ years total, Chief Architect at Cognizant (2021-2022), CTO roles before and after",
+      "Microservices — transformed monolithic app to microservices architecture at Cognizant, designed microservices cutting latency by 20%",
+      "FHIR/HL7 — led technical reviews ensuring HL7/FHIR compliance at Cognizant, improving data accuracy by 15%",
+      "Multi-tenant SaaS — built multi-tenant architecture at Cognizant",
+      "AWS — executed AWS integrations accelerating deployment by 25% at Cognizant, AWS at Red Spot",
+      "Azure — Azure experience at Red Spot (patient scheduling system), Perceptive (cloud scalability)"
+    ],
+    "requirements_partial": [],
+    "gaps": [],
+    "addressable_gaps": [],
+    "hard_gaps": [],
+    "keywords": [
+      "cloud migration",
+      "microservices",
+      "FHIR",
+      "HL7",
+      "multi-tenant",
+      "SaaS",
+      "AWS",
+      "Azure",
+      "architecture",
+      "Fortune 500",
+      "healthcare"
+    ]
+  }
+}

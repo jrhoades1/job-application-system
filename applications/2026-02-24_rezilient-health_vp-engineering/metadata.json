@@ -1,0 +1,88 @@
+{
+  "company": "Rezilient Health",
+  "role": "VP of Engineering",
+  "location": "Remote (US-based)",
+  "compensation": null,
+  "applied_date": "2026-02-24",
+  "source": "LinkedIn",
+  "source_url": "",
+  "status": "applied",
+  "follow_up_date": "2026-03-03",
+  "contact": "",
+  "resume_version": "resume.docx",
+  "cover_letter": "cover-letter.docx",
+  "former_employer": false,
+  "former_employer_role": null,
+  "notes": "Hybrid care model startup (primary + virtual care). Partners with health systems and payers. Series A-C stage. Reports to CEO/CTO.",
+  "match_score": {
+    "overall": "strong",
+    "requirements_matched": [
+      "10+ years software engineering with 5+ years leadership — 20+ years experience, CTO/VP roles at ilumed, MedQuest, Red Spot, Perceptive",
+      "Building and scaling engineering teams 20+ — Built teams from 0→22 (MedQuest), 0→15 (Red Spot), 0→10 (Perceptive), managed 50+ (Cognizant)",
+      "Shipping production healthcare software — Entire career in healthtech: EHR integrations, patient-facing apps, diagnostic imaging across 100 centers",
+      "Healthcare interoperability HL7/FHIR — Led technical reviews ensuring compliance with HL7, FHIR standards at Cognizant, improving data accuracy 15%",
+      "HIPAA compliance — Overhauled system architecture for HIPAA compliance achieving 99.9% uptime at ilumed",
+      "Cloud infrastructure AWS — AWS integrations accelerating deployment by 25% (Cognizant), AWS/Azure/SaaS scheduling platform (Red Spot)",
+      "Modern web technologies Node.js/React — NodeJS listed in technical stack, full-stack development experience",
+      "Own technical roadmap aligned to business — Multi-quarter roadmaps driving 20% operational efficiency (ilumed), $2M budget management (MedQuest)",
+      "Build/mentor/scale engineering team — Three teams built from scratch, mentored engineers increasing velocity 15%",
+      "Partner with product/clinical/ops teams — Collaborated with operations to streamline workflows (Perceptive), clinical support features (ilumed)",
+      "Manage engineering budget — Oversaw $2M annual budget aligning resources to scalable technology (MedQuest)",
+      "AI/ML integration in healthcare (nice-to-have) — Spearheaded AI/ML integration into healthcare workflows (ilumed), AI-driven analytics (Red Spot)",
+      "Value-based care models (nice-to-have) — Direct VBC experience listed in technical breadth (Healthcare: Value-Based Care)",
+      "API-first architecture (nice-to-have) — API Development listed, microservices architecture design (Cognizant)",
+      "SOC2/HITRUST certifications — Led SOC2/HITRUST certification process at ilumed, established compliance frameworks and controls, on schedule before departure"
+    ],
+    "requirements_partial": [
+      "Series A-C startup experience — Led teams at startup-stage companies (Perceptive, Red Spot) but specific funding stage not documented. Comfortable with ambiguity demonstrated by building from zero repeatedly",
+      "Telemedicine/virtual care platforms (nice-to-have) — Built patient-facing healthcare apps (Perceptive), scheduling platform enabling 200K+ appointments (Red Spot), but dedicated telehealth platform not specifically documented"
+    ],
+    "gaps": [
+      "M&A technical due diligence (nice-to-have) — no evidence of this experience"
+    ],
+    "addressable_gaps": [
+      "M&A due diligence — nice-to-have only, not critical"
+    ],
+    "hard_gaps": [],
+    "keywords": [
+      "healthcare platform",
+      "engineering leadership",
+      "team scaling",
+      "HL7",
+      "FHIR",
+      "HIPAA",
+      "SOC2",
+      "HITRUST",
+      "AWS",
+      "Node.js",
+      "React",
+      "AI/ML",
+      "value-based care",
+      "hybrid care",
+      "telemedicine",
+      "microservices",
+      "API-first",
+      "technical roadmap",
+      "startup",
+      "interoperability"
+    ]
+  },
+  "tailoring_intensity": "light",
+  "interview_date": null,
+  "interview_round": null,
+  "interview_type": null,
+  "interview_notes_file": null,
+  "rejection_date": null,
+  "rejection_reason": null,
+  "rejection_insights": null,
+  "offer": {
+    "salary": null,
+    "equity": null,
+    "signing_bonus": null,
+    "remote": null,
+    "benefits_notes": null,
+    "decision_deadline": null
+  },
+  "offer_accepted": null,
+  "learning_flags": []
+}

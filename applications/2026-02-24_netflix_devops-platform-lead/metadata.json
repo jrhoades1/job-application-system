@@ -1,0 +1,59 @@
+{
+  "company": "Netflix",
+  "role": "DevOps Platform Lead",
+  "location": "Remote (US) / Los Gatos, CA",
+  "compensation": "$280K-$350K base + stock",
+  "applied_date": null,
+  "source": "LinkedIn",
+  "source_url": "https://example.com/netflix-devops-lead",
+  "status": "evaluating",
+  "follow_up_date": null,
+  "contact": "",
+  "resume_version": null,
+  "cover_letter": null,
+  "former_employer": false,
+  "former_employer_role": null,
+  "notes": "Stretch match — strong on CI/CD and cloud, but missing streaming infrastructure and dedicated DevOps leadership experience.",
+  "match_score": {
+    "overall": "stretch",
+    "requirements_matched": [
+      "10+ years engineering experience — 20+ years total",
+      "CI/CD pipeline design — Instituted DevOps and CI/CD practices at Red Spot, improving reliability by 35%",
+      "AWS expertise — multiple roles with AWS integrations",
+      "Team leadership and mentoring — built multiple teams from scratch"
+    ],
+    "requirements_partial": [
+      "Kubernetes at scale — listed in skills, used in practice, but not at Netflix-level scale",
+      "Infrastructure as Code (Terraform) — cloud architecture experience but Terraform not specifically mentioned",
+      "Observability and monitoring — implied through uptime and reliability work but not called out",
+      "Platform engineering mindset — architecture experience translates but not pure platform role"
+    ],
+    "gaps": [
+      "Streaming/media infrastructure experience",
+      "Dedicated DevOps/Platform Engineering leadership role (vs CTO doing DevOps)",
+      "Chaos engineering / resilience testing",
+      "Open source contributions in infrastructure space"
+    ],
+    "addressable_gaps": [
+      "Platform engineering mindset — architecture and team-scaling experience is transferable",
+      "Observability — can be positioned through reliability and uptime achievements"
+    ],
+    "hard_gaps": [
+      "Streaming/media infrastructure — no adjacent experience in content delivery",
+      "Chaos engineering — no direct experience to point to"
+    ],
+    "keywords": [
+      "Kubernetes",
+      "Terraform",
+      "CI/CD",
+      "platform engineering",
+      "SRE",
+      "observability",
+      "infrastructure as code",
+      "microservices",
+      "cloud native",
+      "DevOps",
+      "reliability engineering"
+    ]
+  }
+}

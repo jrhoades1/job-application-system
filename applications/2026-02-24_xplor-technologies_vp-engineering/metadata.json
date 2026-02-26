@@ -1,0 +1,90 @@
+{
+  "company": "Xplor Technologies",
+  "role": "VP Engineering (Momence)",
+  "location": "Atlanta, GA (Remote)",
+  "compensation": "$230,000 - $260,000/yr",
+  "applied_date": null,
+  "source": "LinkedIn",
+  "source_url": "https://www.linkedin.com/jobs/view/4372117268/",
+  "status": "evaluating",
+  "follow_up_date": null,
+  "contact": "",
+  "resume_version": null,
+  "cover_letter": null,
+  "former_employer": false,
+  "former_employer_role": null,
+  "notes": "SaaS + embedded payments platform for SMBs (education, fitness, field services, personal services). 106K customers, $38B payments. Role is for Momence product line. NOT healthcare. Cover letter must include 'moonshot' and mention 'Mr Pineapple Express'. Apply through their portal, not LinkedIn.",
+  "match_score": {
+    "overall": "good",
+    "requirements_matched": [
+      "10+ years senior engineering leadership — 20+ years, CTO/VP/Director/Chief Architect across 5 companies",
+      "Deep technical expertise + business acumen — $2M budget ownership, multi-quarter roadmaps tied to business outcomes, client base growth 12%",
+      "Lead globally distributed teams — Managed 50+ developers across US, Ukraine, and Central America (Cognizant)",
+      "Defining and executing engineering strategy — Technology roadmaps driving 20% operational efficiency (ilumed), aligned with business needs growing client base (Red Spot)",
+      "Strategic hypothesis-driven mindset with bias toward action — Built 3 teams from zero, shipped products in startup environments (Perceptive, Red Spot)",
+      "Self-directed leader with thought leadership — CTO-level roles at multiple companies, AI integration pioneer",
+      "Experience applying new methodologies — Instituted DevOps/CI/CD improving reliability 35% and deployment frequency 50% (Red Spot), agile transformation increasing velocity 15%",
+      "Strong understanding of AWS/cloud-native infrastructure — AWS integrations accelerating deployment 25% (Cognizant), multi-cloud platform AWS/Azure/SaaS (Red Spot)",
+      "Microservices architectures and API design — Transformed monolith to microservices/multi-tenant (Cognizant), designed microservices cutting latency 20%",
+      "Microservices topologies and operational concerns — Resiliency (99.9% uptime at ilumed), security (HIPAA/SOC2), Kubernetes and CI/CD in technical stack",
+      "Bachelor's degree or equivalent — MBA (Shorter) + BS MIS (UAB)",
+      "AI/agentic workflow experience (inferred nice-to-have) — AI/ML integration into workflows at 3 companies, AI-driven analytics, NLP experimentation"
+    ],
+    "requirements_partial": [
+      "Modernizing engineering practices toward AI-enabled delivery models — Strong AI integration experience but in healthcare context, not SaaS delivery model optimization specifically. Has demonstrated AI reducing dev cycles 30% (Perceptive) which is adjacent",
+      "Connect & Ecosystem domain (integrations, APIs, partners, platform capabilities) — Extensive API and integration work (HL7, FHIR, EHR integrations, multi-system scheduling platform) but in healthcare ecosystem, not SaaS/payments partner ecosystem",
+      "Articulate trade-offs across SaaS/IaaS/PaaS, container orchestration, service mesh, API gateways — Cloud architecture across AWS/Azure/GCP and Kubernetes experience, but service mesh and API gateway experience not specifically documented",
+      "Managing architectural debt, governance, evolutionary architecture — Monolith-to-microservices transformation (Cognizant) demonstrates this, but formal governance/architectural debt management frameworks not documented"
+    ],
+    "gaps": [
+      "SaaS platform and embedded payments domain — Entire career in healthcare IT, no SaaS/payments platform experience",
+      "Service mesh experience — Not documented in technical stack"
+    ],
+    "addressable_gaps": [
+      "SaaS/payments domain — While healthcare-focused, built multi-tenant SaaS-style platforms, API-first architectures, and cloud-native solutions. The engineering patterns transfer; the domain context is learnable",
+      "Service mesh — Has Kubernetes, microservices, and API experience. Service mesh is a natural extension of existing infrastructure knowledge"
+    ],
+    "hard_gaps": [],
+    "keywords": [
+      "SaaS",
+      "engineering leadership",
+      "AI-enabled delivery",
+      "agentic workflows",
+      "platform engineering",
+      "integrations",
+      "APIs",
+      "ecosystem",
+      "microservices",
+      "AWS",
+      "cloud-native",
+      "container orchestration",
+      "service mesh",
+      "API gateways",
+      "architectural debt",
+      "evolutionary architecture",
+      "technology roadmap",
+      "globally distributed teams",
+      "vendor management",
+      "observability",
+      "resiliency"
+    ]
+  },
+  "tailoring_intensity": null,
+  "interview_date": null,
+  "interview_round": null,
+  "interview_type": null,
+  "interview_notes_file": null,
+  "rejection_date": null,
+  "rejection_reason": null,
+  "rejection_insights": null,
+  "offer": {
+    "salary": null,
+    "equity": null,
+    "signing_bonus": null,
+    "remote": null,
+    "benefits_notes": null,
+    "decision_deadline": null
+  },
+  "offer_accepted": null,
+  "learning_flags": []
+}
