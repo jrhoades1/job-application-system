@@ -29,7 +29,7 @@ export default function DashboardPage() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch("/api/applications?limit=50");
+        const res = await fetch("/api/applications?limit=1000");
         const apps = await res.json();
         const list = Array.isArray(apps) ? apps : apps.data ?? [];
 
