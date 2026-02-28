@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 hooks/memory_capture.py",
+            "command": "python3 C:/Users/Tracy/Projects/job-applications/hooks/memory_capture.py",
             "async": true
           }
         ]
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 hooks/guardrail_check.py"
+            "command": "python3 C:/Users/Tracy/Projects/job-applications/hooks/guardrail_check.py"
           }
         ]
       }
@@ -29,7 +29,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 hooks/validate_output.py"
+            "command": "python3 C:/Users/Tracy/Projects/job-applications/hooks/validate_output.py"
           }
         ]
       }

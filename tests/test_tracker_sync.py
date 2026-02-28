@@ -33,7 +33,7 @@ def load_all_metadata():
     for folder in sorted(os.listdir(APPLICATIONS_DIR)):
         meta_path = os.path.join(APPLICATIONS_DIR, folder, "metadata.json")
         if os.path.exists(meta_path):
-            with open(meta_path) as f:
+            with open(meta_path, encoding="utf-8") as f:
                 apps.append((folder, json.load(f)))
     return apps
 
@@ -157,7 +157,7 @@ class TestTrackerCompleteness:
                 missing.append(f"{meta['company']} - {meta['role']} (folder: {folder})")
 
         assert not missing, (
-            f"These applications have metadata.json but are missing from tracker.xlsx:\n"
+            "These applications have metadata.json but are missing from tracker.xlsx:\n"
             + "\n".join(f"  - {m}" for m in missing)
         )
 

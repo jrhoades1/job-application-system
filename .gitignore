@@ -22,6 +22,16 @@ pipeline/staging/
 pipeline/fingerprints.json
 pipeline/processed/
 
+# Swooped data exports (may contain secrets)
+swooped_*.json
+swooped_*.js
+swooped_*.py
+swooped_*.html
+swooped_export/
+
+# Pipeline review queue (regenerated each run)
+pipeline/review_queue.*
+
 # DSF runtime data
 data/*.db
 data/*.db-journal

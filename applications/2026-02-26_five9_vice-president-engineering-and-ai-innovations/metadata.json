@@ -1,0 +1,52 @@
+{
+  "company": "Five9",
+  "role": "Vice President, Engineering and AI Innovations",
+  "location": "",
+  "compensation": null,
+  "applied_date": null,
+  "source": "Linkedin",
+  "source_url": "https://www.five9.com/about/careers/jobs",
+  "status": "pending_review",
+  "follow_up_date": null,
+  "contact": "",
+  "resume_version": null,
+  "cover_letter": null,
+  "former_employer": false,
+  "former_employer_role": null,
+  "notes": "Sourced via email pipeline on 2026-02-26. Email subject: Fw: “chief technology officer”: Protege - VP, Engineering and more",
+  "match_score": {
+    "overall": "long_shot",
+    "requirements_matched": [],
+    "requirements_partial": [],
+    "gaps": [],
+    "addressable_gaps": [],
+    "hard_gaps": [],
+    "keywords": [
+      "mentoring"
+    ]
+  },
+  "tailoring_intensity": null,
+  "interview_date": null,
+  "interview_round": null,
+  "interview_type": null,
+  "interview_notes_file": null,
+  "rejection_date": null,
+  "rejection_reason": null,
+  "rejection_insights": null,
+  "offer": {
+    "salary": null,
+    "equity": null,
+    "signing_bonus": null,
+    "remote": "unknown",
+    "benefits_notes": null,
+    "decision_deadline": null
+  },
+  "offer_accepted": null,
+  "learning_flags": [],
+  "email_uid": "3",
+  "pipeline_batch": "2026-02-26_f58d1d",
+  "pipeline_confidence": 0.85,
+  "employment_type": "full_time",
+  "skip_date": null,
+  "skip_reason": null
+}

@@ -1822,5 +1822,281 @@
     "role": "VP Engineering (Momence)",
     "status": "evaluating",
     "folder": "2026-02-24_xplor-technologies_vp-engineering"
+  },
+  {
+    "company": "Bloomerang",
+    "role": "Vice President, Engineering",
+    "status": "skipped",
+    "folder": "2026-02-26_bloomerang_vice-president-engineering"
+  },
+  {
+    "company": "Impiricus",
+    "role": "VP, Engineering",
+    "status": "pending_review",
+    "folder": "2026-02-26_impiricus_vp-engineering"
+  },
+  {
+    "company": "Protege",
+    "role": "VP, Engineering",
+    "status": "pending_review",
+    "folder": "2026-02-26_protege_vp-engineering"
+  },
+  {
+    "company": "Soni",
+    "role": "Vice President of Engineering",
+    "status": "pending_review",
+    "folder": "2026-02-26_soni_vice-president-of-engineering"
+  },
+  {
+    "company": "Storm3",
+    "role": "Vice President of Engineering",
+    "status": "skipped",
+    "folder": "2026-02-26_storm3_vice-president-of-engineering"
+  },
+  {
+    "company": "Experian",
+    "role": "Vice President, Software Engineering",
+    "status": "skipped",
+    "folder": "2026-02-26_experian_vice-president-software-engineering"
+  },
+  {
+    "company": "Dynamic Campus",
+    "role": "Chief Information Officer",
+    "status": "skipped",
+    "folder": "2026-02-26_dynamic-campus_chief-information-officer"
+  },
+  {
+    "company": "AlphaPoint",
+    "role": "VP of Engineering",
+    "status": "pending_review",
+    "folder": "2026-02-26_alphapoint_vp-of-engineering"
+  },
+  {
+    "company": "BeOne Medicines",
+    "role": "Vice President, AI & Innovation",
+    "status": "pending_review",
+    "folder": "2026-02-26_beone-medicines_vice-president-ai-innovation"
+  },
+  {
+    "company": "Cooper University Health Care",
+    "role": "CHIEF AI OFFICER",
+    "status": "pending_review",
+    "folder": "2026-02-26_cooper-university-health-care_chief-ai-officer"
+  },
+  {
+    "company": "Core Clinical Partners",
+    "role": "Senior Director of IT",
+    "status": "pending_review",
+    "folder": "2026-02-26_core-clinical-partners_senior-director-of-it"
+  },
+  {
+    "company": "Expedite Talent Solutions",
+    "role": "Lead Director, Software Development Engineering",
+    "status": "pending_review",
+    "folder": "2026-02-26_expedite-talent-solutions_lead-director-software-development-engineering"
+  },
+  {
+    "company": "Five9",
+    "role": "Vice President, Engineering and AI Innovations",
+    "status": "pending_review",
+    "folder": "2026-02-26_five9_vice-president-engineering-and-ai-innovations"
+  },
+  {
+    "company": "Flex",
+    "role": "Fw: New jobs similar to Head Of Engineering",
+    "status": "pending_review",
+    "folder": "2026-02-26_flex_fw-new-jobs-similar-to-head-of-engineering"
+  },
+  {
+    "company": "Fractal",
+    "role": "Head of Engineering - Healthcare & Life Sciences",
+    "status": "pending_review",
+    "folder": "2026-02-26_fractal_head-of-engineering-healthcare-life-sciences"
+  },
+  {
+    "company": "GNC",
+    "role": "Vice President of Application Engineering",
+    "status": "pending_review",
+    "folder": "2026-02-26_gnc_vice-president-of-application-engineering"
+  },
+  {
+    "company": "HCA Healthcare",
+    "role": "Chief Information Officer Galen College of Nursing",
+    "status": "pending_review",
+    "folder": "2026-02-26_hca-healthcare_chief-information-officer-galen-college-of-nursing"
+  },
+  {
+    "company": "IDEAYA Biosciences",
+    "role": "Senior Vice President, Information Technology",
+    "status": "pending_review",
+    "folder": "2026-02-26_ideaya-biosciences_senior-vice-president-information-technology"
+  },
+  {
+    "company": "Memorial Sloan Kettering Cancer Center",
+    "role": "Chief Medical Information Officer (CMIO)",
+    "status": "pending_review",
+    "folder": "2026-02-26_memorial-sloan-kettering-cancer-center_chief-medical-information-officer-cmio"
+  },
+  {
+    "company": "Mission Critical Materials",
+    "role": "Chief Technical Officer",
+    "status": "pending_review",
+    "folder": "2026-02-26_mission-critical-materials_chief-technical-officer"
+  },
+  {
+    "company": "RealTime eClinical Solutions",
+    "role": "VP of Software Engineering",
+    "status": "pending_review",
+    "folder": "2026-02-26_realtime-eclinical-solutions_vp-of-software-engineering"
+  },
+  {
+    "company": "Sully.ai",
+    "role": "Head of Engineering",
+    "status": "pending_review",
+    "folder": "2026-02-26_sullyai_head-of-engineering"
+  },
+  {
+    "company": "The Pittsburgh Foundation",
+    "role": "Chief Information Officer",
+    "status": "pending_review",
+    "folder": "2026-02-26_the-pittsburgh-foundation_chief-information-officer"
+  },
+  {
+    "company": "UpcycleX",
+    "role": "Head of Engineering",
+    "status": "pending_review",
+    "folder": "2026-02-26_upcyclex_head-of-engineering"
+  },
+  {
+    "company": "Banyan Software",
+    "role": "Head of Technology",
+    "status": "pending_review",
+    "folder": "2026-02-26_banyan-software_head-of-technology"
+  },
+  {
+    "company": "DrFirst,",
+    "role": "Vice President, Application Development",
+    "status": "pending_review",
+    "folder": "2026-02-26_drfirst_vice-president-application-development"
+  },
+  {
+    "company": "Lensa",
+    "role": "Chief Technology Officer",
+    "status": "pending_review",
+    "folder": "2026-02-26_lensa_chief-technology-officer"
+  },
+  {
+    "company": "Lensa",
+    "role": "SVP, CIO (Chief Information Officer)",
+    "status": "pending_review",
+    "folder": "2026-02-26_lensa_svp-cio-chief-information-officer"
+  },
+  {
+    "company": "Henry Schein One",
+    "role": "SVP, Software Engineering",
+    "status": "pending_review",
+    "folder": "2026-02-26_henry-schein-one_svp-software-engineering"
+  },
+  {
+    "company": "Abacus Insights",
+    "role": "AI Engineering Leader",
+    "status": "skipped",
+    "folder": "2026-02-27_abacus-insights_ai-engineering-leader"
+  },
+  {
+    "company": "Jobgether",
+    "role": "Remote Engineering Manager Position",
+    "status": "pending_review",
+    "folder": "2026-02-27_jobgether_remote-engineering-manager-position"
+  },
+  {
+    "company": "iVoyant",
+    "role": "Software Engineering Manager",
+    "status": "pending_review",
+    "folder": "2026-02-27_ivoyant_software-engineering-manager"
+  },
+  {
+    "company": "Jobgether",
+    "role": "Fw: New jobs similar to Head Of Software Engineering - REMOTE",
+    "status": "pending_review",
+    "folder": "2026-02-27_jobgether_fw-new-jobs-similar-to-head-of-software-engineering-remote"
+  },
+  {
+    "company": "Castlight Health",
+    "role": "Associate Director Engineering",
+    "status": "pending_review",
+    "folder": "2026-02-27_castlight-health_associate-director-engineering"
+  },
+  {
+    "company": "A Place for Mom",
+    "role": "Senior Director, Engineering - Senior Living",
+    "status": "pending_review",
+    "folder": "2026-02-27_a-place-for-mom_senior-director-engineering-senior-living"
+  },
+  {
+    "company": "AutoPylot",
+    "role": "Head of Engineering",
+    "status": "pending_review",
+    "folder": "2026-02-27_autopylot_head-of-engineering"
+  },
+  {
+    "company": "Forward Financing",
+    "role": "Engineering Manager",
+    "status": "pending_review",
+    "folder": "2026-02-27_forward-financing_engineering-manager"
+  },
+  {
+    "company": "Mira Energy Group,",
+    "role": "Chief Technology Officer",
+    "status": "pending_review",
+    "folder": "2026-02-27_mira-energy-group_chief-technology-officer"
+  },
+  {
+    "company": "Motional",
+    "role": "Senior Director, Engineering",
+    "status": "pending_review",
+    "folder": "2026-02-27_motional_senior-director-engineering"
+  },
+  {
+    "company": "NinjaOne",
+    "role": "Manager, Software Engineering",
+    "status": "pending_review",
+    "folder": "2026-02-27_ninjaone_manager-software-engineering"
+  },
+  {
+    "company": "Paradigm Health",
+    "role": "Director, Software Engineering",
+    "status": "pending_review",
+    "folder": "2026-02-27_paradigm-health_director-software-engineering"
+  },
+  {
+    "company": "Perfecting Peds",
+    "role": "Director of Engineering",
+    "status": "pending_review",
+    "folder": "2026-02-27_perfecting-peds_director-of-engineering"
+  },
+  {
+    "company": "REVEL SEARCH®",
+    "role": "Director of Software Engineering",
+    "status": "pending_review",
+    "folder": "2026-02-27_revel-search_director-of-software-engineering"
+  },
+  {
+    "company": "Ventra Health",
+    "role": "Head of AI and Automation",
+    "status": "pending_review",
+    "folder": "2026-02-27_ventra-health_head-of-ai-and-automation"
+  },
+  {
+    "company": "Vice President of",
+    "role": "Sroa Capital and others are hiring for Vice President of Technology in and around West Palm Beach, FL",
+    "status": "pending_review",
+    "folder": "2026-02-27_vice-president-of_sroa-capital-and-others-are-hiring-for-vice-president-of-tec"
+  },
+  {
+    "company": "X4 Life Sciences",
+    "role": "Chief Product & Technology Officer",
+    "status": "pending_review",
+    "folder": "2026-02-27_x4-life-sciences_chief-product-technology-officer"
   }
 ]

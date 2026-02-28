@@ -1,0 +1,52 @@
+{
+  "company": "Soni",
+  "role": "Vice President of Engineering",
+  "location": "",
+  "compensation": null,
+  "applied_date": null,
+  "source": "Linkedin",
+  "source_url": "https://jobs.ashbyhq.com/soni",
+  "status": "skipped",
+  "follow_up_date": null,
+  "contact": "",
+  "resume_version": null,
+  "cover_letter": null,
+  "former_employer": false,
+  "former_employer_role": null,
+  "notes": "Sourced via email pipeline on 2026-02-26. Email subject: Fw: “head of engineering”: Protege - VP, Engineering and more",
+  "match_score": {
+    "overall": "long_shot",
+    "requirements_matched": [],
+    "requirements_partial": [],
+    "gaps": [],
+    "addressable_gaps": [],
+    "hard_gaps": [],
+    "keywords": [
+      "JavaScript"
+    ]
+  },
+  "tailoring_intensity": null,
+  "interview_date": null,
+  "interview_round": null,
+  "interview_type": null,
+  "interview_notes_file": null,
+  "rejection_date": null,
+  "rejection_reason": null,
+  "rejection_insights": null,
+  "offer": {
+    "salary": null,
+    "equity": null,
+    "signing_bonus": null,
+    "remote": "unknown",
+    "benefits_notes": null,
+    "decision_deadline": null
+  },
+  "offer_accepted": null,
+  "learning_flags": [],
+  "email_uid": "1",
+  "pipeline_batch": "2026-02-26_6fa537",
+  "pipeline_confidence": 0.85,
+  "employment_type": "full_time",
+  "skip_date": "2026-02-26",
+  "skip_reason": "User reviewed and skipped entire batch"
+}
