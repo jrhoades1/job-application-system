@@ -394,7 +394,10 @@ def score_requirement(requirement, achievements):
 
 
 def calculate_overall_score(matches):
-    """Apply the scoring thresholds from scoring-criteria.md.
+    """Apply the scoring thresholds from packages/scoring-rules/scoring-rules.yaml.
+
+    Thresholds shared with TypeScript web app (apps/web/src/scoring/calculate-score.ts).
+    If you change thresholds here, update the YAML and TypeScript to match.
 
     Strong: 80%+ matched, 0 critical gaps
     Good: 60-80%, 0-1 addressable

@@ -1,0 +1,23 @@
+{
+  "skill_name": "search-optimizer",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I've been applying for 3 weeks now. Where should I focus my energy?",
+      "expected_output": "Loads all application data and analytics. Assesses source effectiveness, match score conversion, pipeline health. Produces search-strategy.md with 3+ specific recommendations ranked by impact. Includes target profile for next applications.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "I got 3 rejections this week and I'm feeling discouraged. Am I even targeting the right roles?",
+      "expected_output": "Empathetic but data-driven response. Analyzes rejection reasons and patterns. Identifies if the rejections share a common cause. Recommends specific adjustments (role type, positioning, source). Reframes with positive data points if any exist.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "LinkedIn seems to be a waste of time. Should I stop using it?",
+      "expected_output": "Compares LinkedIn conversion rate against other sources with specific numbers. If data supports it, recommends reducing LinkedIn effort and reallocating. If data is mixed, provides nuanced guidance. Either way, suggests specific alternative sources.",
+      "files": []
+    }
+  ]
+}

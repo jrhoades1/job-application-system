@@ -1,0 +1,37 @@
+[
+  {
+    "id": "triage-trigger-check-pipeline",
+    "input": "Any new leads from my email? Let me see what came in.",
+    "expected_skill": "email-triage",
+    "should_trigger": true,
+    "notes": "Standard trigger to review pipeline results"
+  },
+  {
+    "id": "triage-trigger-promote-lead",
+    "input": "Promote lead 1 and 3 from the pipeline. Skip the rest.",
+    "expected_skill": "email-triage",
+    "should_trigger": true,
+    "notes": "In-context promote/skip during review"
+  },
+  {
+    "id": "triage-trigger-show-ranked",
+    "input": "Show me the ranked jobs from the email pipeline.",
+    "expected_skill": "email-triage",
+    "should_trigger": true,
+    "notes": "Explicit request to see rankings"
+  },
+  {
+    "id": "triage-no-trigger-paste-job",
+    "input": "Here's a job posting I found: VP of Engineering at HealthFirst...",
+    "expected_skill": "email-triage",
+    "should_trigger": false,
+    "notes": "Direct job posting goes to job-intake, not email-triage"
+  },
+  {
+    "id": "triage-no-trigger-status-update",
+    "input": "Mark the HealthFirst application as applied.",
+    "expected_skill": "email-triage",
+    "should_trigger": false,
+    "notes": "Status update goes to job-tracker"
+  }
+]

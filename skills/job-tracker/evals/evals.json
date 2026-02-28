@@ -1,0 +1,23 @@
+{
+  "skill_name": "job-tracker",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I just submitted my application for the Cognizant Chief Architect role. Mark it as applied.",
+      "expected_output": "metadata.json updated with status=applied, applied_date=today, follow_up_date=2 weeks out. tracker.xlsx updated with new row for Cognizant. Confirmation message to user.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "I got a rejection from Netflix for the DevOps Platform Lead position.",
+      "expected_output": "metadata.json updated with status=rejected. tracker.xlsx updated (new row added since Netflix wasn't in tracker). Confirmation message.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "How's my job search going? Give me an overview.",
+      "expected_output": "Scans all metadata.json files across application folders. Summarizes by status (evaluating, applied, rejected, etc). Mentions any overdue follow-ups. Provides actionable next steps.",
+      "files": []
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "skill_name": "application-analytics",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "How's my job search going? Give me the numbers.",
+      "expected_output": "Pipeline snapshot showing counts by status. At-risk items identified (overdue follow-ups, stalled applications). Basic metrics even with limited data. Report saved to analytics-report.md.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "I keep getting rejected. What's going wrong?",
+      "expected_output": "Focus on rejection patterns. Show rejection reasons if logged. Compare rejected applications' match scores and sources. Identify common gaps in rejected applications vs successful ones. Actionable recommendations.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Which sources are actually getting me interviews? Should I keep using LinkedIn?",
+      "expected_output": "Source-by-source conversion rates (or counts if insufficient data). Compare LinkedIn vs referral vs direct application outcomes. Specific recommendation on where to focus effort.",
+      "files": []
+    }
+  ]
+}

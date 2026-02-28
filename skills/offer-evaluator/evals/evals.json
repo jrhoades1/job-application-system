@@ -1,0 +1,23 @@
+{
+  "skill_name": "offer-evaluator",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "HealthFirst offered me the VP of Engineering role! $245K base, 15% bonus target, standard benefits, hybrid 3 days in office. They want an answer by next Friday.",
+      "expected_output": "Creates offer-analysis.md with compensation assessment (vs posted range and market), role fit analysis from narrative.md, decision scorecard, negotiation recommendations (what to push on), and a suggested negotiation script. Updates metadata.json with offer details and deadline.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Got an offer from a startup I was talking to — $180K base but 0.5% equity. Is this worth it?",
+      "expected_output": "Applies equity discount for illiquidity. Calculates total comp scenarios (IPO, acquisition, failure). Compares against market for the role level. Identifies negotiation points (base is low for VP level). Creates offer-analysis.md with honest assessment and recommendation.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "I now have offers from both HealthFirst and that startup. Help me decide.",
+      "expected_output": "Side-by-side comparison table covering all dimensions (comp, role, growth, risk). Decision scorecard for both. Identifies which offer aligns better with career goals from narrative.md. Provides clear recommendation with reasoning. Helps draft accept/decline emails for both scenarios.",
+      "files": []
+    }
+  ]
+}

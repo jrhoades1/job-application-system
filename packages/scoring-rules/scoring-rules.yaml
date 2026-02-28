@@ -1,0 +1,91 @@
+# Shared Scoring Rules — Job Application System
+# Both Python CLI (job_score.py) and TypeScript web (apps/web/src/scoring/)
+# should read from this file. Single source of truth for scoring criteria.
+
+version: 1
+
+# Match types and their weights toward match_percentage
+match_weights:
+  strong: 1.0    # Full match — candidate clearly meets the requirement
+  partial: 0.5   # Partial match — related experience or transferable skill
+  gap: 0.0       # No match — candidate lacks this requirement
+
+# Score bands — thresholds for overall assessment
+# match_percentage = (strong_count + partial_count * 0.5) / total_requirements
+score_bands:
+  strong:
+    min_match_pct: 0.80
+    max_gaps: 0
+    label: "Strong Match"
+  good:
+    min_match_pct: 0.60
+    max_gaps: 1
+    label: "Good Match"
+  stretch:
+    min_match_pct: 0.40
+    max_gaps: 2
+    label: "Stretch"
+  long_shot:
+    min_match_pct: 0.0
+    max_gaps: 999
+    label: "Long Shot"
+
+# Band evaluation order (first match wins)
+band_priority: [strong, good, stretch, long_shot]
+
+# Sort order for ranking leads (lower = better)
+sort_order:
+  strong: 0
+  good: 1
+  stretch: 2
+  long_shot: 3
+
+# Section detection patterns for parsing job descriptions
+# Used by both extract_requirements (Python) and extractRequirements (TypeScript)
+section_patterns:
+  requirements: "(?:requirements?|qualifications?|what you.?(?:ll)?\\s*need|must have|minimum|experience|education|skills?\\s+(?:and|&)\\s+(?:knowledge|skills)|specialized knowledge|technical skills|what (?:we|you).+(?:look|need)|who you are)"
+  preferred: "(?:preferred|nice to have|bonus|desired|plus|ideally|good to have|additional|differenti)"
+  responsibilities: "(?:responsibilities|what you.?(?:ll)?\\s*do|duties|role|about the (?:role|position)|key (?:areas|functions)|you will|your (?:impact|mission|role))"
+
+# Requirement indicators — patterns that identify a bullet as a hard requirement
+requirement_indicators:
+  - "\\d+\\+?\\s*years?"
+  - "(?:must|required|minimum)"
+  - "(?:degree|bachelor|master|phd)"
+  - "(?:experience (?:with|in|leading|building|managing|developing|driving))"
+  - "(?:proficiency in|expertise in|deep expertise|proven)"
+  - "(?:certification|certified)"
+  - "(?:track record|demonstrated|strong (?:strategic|technical|communication))"
+  - "(?:knowledge of|ability to|skilled in|familiarity with)"
+
+# Preferred indicators
+preferred_indicators:
+  - "(?:preferred|nice to have|plus|bonus|ideally|advantageous)"
+  - "(?:familiarity with|exposure to|knowledge of)"
+
+# Technology keywords for extraction
+keyword_categories:
+  languages: "(?:Python|Java|JavaScript|TypeScript|Go|Rust|C\\+\\+|Ruby|Scala|Kotlin)"
+  cloud: "(?:AWS|Azure|GCP|Google Cloud|Kubernetes|Docker|Terraform)"
+  frameworks: "(?:React|Angular|Vue|Next\\.js|Node\\.js|FastAPI|Django|Flask|Spring)"
+  databases: "(?:PostgreSQL|MySQL|MongoDB|Redis|DynamoDB|Elasticsearch)"
+  methodologies: "(?:CI/CD|DevOps|Agile|Scrum|Kanban)"
+  healthcare: "(?:HL7|FHIR|DICOM|HIPAA|SOC2|HITRUST|EHR|EMR)"
+  healthcare_data: "(?:PHI|PII|FDA|CMS|ICD-10)"
+  ai_ml: "(?:AI|ML|NLP|LLM|GPT|machine learning|deep learning|neural network)"
+  ai_frameworks: "(?:TensorFlow|PyTorch|scikit-learn|LangChain)"
+  architecture: "(?:microservices|scalability|architecture|system design)"
+  leadership: "(?:team building|mentoring|roadmap|OKR|KPI)"
+
+# Red flags in job descriptions
+red_flags:
+  - pattern: "wear many hats"
+    message: "Vague role scope — 'wear many hats'"
+  - pattern: "fast[- ]paced"
+    message: "Fast-paced environment (potential burnout signal)"
+
+# Auto-skip rules for pipeline scoring
+auto_skip_defaults:
+  min_score: "stretch"              # Skip anything below stretch
+  skip_staffing_agencies: true      # Skip recruiter spam
+  max_requirements: 25              # Likely kitchen-sink JD

@@ -1,0 +1,37 @@
+[
+  {
+    "id": "runner-trigger-run-pipeline",
+    "input": "Run the email pipeline. Fetch new emails and process them.",
+    "expected_skill": "email-pipeline-runner",
+    "should_trigger": true,
+    "notes": "Explicit request to run the pipeline"
+  },
+  {
+    "id": "runner-trigger-pipeline-status",
+    "input": "What's the pipeline status? How many emails are pending?",
+    "expected_skill": "email-pipeline-runner",
+    "should_trigger": true,
+    "notes": "Status inquiry about pipeline stages"
+  },
+  {
+    "id": "runner-trigger-fetch-emails",
+    "input": "Check for new job emails and process them.",
+    "expected_skill": "email-pipeline-runner",
+    "should_trigger": true,
+    "notes": "Fetch + process request"
+  },
+  {
+    "id": "runner-no-trigger-review-leads",
+    "input": "Show me the leads from the pipeline. What came in?",
+    "expected_skill": "email-pipeline-runner",
+    "should_trigger": false,
+    "notes": "Reviewing leads goes to email-triage, not runner"
+  },
+  {
+    "id": "runner-no-trigger-paste-job",
+    "input": "Here's a job posting I found: VP of Engineering at HealthFirst...",
+    "expected_skill": "email-pipeline-runner",
+    "should_trigger": false,
+    "notes": "Direct job posting goes to job-intake"
+  }
+]
