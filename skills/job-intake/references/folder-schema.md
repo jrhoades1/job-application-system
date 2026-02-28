@@ -43,7 +43,7 @@ Examples:
   "applied_date": "string | null — YYYY-MM-DD when application submitted",
   "source": "string — where the job was found (LinkedIn, Indeed, referral, etc.)",
   "source_url": "string — URL of the original posting",
-  "status": "string — evaluating | ready_to_apply | applied | interviewing | offered | rejected | withdrawn",
+  "status": "string — ingested | sourced | pending_review | evaluating | ready_to_apply | applied | interviewing | offered | rejected | withdrawn | skipped | unresolved",
   "follow_up_date": "string | null — YYYY-MM-DD for next follow-up",
   "contact": "string — recruiter or referral name if known",
   "resume_version": "string | null — filename of tailored resume",
@@ -84,18 +84,36 @@ Examples:
   },
   "offer_accepted": "boolean | null — true if accepted, false if declined, null if pending",
 
-  "learning_flags": ["array of strings — insights for future applications, added by debrief and outcome-logger"]
+  "learning_flags": ["array of strings — insights for future applications, added by debrief and outcome-logger"],
+
+  "_comment_pipeline_fields": "--- Fields below are populated by the email pipeline ---",
+
+  "email_uid": "string | null — IMAP UID of the source email, null if not from pipeline",
+  "pipeline_batch": "string | null — batch ID from pipeline run, null if not from pipeline",
+  "pipeline_confidence": "number | null — 0.0-1.0 confidence in company/role extraction",
+  "employment_type": "string | null — full_time | contract | part_time | temp",
+  "skip_date": "string | null — YYYY-MM-DD when user skipped this lead",
+  "skip_reason": "string | null — why the user chose to skip"
 }
 ```
 
 ## Status lifecycle
 
 ```
-evaluating → ready_to_apply → applied → interviewing → offered
-                                   ↘ rejected
-                           ↘ withdrawn
+                          PIPELINE PHASE                          APPLY/LEARN PHASE
+ingested → sourced → pending_review → evaluating → ready_to_apply → applied → interviewing → offered
+                           ↘ skipped                                    ↘ rejected
+              ↘ unresolved                                     ↘ withdrawn
 ```
 
+### Pipeline statuses (pre-evaluation)
+- **ingested** — email parsed, company/role extracted, no job description yet
+- **sourced** — job description scraped from company career site, ready for scoring
+- **pending_review** — scored against achievements.md, sitting in ranked queue
+- **skipped** — user saw the ranking and decided not to pursue (distinct from `rejected`)
+- **unresolved** — automation could not complete some step; needs manual intervention
+
+### Core statuses
 - **evaluating** — job-intake has parsed it, candidate is deciding
 - **ready_to_apply** — resume and cover letter are tailored, ready to submit
 - **applied** — application has been submitted

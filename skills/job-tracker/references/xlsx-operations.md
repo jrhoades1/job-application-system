@@ -149,6 +149,9 @@ spreadsheet, convert to Title Case with spaces for readability:
 
 | metadata.json      | Spreadsheet display |
 |--------------------|-------------------|
+| ingested           | Ingested          |
+| sourced            | Sourced           |
+| pending_review     | Pending Review    |
 | evaluating         | Evaluating        |
 | ready_to_apply     | Ready To Apply    |
 | applied            | Applied           |
@@ -156,6 +159,8 @@ spreadsheet, convert to Title Case with spaces for readability:
 | offered            | Offered           |
 | rejected           | Rejected          |
 | withdrawn          | Withdrawn         |
+| skipped            | Skipped           |
+| unresolved         | Unresolved        |
 
 Use `.replace('_', ' ').title()` for the conversion.
 

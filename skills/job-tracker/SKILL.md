@@ -79,10 +79,14 @@ Read the application's `metadata.json`, make the change, and write it back.
 
 **Status transitions follow this lifecycle:**
 ```
-evaluating → ready_to_apply → applied → interviewing → offered
-                                  ↘ rejected
-                          ↘ withdrawn
+                          PIPELINE PHASE                          APPLY/LEARN PHASE
+ingested → sourced → pending_review → evaluating → ready_to_apply → applied → interviewing → offered
+                           ↘ skipped                                    ↘ rejected
+              ↘ unresolved                                     ↘ withdrawn
 ```
+
+Pipeline transitions (`pending_review → evaluating` and `pending_review → skipped`)
+are handled by the email-triage skill, not this skill.
 
 Validate the transition makes sense. If someone says "I got an offer" but the
 status is still `evaluating`, that's unusual — confirm before updating. The user

@@ -12,7 +12,16 @@ Applying to jobs without feedback is flying blind. You don't know which resume v
 
 ## The System
 
-10 skills organized in two phases — **Apply** and **Learn**.
+12 skills organized in three phases — **Pipeline**, **Apply**, and **Learn**.
+
+### Pipeline Phase (2 skills)
+
+| Skill | Model | What it does |
+|-------|-------|-------------|
+| **email-pipeline-runner** | Haiku | Orchestrates the email-to-job pipeline: fetches forwarded job emails from Gmail, parses company/role, searches company career sites, scores against your profile |
+| **email-triage** | Sonnet | Presents ranked pipeline results for review. Promotes promising leads to full evaluation or skips them. Surfaces unresolved items. |
+
+**How it works:** Forward job emails from your phone to a dedicated Gmail address. Run the pipeline to fetch, parse, search career pages, and score. Review the ranked list and promote the best matches into the Apply phase.
 
 ### Apply Phase (4 skills)
 
@@ -37,7 +46,18 @@ Applying to jobs without feedback is flying blind. You don't know which resume v
 ### How the Feedback Loop Works
 
 ```
- APPLY                                          LEARN
+ PIPELINE                    APPLY                                          LEARN
+┌──────────────────┐
+│email-pipeline-   │
+│runner             │
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐
+│  email-triage    │──→ promote
+└────────┬─────────┘
+         │
+         ▼
 ┌──────────┐   ┌──────────────┐   ┌────────────────┐   ┌─────────────┐
 │job-intake │──→│resume-tailor │──→│cover-letter-   │──→│ job-tracker  │
 │           │   │              │   │writer          │   │             │
