@@ -19,7 +19,7 @@ export async function GET(req: Request) {
 
   if (!code || !state) {
     return NextResponse.redirect(
-      new URL("/dashboard/settings?gmail=error", req.url)
+      new URL("/dashboard/settings?gmail=error&code=noparams", req.url)
     );
   }
 
@@ -30,14 +30,14 @@ export async function GET(req: Request) {
       stateData = JSON.parse(Buffer.from(state, "base64url").toString("utf-8"));
     } catch {
       return NextResponse.redirect(
-        new URL("/dashboard/settings?gmail=error", req.url)
+        new URL("/dashboard/settings?gmail=error&code=state", req.url)
       );
     }
 
     // State must not be older than 10 minutes
     if (Date.now() - stateData.ts > 10 * 60 * 1000) {
       return NextResponse.redirect(
-        new URL("/dashboard/settings?gmail=error", req.url)
+        new URL("/dashboard/settings?gmail=error&code=expired", req.url)
       );
     }
 
@@ -46,7 +46,7 @@ export async function GET(req: Request) {
     // Confirm the state userId matches the logged-in user
     if (stateData.userId !== userId) {
       return NextResponse.redirect(
-        new URL("/dashboard/settings?gmail=error", req.url)
+        new URL("/dashboard/settings?gmail=error&code=mismatch", req.url)
       );
     }
 
@@ -55,14 +55,14 @@ export async function GET(req: Request) {
 
     if (!tokens) {
       return NextResponse.redirect(
-        new URL("/dashboard/settings?gmail=error", req.url)
+        new URL("/dashboard/settings?gmail=error&code=token", req.url)
       );
     }
 
     const emailAddress = await getGmailEmailAddress(tokens.access_token);
 
     // Upsert into email_connections
-    await supabase.from("email_connections").upsert(
+    const { error: dbError } = await supabase.from("email_connections").upsert(
       {
         clerk_user_id: userId,
         email_address: emailAddress ?? "",
@@ -73,13 +73,20 @@ export async function GET(req: Request) {
       { onConflict: "clerk_user_id" }
     );
 
+    if (dbError) {
+      console.error("Gmail db error:", dbError);
+      return NextResponse.redirect(
+        new URL("/dashboard/settings?gmail=error&code=db", req.url)
+      );
+    }
+
     return NextResponse.redirect(
       new URL("/dashboard/settings?gmail=connected", req.url)
     );
   } catch (err) {
     console.error("Gmail callback error:", err);
     return NextResponse.redirect(
-      new URL("/dashboard/settings?gmail=error", req.url)
+      new URL("/dashboard/settings?gmail=error&code=exception", req.url)
     );
   }
 }
