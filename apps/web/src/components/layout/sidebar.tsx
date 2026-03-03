@@ -12,6 +12,7 @@ const navigation = [
   { name: "Pipeline", href: "/dashboard/pipeline", icon: "📬" },
   { name: "Insights", href: "/dashboard/insights", icon: "💡" },
   { name: "Cost Admin", href: "/dashboard/admin", icon: "💰" },
+  { name: "Settings", href: "/dashboard/settings", icon: "⚙️" },
 ];
 
 export function Sidebar() {

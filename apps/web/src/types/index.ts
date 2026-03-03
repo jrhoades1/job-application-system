@@ -20,6 +20,7 @@ export interface ApplicationRow {
   notes: string;
   resume_version: string | null;
   cover_letter: string | null;
+  tailored_resume: string | null;
   job_description: string | null;
   former_employer: boolean;
   tailoring_intensity: string | null;

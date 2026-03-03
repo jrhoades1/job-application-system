@@ -90,11 +90,12 @@ export async function POST(req: Request) {
     const content =
       response.content[0].type === "text" ? response.content[0].text : "";
 
-    // Update application
+    // Update application with content and version label
     await supabase
       .from("applications")
       .update({
         resume_version: `tailored_${new Date().toISOString().slice(0, 10)}`,
+        tailored_resume: content,
       })
       .eq("id", app.id);
 

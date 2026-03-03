@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,10 +8,23 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import type { ProfileRow, AchievementCategory } from "@/types";
 
+interface ParsedResume {
+  full_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  location?: string | null;
+  linkedin_url?: string | null;
+  narrative?: string | null;
+  achievements?: AchievementCategory[];
+}
+
 export default function ProfilePage() {
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [parsing, setParsing] = useState(false);
+  const [parsedPreview, setParsedPreview] = useState<ParsedResume | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch("/api/profile")
@@ -107,6 +120,73 @@ export default function ProfilePage() {
     }
   }
 
+  async function handleParseResume(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setParsing(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/parse-resume", { method: "POST", body: form });
+      if (res.ok) {
+        const data: ParsedResume = await res.json();
+        setParsedPreview(data);
+        toast.success("Resume parsed — review and apply below");
+      } else {
+        const err = await res.json();
+        toast.error(err.error ?? "Failed to parse resume");
+      }
+    } catch {
+      toast.error("Something went wrong");
+    } finally {
+      setParsing(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  function applyParsedResume() {
+    if (!profile || !parsedPreview) return;
+    setProfile({
+      ...profile,
+      full_name: parsedPreview.full_name || profile.full_name,
+      email: parsedPreview.email || profile.email,
+      phone: parsedPreview.phone || profile.phone || null,
+      location: parsedPreview.location || profile.location || null,
+      linkedin_url: parsedPreview.linkedin_url || profile.linkedin_url || null,
+      narrative: parsedPreview.narrative || profile.narrative || null,
+      // Merge achievements: append parsed categories that don't already exist
+      achievements: mergeParsedAchievements(
+        profile.achievements ?? [],
+        parsedPreview.achievements ?? []
+      ),
+    });
+    setParsedPreview(null);
+    toast.success("Profile pre-filled — review and save");
+  }
+
+  function mergeParsedAchievements(
+    existing: AchievementCategory[],
+    parsed: AchievementCategory[]
+  ): AchievementCategory[] {
+    const result = [...existing];
+    for (const parsedCat of parsed) {
+      const existingCat = result.find(
+        (c) => c.category.toLowerCase() === parsedCat.category.toLowerCase()
+      );
+      if (existingCat) {
+        // Append items that aren't already present
+        const existingTexts = new Set(existingCat.items.map((i) => i.text.toLowerCase()));
+        const newItems = parsedCat.items.filter(
+          (i) => !existingTexts.has(i.text.toLowerCase())
+        );
+        existingCat.items = [...existingCat.items, ...newItems];
+      } else {
+        result.push(parsedCat);
+      }
+    }
+    return result;
+  }
+
   if (loading) {
     return <div className="text-muted-foreground">Loading profile...</div>;
   }
@@ -124,6 +204,60 @@ export default function ProfilePage() {
   return (
     <div className="space-y-6 max-w-3xl">
       <h2 className="text-2xl font-bold">Profile Setup</h2>
+
+      {/* Resume Upload Card */}
+      <Card className="border-dashed">
+        <CardHeader>
+          <CardTitle>Import from Resume</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Upload your resume and Claude will pre-fill your profile. PDF, DOCX, or TXT — max 500 KB.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-3">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.docx,.txt"
+              className="hidden"
+              onChange={handleParseResume}
+            />
+            <Button
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={parsing}
+            >
+              {parsing ? "Parsing..." : "Upload Resume"}
+            </Button>
+            {parsing && (
+              <span className="text-sm text-muted-foreground">Claude is reading your resume...</span>
+            )}
+          </div>
+
+          {parsedPreview && (
+            <div className="rounded-lg border bg-muted/40 p-4 space-y-3">
+              <p className="text-sm font-medium">Preview — what will be applied:</p>
+              <div className="text-sm space-y-1 text-muted-foreground">
+                {parsedPreview.full_name && <p><span className="font-medium text-foreground">Name:</span> {parsedPreview.full_name}</p>}
+                {parsedPreview.email && <p><span className="font-medium text-foreground">Email:</span> {parsedPreview.email}</p>}
+                {parsedPreview.phone && <p><span className="font-medium text-foreground">Phone:</span> {parsedPreview.phone}</p>}
+                {parsedPreview.location && <p><span className="font-medium text-foreground">Location:</span> {parsedPreview.location}</p>}
+                {parsedPreview.linkedin_url && <p><span className="font-medium text-foreground">LinkedIn:</span> {parsedPreview.linkedin_url}</p>}
+                {parsedPreview.narrative && (
+                  <p><span className="font-medium text-foreground">Narrative:</span> {parsedPreview.narrative.slice(0, 120)}{parsedPreview.narrative.length > 120 ? "..." : ""}</p>
+                )}
+                {parsedPreview.achievements && parsedPreview.achievements.length > 0 && (
+                  <p><span className="font-medium text-foreground">Achievement categories:</span> {parsedPreview.achievements.map(c => c.category).join(", ")}</p>
+                )}
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Button size="sm" onClick={applyParsedResume}>Apply to Profile</Button>
+                <Button size="sm" variant="ghost" onClick={() => setParsedPreview(null)}>Dismiss</Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

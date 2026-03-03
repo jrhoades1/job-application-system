@@ -17,7 +17,46 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { STATUS_CONFIG, SCORE_CONFIG, APPLICATION_STATUSES } from "@/lib/constants";
+import { downloadMarkdown, downloadDocx, downloadPdf } from "@/lib/document-export";
 import type { ApplicationWithScores } from "@/types";
+
+function sanitizeFilename(s: string): string {
+  return s.replace(/[^a-zA-Z0-9_-]/g, "_").toLowerCase();
+}
+
+function DownloadButtons({ content, company, role, docType }: {
+  content: string;
+  company: string;
+  role: string;
+  docType: "resume" | "cover-letter";
+}) {
+  const base = `${sanitizeFilename(company)}_${sanitizeFilename(role)}_${docType}`;
+  return (
+    <div className="flex gap-2 mt-2">
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => downloadDocx(content, `${base}.docx`)}
+      >
+        .docx
+      </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => downloadPdf(content, base)}
+      >
+        .pdf
+      </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => downloadMarkdown(content, `${base}.md`)}
+      >
+        .md
+      </Button>
+    </div>
+  );
+}
 
 export default function ApplicationDetailPage() {
   const params = useParams();
@@ -130,6 +169,10 @@ export default function ApplicationDetailPage() {
     ? SCORE_CONFIG[score.overall as keyof typeof SCORE_CONFIG]
     : null;
   const statusCfg = STATUS_CONFIG[app.status as keyof typeof STATUS_CONFIG];
+
+  // Determine which content to show for resume and cover letter
+  const resumeContent = tailoredResume ?? app.tailored_resume;
+  const clContent = coverLetter ?? app.cover_letter;
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -286,12 +329,13 @@ export default function ApplicationDetailPage() {
         </div>
       </div>
 
-      {/* AI Actions */}
+      {/* Documents */}
       <Card>
         <CardHeader>
-          <CardTitle>AI Tools</CardTitle>
+          <CardTitle>Documents</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-4">
+          {/* AI generation buttons */}
           <div className="flex gap-2">
             <Button
               onClick={handleTailorResume}
@@ -309,30 +353,39 @@ export default function ApplicationDetailPage() {
             </Button>
           </div>
 
-          {tailoredResume && (
+          {/* Tailored Resume */}
+          {resumeContent && (
             <div>
-              <h4 className="text-sm font-medium mb-2">Tailored Resume</h4>
+              <h4 className="text-sm font-medium mb-2">
+                {tailoredResume ? "Tailored Resume" : "Saved Resume"}
+              </h4>
               <pre className="text-xs bg-muted p-4 rounded-lg overflow-auto max-h-96 whitespace-pre-wrap">
-                {tailoredResume}
+                {resumeContent}
               </pre>
+              <DownloadButtons
+                content={resumeContent}
+                company={app.company}
+                role={app.role}
+                docType="resume"
+              />
             </div>
           )}
 
-          {coverLetter && (
+          {/* Cover Letter */}
+          {clContent && (
             <div>
-              <h4 className="text-sm font-medium mb-2">Cover Letter</h4>
+              <h4 className="text-sm font-medium mb-2">
+                {coverLetter ? "Cover Letter" : "Saved Cover Letter"}
+              </h4>
               <pre className="text-xs bg-muted p-4 rounded-lg overflow-auto max-h-96 whitespace-pre-wrap">
-                {coverLetter}
+                {clContent}
               </pre>
-            </div>
-          )}
-
-          {app.cover_letter && !coverLetter && (
-            <div>
-              <h4 className="text-sm font-medium mb-2">Saved Cover Letter</h4>
-              <pre className="text-xs bg-muted p-4 rounded-lg overflow-auto max-h-96 whitespace-pre-wrap">
-                {app.cover_letter}
-              </pre>
+              <DownloadButtons
+                content={clContent}
+                company={app.company}
+                role={app.role}
+                docType="cover-letter"
+              />
             </div>
           )}
         </CardContent>
