@@ -63,6 +63,9 @@ function isJobEmail(from: string, subject: string, body: string): boolean {
     if (pattern.test(combined)) return false;
   }
 
+  // Always accept forwarded emails — user explicitly forwarded it, so they want it tracked
+  if (/^(fw|fwd)\s*:/i.test(subject.trim())) return true;
+
   // Accept if subject matches job patterns
   for (const pattern of JOB_SUBJECT_PATTERNS) {
     if (pattern.test(subject)) return true;
@@ -164,7 +167,22 @@ export async function POST() {
       const date = getHeader(full, "date");
       const body = extractEmailText(full);
 
+      const emailDate = date ? new Date(date).toISOString() : new Date().toISOString();
+
       if (!isJobEmail(from, subject, body)) {
+        // Store as filtered so user can see what was caught — not silently dropped
+        await supabase.from("pipeline_leads").insert({
+          clerk_user_id: userId,
+          company: from,
+          role: subject,
+          email_uid: msg.id,
+          email_date: emailDate,
+          raw_subject: subject,
+          status: "filtered",
+          red_flags: [],
+          created_at: new Date().toISOString(),
+        });
+        existingUids.add(msg.id);
         skipped++;
         continue;
       }
@@ -186,8 +204,6 @@ export async function POST() {
 
       const platform = detectPlatform(from);
       const extracted = extractCompanyRole(subject);
-
-      const emailDate = date ? new Date(date).toISOString() : new Date().toISOString();
 
       await supabase.from("pipeline_leads").insert({
         clerk_user_id: userId,

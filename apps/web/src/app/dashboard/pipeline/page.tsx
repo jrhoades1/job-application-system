@@ -18,7 +18,7 @@ import type { PipelineLeadRow } from "@/types";
 export default function PipelinePage() {
   const [leads, setLeads] = useState<PipelineLeadRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState("pending_review");
+  const [statusFilter, setStatusFilter] = useState("filtered");
 
   useEffect(() => {
     fetchLeads();
@@ -64,8 +64,8 @@ export default function PipelinePage() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="pending_review">Pending Review</SelectItem>
             <SelectItem value="promoted">Promoted</SelectItem>
+            <SelectItem value="filtered">Filtered Out</SelectItem>
             <SelectItem value="skipped">Skipped</SelectItem>
             <SelectItem value="all">All</SelectItem>
           </SelectContent>
@@ -80,6 +80,8 @@ export default function PipelinePage() {
             <p className="text-muted-foreground text-center">
               {statusFilter === "pending_review"
                 ? "No leads pending review. Connect your email (coming soon) or manually add leads to see them here."
+                : statusFilter === "filtered"
+                ? "No filtered emails. Everything from your last sync was added to the Tracker."
                 : "No leads found with this filter."}
             </p>
           </CardContent>
