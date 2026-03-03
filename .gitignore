@@ -39,3 +39,9 @@ memory/logs/
 .tmp/
 .vercel
 .env*.local
+
+# Temp analysis outputs
+missing_tailored_resumes.json
+
+# Supabase CLI temp
+apps/web/supabase/.temp/
