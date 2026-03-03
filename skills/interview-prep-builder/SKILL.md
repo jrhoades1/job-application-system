@@ -60,9 +60,14 @@ exists.
 Read:
 - `metadata.json` — match score, gaps, keywords, tailoring intensity
 - `job-description.md` — the full role requirements
+- `company-brief.md` — company research (if it exists, from company-research skill)
+- `study-sheet.md` — quick-reference study data (if it exists)
 - `master/achievements.md` — your accomplishment inventory
 - `master/narrative.md` — your positioning themes for this role type
 - Previous `interview-notes.md` files (if any) — for question patterns
+
+If `company-brief.md` does not exist, suggest running company-research first for
+richer, company-specific talking points and questions.
 
 ### Step 3: Generate the prep document
 
@@ -146,7 +151,7 @@ Quick-reference for your key metrics (from achievements.md):
 ## Pre-Interview Checklist
 
 - [ ] Review the job description one more time
-- [ ] Check the company's recent news (last 30 days)
+- [ ] Review company-brief.md and study-sheet.md (run company-research if missing)
 - [ ] Confirm interview logistics (link, time zone, who you're meeting)
 - [ ] Have your talking points fresh in mind
 - [ ] Prepare 3-4 questions for them
@@ -204,6 +209,7 @@ deeper on. Offer to do mock Q&A for the gap bridge sections.
 | Upstream | This skill | Downstream |
 |----------|-----------|------------|
 | job-intake (match score, gaps) | **interview-prep-builder** (preparation) | interview-debrief (captures what happened) |
+| company-research (company intel) | | |
 | interview-debrief (past patterns) | | |
 
 Read `references/common-questions.md` for question frameworks by role type.

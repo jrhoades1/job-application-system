@@ -14,6 +14,9 @@ job-applications/
 │       ├── metadata.json         # Structured data (see schema below)
 │       ├── resume.docx           # Tailored version (created by resume-tailor)
 │       ├── cover-letter.docx     # Tailored version (created by cover-letter-writer)
+│       ├── company-brief.md     # Deep company research (created by company-research)
+│       ├── study-sheet.md       # Quick-reference study guide (created by company-research)
+│       ├── interview-plan.md    # Strategic interview plan (created by company-research)
 │       ├── interview-notes.md   # Debrief from interview (created by interview-debrief)
 │       ├── interview-prep.md    # Pre-interview prep doc (created by interview-prep-builder)
 │       └── offer-analysis.md    # Offer evaluation (created by offer-evaluator)
@@ -64,6 +67,7 @@ Examples:
   "_comment_feedback_fields": "--- Fields below are populated by feedback-phase skills ---",
 
   "tailoring_intensity": "string | null — light | moderate | heavy (set by resume-tailor)",
+  "company_research_file": "string | null — filename of company brief (set by company-research)",
 
   "interview_date": "string | null — YYYY-MM-DD of most recent interview",
   "interview_round": "number | null — 1, 2, 3, etc.",

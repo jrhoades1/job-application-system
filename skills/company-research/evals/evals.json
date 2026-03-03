@@ -1,0 +1,102 @@
+{
+  "skill_name": "company-research",
+  "evals": [
+    {
+      "id": 0,
+      "name": "standard-research-strong-match",
+      "prompt": "I have an interview with HealthFirst next week for the VP of Engineering role. Research them for me.",
+      "expected_output": "Three documents created in the application folder. Company brief covers HealthFirst's value-based care platform, leadership team, recent moves, and competitive landscape. Study sheet is under 2 pages with the company in 30 seconds, key people, top 3 bridges from achievements.md with numbers. Interview plan connects AI/ML expansion and beneficiary coverage growth to ilumed experience, with trigger conditions for each talking point.",
+      "context": "Application folder at 2026-02-24_healthfirst_vp-engineering with metadata showing overall: strong, match on healthcare IT, AI/ML integration, team building. Gaps: no value-based care platform experience. achievements.md and narrative.md exist in master/.",
+      "assertions": [
+        {
+          "id": "creates-three-documents",
+          "text": "Creates company-brief.md, study-sheet.md, and interview-plan.md in the application folder",
+          "type": "structural"
+        },
+        {
+          "id": "bridges-to-achievements",
+          "text": "Study sheet and interview plan reference specific achievements with numbers from achievements.md, not generic claims",
+          "type": "quality"
+        },
+        {
+          "id": "study-sheet-concise",
+          "text": "Study sheet fits under 2 pages and can be reviewed in approximately 10 minutes",
+          "type": "structural"
+        },
+        {
+          "id": "interview-plan-has-triggers",
+          "text": "Interview plan talking points include 'Drop this when' trigger conditions, not just topic labels",
+          "type": "quality"
+        },
+        {
+          "id": "updates-metadata",
+          "text": "Sets company_research_file in metadata.json to company-brief.md",
+          "type": "structural"
+        },
+        {
+          "id": "lists-sources",
+          "text": "Company brief header lists the specific sources that were consulted during research",
+          "type": "quality"
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "name": "startup-minimal-info",
+      "prompt": "Research Rezilient Health for me. I'm applying for the VP of Engineering role and I can't find much about them online.",
+      "expected_output": "Brief built primarily from JD analysis with explicit 'Could not verify' flags for sections where web research returned limited results. Study sheet notes unknowns as questions to ask. Interview plan includes 'ask about this' items for gaps in research. Clearly labels JD-derived facts vs independently verified facts.",
+      "context": "Application folder at 2026-03-01_rezilient-health_vp-engineering with metadata showing overall: stretch. Startup with limited public information, small web footprint.",
+      "assertions": [
+        {
+          "id": "flags-unknowns",
+          "text": "Brief explicitly calls out what could not be verified rather than guessing or omitting sections",
+          "type": "quality"
+        },
+        {
+          "id": "jd-analysis-depth",
+          "text": "Compensates for limited external info by extracting maximum signal from the job description text",
+          "type": "quality"
+        },
+        {
+          "id": "unknowns-become-questions",
+          "text": "Gaps in research are converted into interview questions in the study sheet and interview plan",
+          "type": "behavioral"
+        },
+        {
+          "id": "labels-sources",
+          "text": "Each finding is labeled as JD-derived, website-verified, or independently confirmed",
+          "type": "quality"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "former-employer-refresh",
+      "prompt": "I'm interviewing at Cognizant again for the Chief Architect role. What's changed since I was there?",
+      "expected_output": "Brief focuses on changes since departure: new leadership, strategy pivots, acquisitions, tech stack evolution, headcount changes. Does NOT rehash general company info the candidate already knows. Study sheet emphasizes delta between 'when you left' and 'now.' Interview plan addresses the 'why are you coming back' angle and frames post-Cognizant growth as the value proposition.",
+      "context": "Application folder at 2026-02-24_cognizant_chief-architect with metadata showing former_employer: true, former_employer_role: 'Solution Architect'. achievements.md contains Cognizant-era accomplishments.",
+      "assertions": [
+        {
+          "id": "focuses-on-changes",
+          "text": "Brief emphasizes what has changed since the candidate left, not general company background",
+          "type": "quality"
+        },
+        {
+          "id": "addresses-return-narrative",
+          "text": "Interview plan includes strategy for the 'why are you coming back' question",
+          "type": "behavioral"
+        },
+        {
+          "id": "no-redundant-basics",
+          "text": "Does not waste space explaining what Cognizant does to someone who worked there",
+          "type": "quality"
+        },
+        {
+          "id": "frames-growth",
+          "text": "Positions post-Cognizant experience (CTO at ilumed, AI/ML, value-based care) as the reason the candidate is now more valuable",
+          "type": "quality"
+        }
+      ]
+    }
+  ]
+}
