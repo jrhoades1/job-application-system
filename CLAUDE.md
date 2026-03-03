@@ -40,9 +40,9 @@ Scoring criteria live in `packages/scoring-rules/scoring-rules.yaml`. Both:
 
 ## CLI Skills (`skills/`)
 
-12 skills for the full application lifecycle: intake, scoring, resume tailoring,
-cover letter writing, interview prep, offer evaluation, analytics, email pipeline.
-Each skill has `SKILL.md` + `references/` + `evals/`.
+13 skills for the full application lifecycle: intake, scoring, resume tailoring,
+cover letter writing, company research, interview prep, offer evaluation, analytics,
+email pipeline. Each skill has `SKILL.md` + `references/` + `evals/`.
 
 ## Key Commands
 

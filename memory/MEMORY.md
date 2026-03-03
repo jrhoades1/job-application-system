@@ -18,7 +18,7 @@
 - pipeline/ — Staging and processing data
 - master/ — Master resume and templates (achievements.md, narrative.md)
 - swooped_export/ — Swooped platform data
-- job-application-system/ — Git submodule with 12 AI skills
+- job-application-system/ — Git submodule with 13 AI skills
 
 ## Related Projects
 - **job-app-assistant** (`C:\Users\Tracy\Projects\job-app-assistant`) — Web app for daughter. Next.js + Clerk + Supabase + Anthropic. Scoring logic ported from job_score.py to TypeScript. All 4 phases built (MVP, AI, pipeline, insights). 22 routes, 21 tests. Needs Clerk/Supabase/Anthropic keys + Vercel deploy to go live.
