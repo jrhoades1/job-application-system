@@ -110,6 +110,10 @@ export async function exchangeCodeForTokens(
   code: string,
   redirectUri: string
 ): Promise<GmailTokens | null> {
+  console.log("[gmail] exchangeCodeForTokens — redirect_uri:", redirectUri);
+  console.log("[gmail] client_id present:", !!process.env.GOOGLE_CLIENT_ID);
+  console.log("[gmail] client_secret present:", !!process.env.GOOGLE_CLIENT_SECRET);
+
   const res = await fetch(GMAIL_TOKEN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -122,10 +126,17 @@ export async function exchangeCodeForTokens(
     }),
   });
 
-  if (!res.ok) return null;
+  if (!res.ok) {
+    const errBody = await res.text();
+    console.error("[gmail] token exchange failed:", res.status, errBody);
+    return null;
+  }
 
   const data = await res.json();
-  if (!data.refresh_token) return null; // Need offline access
+  if (!data.refresh_token) {
+    console.error("[gmail] no refresh_token in response — missing access_type=offline?", Object.keys(data));
+    return null;
+  }
 
   return {
     access_token: data.access_token,
