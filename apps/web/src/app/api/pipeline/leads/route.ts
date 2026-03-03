@@ -97,7 +97,7 @@ export async function PATCH(req: Request) {
         source: lead.source_platform ?? "Email Pipeline",
         source_url: lead.career_page_url,
         job_description: lead.description_text,
-        status: "bookmarked",
+        status: "pending_review",
       })
       .select()
       .single();
