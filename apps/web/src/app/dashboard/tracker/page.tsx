@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,16 +32,44 @@ import { toast } from "sonner";
 import { STATUS_CONFIG, SCORE_CONFIG, APPLICATION_STATUSES } from "@/lib/constants";
 import type { ApplicationWithScores } from "@/types";
 
+const COMPOSITE_FILTERS: Record<string, { label: string; statuses: string }> = {
+  active: { label: "Active", statuses: "applied,interviewing,bookmarked" },
+  offers: { label: "Offers", statuses: "offered,accepted" },
+};
+
 export default function TrackerPage() {
+  const searchParams = useSearchParams();
   const [applications, setApplications] = useState<ApplicationWithScores[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newApp, setNewApp] = useState({ company: "", role: "", source: "" });
 
+  // Read initial filter from URL params
+  useEffect(() => {
+    const urlStatus = searchParams.get("status");
+    if (urlStatus) {
+      // Check if it matches a known composite filter
+      const compositeMatch = Object.entries(COMPOSITE_FILTERS).find(
+        ([, v]) => v.statuses === urlStatus
+      );
+      if (compositeMatch) {
+        setStatusFilter(compositeMatch[0]);
+      } else if (urlStatus.includes(",")) {
+        // Custom multi-status from URL — store as-is
+        setStatusFilter(urlStatus);
+      } else {
+        setStatusFilter(urlStatus);
+      }
+    }
+  }, [searchParams]);
+
   async function loadApplications() {
     const params = new URLSearchParams();
-    if (statusFilter !== "all") params.set("status", statusFilter);
+    if (statusFilter !== "all") {
+      const composite = COMPOSITE_FILTERS[statusFilter];
+      params.set("status", composite ? composite.statuses : statusFilter);
+    }
     const res = await fetch(`/api/applications?${params}`);
     const json = await res.json();
     setApplications(json.data ?? []);
@@ -129,6 +158,8 @@ export default function TrackerPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="offers">Offers</SelectItem>
             {APPLICATION_STATUSES.map((s) => (
               <SelectItem key={s} value={s}>
                 {STATUS_CONFIG[s].label}

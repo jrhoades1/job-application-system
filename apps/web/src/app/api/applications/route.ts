@@ -20,7 +20,12 @@ export async function GET(req: Request) {
       .range(offset, offset + limit - 1);
 
     if (status) {
-      query = query.eq("status", status);
+      const statuses = status.split(",").map((s) => s.trim());
+      if (statuses.length === 1) {
+        query = query.eq("status", statuses[0]);
+      } else {
+        query = query.in("status", statuses);
+      }
     }
     if (source) {
       query = query.eq("source", source);

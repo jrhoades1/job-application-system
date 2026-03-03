@@ -97,6 +97,33 @@ export async function POST(req: Request) {
     }
 
     const parsed = JSON.parse(jsonMatch[0]);
+
+    // Ensure narrative is populated — if Claude omitted it, synthesize from achievements
+    if (!parsed.narrative || parsed.narrative.trim().length === 0) {
+      const name = parsed.full_name || "This candidate";
+      const categories = (parsed.achievements ?? [])
+        .map((a: { category: string }) => a.category)
+        .slice(0, 4);
+      if (categories.length > 0) {
+        const fallbackPrompt = `Based on a resume for "${name}" with expertise in: ${categories.join(", ")} — write a 2-3 sentence career positioning statement in first person. Return ONLY the narrative text, no JSON, no quotes.`;
+        const fallbackResp = await createTrackedMessage(
+          {
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 300,
+            messages: [{ role: "user", content: fallbackPrompt }],
+          },
+          "parse_resume_narrative_fallback"
+        );
+        const narrativeText =
+          fallbackResp.content[0].type === "text"
+            ? fallbackResp.content[0].text.trim()
+            : "";
+        if (narrativeText.length > 20) {
+          parsed.narrative = narrativeText;
+        }
+      }
+    }
+
     return NextResponse.json(parsed);
   } catch (err) {
     if (err instanceof SpendCapExceededError) {

@@ -102,72 +102,84 @@ export default function DashboardPage() {
       {(s.stalled > 0 || s.followups_due > 0) && (
         <div className="flex gap-3">
           {s.stalled > 0 && (
-            <Card className="border-yellow-300 flex-1">
-              <CardContent className="py-3">
-                <p className="text-sm text-yellow-700 font-medium">
-                  {s.stalled} stalled application{s.stalled > 1 ? "s" : ""}{" "}
-                  (21+ days)
-                </p>
-              </CardContent>
-            </Card>
+            <Link href="/dashboard/tracker?status=applied">
+              <Card className="border-yellow-300 flex-1 cursor-pointer transition-colors hover:bg-yellow-50">
+                <CardContent className="py-3">
+                  <p className="text-sm text-yellow-700 font-medium">
+                    {s.stalled} stalled application{s.stalled > 1 ? "s" : ""}{" "}
+                    (21+ days)
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
           )}
           {s.followups_due > 0 && (
-            <Card className="border-blue-300 flex-1">
-              <CardContent className="py-3">
-                <p className="text-sm text-blue-700 font-medium">
-                  {s.followups_due} follow-up{s.followups_due > 1 ? "s" : ""}{" "}
-                  due
-                </p>
-              </CardContent>
-            </Card>
+            <Link href="/dashboard/tracker?status=applied,interviewing,bookmarked">
+              <Card className="border-blue-300 flex-1 cursor-pointer transition-colors hover:bg-blue-50">
+                <CardContent className="py-3">
+                  <p className="text-sm text-blue-700 font-medium">
+                    {s.followups_due} follow-up{s.followups_due > 1 ? "s" : ""}{" "}
+                    due
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
           )}
         </div>
       )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Applications
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{s.total}</div>
-          </CardContent>
-        </Card>
+        <Link href="/dashboard/tracker">
+          <Card className="cursor-pointer transition-colors hover:bg-muted/50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Total Applications
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">{s.total}</div>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Active
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{s.active}</div>
-          </CardContent>
-        </Card>
+        <Link href="/dashboard/tracker?status=applied,interviewing,bookmarked">
+          <Card className="cursor-pointer transition-colors hover:bg-muted/50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Active
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">{s.active}</div>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Interviews
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{s.interviewing}</div>
-          </CardContent>
-        </Card>
+        <Link href="/dashboard/tracker?status=interviewing">
+          <Card className="cursor-pointer transition-colors hover:bg-muted/50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Interviews
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">{s.interviewing}</div>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Offers
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{s.offered}</div>
-          </CardContent>
-        </Card>
+        <Link href="/dashboard/tracker?status=offered,accepted">
+          <Card className="cursor-pointer transition-colors hover:bg-muted/50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Offers
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">{s.offered}</div>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       <Card>
