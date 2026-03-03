@@ -198,9 +198,20 @@ export async function POST() {
         email_date: emailDate,
         raw_subject: subject,
         description_text: body.slice(0, 5000),
-        status: "pending_review",
+        status: "promoted",
         red_flags: [],
         created_at: new Date().toISOString(),
+      });
+
+      // Auto-promote: create application immediately
+      await supabase.from("applications").insert({
+        clerk_user_id: userId,
+        company: extracted?.company || subject,
+        role: extracted?.role || subject,
+        source: platform ?? "Email Pipeline",
+        job_description: body.slice(0, 5000),
+        status: "pending_review",
+        email_uid: msg.id,
       });
 
       existingUids.add(msg.id);

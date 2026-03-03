@@ -25,8 +25,15 @@ interface UsageData {
   }[];
 }
 
+interface UserUsageData {
+  total_users: number;
+  total_cost: number;
+  by_user: { userId: string; calls: number; cost: number; types: Record<string, number> }[];
+}
+
 export default function AdminPage() {
   const [data, setData] = useState<UsageData | null>(null);
+  const [userUsage, setUserUsage] = useState<UserUsageData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,6 +44,12 @@ export default function AdminPage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
+
+    // Try loading per-user breakdown (only succeeds for admin)
+    fetch("/api/admin/users-usage")
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d) setUserUsage(d); })
+      .catch(() => {});
   }, []);
 
   if (loading) return <p className="text-muted-foreground">Loading...</p>;
@@ -132,6 +145,41 @@ export default function AdminPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Per-user breakdown (admin only) */}
+      {userUsage && (
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              All Users This Month —{" "}
+              <span className="text-muted-foreground font-normal text-sm">
+                {userUsage.total_users} users · ${userUsage.total_cost.toFixed(4)} total
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {userUsage.by_user.map((u) => (
+                <div
+                  key={u.userId}
+                  className="flex justify-between items-center text-sm py-1 border-b last:border-0"
+                >
+                  <div>
+                    <span className="font-mono text-xs text-muted-foreground">{u.userId.slice(0, 20)}…</span>
+                    <span className="text-xs text-muted-foreground ml-2">
+                      {Object.entries(u.types).map(([t, n]) => `${t.replace(/_/g, " ")} ×${n}`).join(", ")}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground">{u.calls} calls</span>
+                    <Badge variant="outline">${u.cost.toFixed(4)}</Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Recent calls */}
       {data?.recent_calls && data.recent_calls.length > 0 && (
