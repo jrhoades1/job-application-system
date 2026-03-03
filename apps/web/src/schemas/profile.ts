@@ -11,14 +11,14 @@ const achievementCategorySchema = z.object({
 });
 
 export const updateProfileSchema = z.object({
-  full_name: z.string().min(1).optional(),
-  email: z.string().email().optional(),
-  phone: z.string().optional(),
-  location: z.string().optional(),
-  linkedin_url: z.string().url().optional().or(z.literal("")),
-  portfolio_url: z.string().url().optional().or(z.literal("")),
-  achievements: z.array(achievementCategorySchema).optional(),
-  narrative: z.string().optional(),
+  full_name: z.string().min(1).optional().nullable(),
+  email: z.string().email().optional().nullable(),
+  phone: z.string().optional().nullable(),
+  location: z.string().optional().nullable(),
+  linkedin_url: z.string().url().optional().or(z.literal("")).nullable(),
+  portfolio_url: z.string().url().optional().or(z.literal("")).nullable(),
+  achievements: z.array(achievementCategorySchema).optional().nullable(),
+  narrative: z.string().optional().nullable(),
   preferences: z
     .object({
       location: z.string().optional(),
