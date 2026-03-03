@@ -236,24 +236,40 @@ export default function ProfilePage() {
 
           {parsedPreview && (
             <div className="rounded-lg border bg-muted/40 p-4 space-y-3">
-              <p className="text-sm font-medium">Preview — what will be applied:</p>
-              <div className="text-sm space-y-1 text-muted-foreground">
-                {parsedPreview.full_name && <p><span className="font-medium text-foreground">Name:</span> {parsedPreview.full_name}</p>}
-                {parsedPreview.email && <p><span className="font-medium text-foreground">Email:</span> {parsedPreview.email}</p>}
-                {parsedPreview.phone && <p><span className="font-medium text-foreground">Phone:</span> {parsedPreview.phone}</p>}
-                {parsedPreview.location && <p><span className="font-medium text-foreground">Location:</span> {parsedPreview.location}</p>}
-                {parsedPreview.linkedin_url && <p><span className="font-medium text-foreground">LinkedIn:</span> {parsedPreview.linkedin_url}</p>}
-                {parsedPreview.narrative && (
-                  <p><span className="font-medium text-foreground">Narrative:</span> {parsedPreview.narrative.slice(0, 120)}{parsedPreview.narrative.length > 120 ? "..." : ""}</p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium">Preview — what will be applied:</p>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={applyParsedResume}>Apply to Profile</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setParsedPreview(null)}>Dismiss</Button>
+                </div>
+              </div>
+              <div className="text-sm text-muted-foreground grid gap-x-6 gap-y-1 grid-cols-1 sm:grid-cols-2">
+                {parsedPreview.full_name && (
+                  <p className="truncate"><span className="font-medium text-foreground">Name:</span> {parsedPreview.full_name}</p>
                 )}
-                {parsedPreview.achievements && parsedPreview.achievements.length > 0 && (
-                  <p><span className="font-medium text-foreground">Achievement categories:</span> {parsedPreview.achievements.map(c => c.category).join(", ")}</p>
+                {parsedPreview.email && (
+                  <p className="truncate"><span className="font-medium text-foreground">Email:</span> {parsedPreview.email}</p>
+                )}
+                {parsedPreview.phone && (
+                  <p className="truncate"><span className="font-medium text-foreground">Phone:</span> {parsedPreview.phone}</p>
+                )}
+                {parsedPreview.location && (
+                  <p className="truncate"><span className="font-medium text-foreground">Location:</span> {parsedPreview.location}</p>
+                )}
+                {parsedPreview.linkedin_url && (
+                  <p className="truncate sm:col-span-2"><span className="font-medium text-foreground">LinkedIn:</span> {parsedPreview.linkedin_url}</p>
                 )}
               </div>
-              <div className="flex gap-2 pt-1">
-                <Button size="sm" onClick={applyParsedResume}>Apply to Profile</Button>
-                <Button size="sm" variant="ghost" onClick={() => setParsedPreview(null)}>Dismiss</Button>
-              </div>
+              {parsedPreview.narrative && (
+                <p className="text-sm text-muted-foreground border-t pt-2">
+                  <span className="font-medium text-foreground">Narrative:</span> {parsedPreview.narrative.slice(0, 200)}{parsedPreview.narrative.length > 200 ? "..." : ""}
+                </p>
+              )}
+              {parsedPreview.achievements && parsedPreview.achievements.length > 0 && (
+                <p className="text-sm text-muted-foreground border-t pt-2">
+                  <span className="font-medium text-foreground">Achievements:</span> {parsedPreview.achievements.map(c => `${c.category} (${c.items.length})`).join(", ")}
+                </p>
+              )}
             </div>
           )}
         </CardContent>

@@ -33,52 +33,58 @@ import { STATUS_CONFIG, SCORE_CONFIG, APPLICATION_STATUSES } from "@/lib/constan
 import type { ApplicationWithScores } from "@/types";
 
 const COMPOSITE_FILTERS: Record<string, { label: string; statuses: string }> = {
-  active: { label: "Active", statuses: "applied,interviewing,bookmarked" },
+  active: { label: "Active", statuses: "applied,interviewing" },
   offers: { label: "Offers", statuses: "offered,accepted" },
 };
+
+function resolveFilterFromParams(
+  params: URLSearchParams
+): string {
+  const urlStatus = params.get("status");
+  if (!urlStatus) return "all";
+  const compositeMatch = Object.entries(COMPOSITE_FILTERS).find(
+    ([, v]) => v.statuses === urlStatus
+  );
+  return compositeMatch ? compositeMatch[0] : urlStatus;
+}
 
 export default function TrackerPage() {
   const searchParams = useSearchParams();
   const [applications, setApplications] = useState<ApplicationWithScores[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>(() =>
+    resolveFilterFromParams(searchParams)
+  );
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newApp, setNewApp] = useState({ company: "", role: "", source: "" });
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  // Read initial filter from URL params
+  // Sync filter when URL params change after mount (e.g. back/forward navigation)
   useEffect(() => {
-    const urlStatus = searchParams.get("status");
-    if (urlStatus) {
-      // Check if it matches a known composite filter
-      const compositeMatch = Object.entries(COMPOSITE_FILTERS).find(
-        ([, v]) => v.statuses === urlStatus
-      );
-      if (compositeMatch) {
-        setStatusFilter(compositeMatch[0]);
-      } else if (urlStatus.includes(",")) {
-        // Custom multi-status from URL — store as-is
-        setStatusFilter(urlStatus);
-      } else {
-        setStatusFilter(urlStatus);
-      }
-    }
+    const resolved = resolveFilterFromParams(searchParams);
+    setStatusFilter((prev) => (prev !== resolved ? resolved : prev));
   }, [searchParams]);
 
-  async function loadApplications() {
-    const params = new URLSearchParams();
-    if (statusFilter !== "all") {
-      const composite = COMPOSITE_FILTERS[statusFilter];
-      params.set("status", composite ? composite.statuses : statusFilter);
-    }
-    const res = await fetch(`/api/applications?${params}`);
-    const json = await res.json();
-    setApplications(json.data ?? []);
-    setLoading(false);
-  }
-
   useEffect(() => {
+    let cancelled = false;
+
+    async function loadApplications() {
+      const params = new URLSearchParams();
+      if (statusFilter !== "all") {
+        const composite = COMPOSITE_FILTERS[statusFilter];
+        params.set("status", composite ? composite.statuses : statusFilter);
+      }
+      const res = await fetch(`/api/applications?${params}`);
+      const json = await res.json();
+      if (!cancelled) {
+        setApplications(json.data ?? []);
+        setLoading(false);
+      }
+    }
+
     loadApplications();
-  }, [statusFilter]);
+    return () => { cancelled = true; };
+  }, [statusFilter, refreshKey]);
 
   async function handleCreate() {
     if (!newApp.company || !newApp.role) {
@@ -94,7 +100,7 @@ export default function TrackerPage() {
       toast.success("Application added");
       setDialogOpen(false);
       setNewApp({ company: "", role: "", source: "" });
-      loadApplications();
+      setRefreshKey((k) => k + 1);
     } else {
       toast.error("Failed to add application");
     }

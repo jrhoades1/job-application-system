@@ -29,51 +29,10 @@ export default function DashboardPage() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch("/api/applications?limit=1000");
-        const apps = await res.json();
-        const list = Array.isArray(apps) ? apps : apps.data ?? [];
-
-        const now = Date.now();
-        const active = list.filter((a: { status: string }) =>
-          ["applied", "interviewing", "bookmarked"].includes(a.status)
-        );
-        const interviewing = list.filter(
-          (a: { status: string }) => a.status === "interviewing"
-        );
-        const offered = list.filter((a: { status: string }) =>
-          ["offered", "accepted"].includes(a.status)
-        );
-
-        const stalled = list.filter((a: { status: string; applied_date: string | null; created_at: string }) => {
-          if (a.status !== "applied") return false;
-          const date = a.applied_date
-            ? new Date(a.applied_date).getTime()
-            : new Date(a.created_at).getTime();
-          return now - date > 21 * 24 * 60 * 60 * 1000;
-        });
-
-        const followups = list.filter((a: { follow_up_date: string | null }) => {
-          if (!a.follow_up_date) return false;
-          return new Date(a.follow_up_date).getTime() <= now;
-        });
-
-        const recent = [...list]
-          .sort(
-            (a: { updated_at: string }, b: { updated_at: string }) =>
-              new Date(b.updated_at).getTime() -
-              new Date(a.updated_at).getTime()
-          )
-          .slice(0, 5);
-
-        setStats({
-          total: list.length,
-          active: active.length,
-          interviewing: interviewing.length,
-          offered: offered.length,
-          recent,
-          stalled: stalled.length,
-          followups_due: followups.length,
-        });
+        const res = await fetch("/api/dashboard-stats");
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        setStats(data);
       } catch {
         // silent fail
       }
@@ -114,7 +73,7 @@ export default function DashboardPage() {
             </Link>
           )}
           {s.followups_due > 0 && (
-            <Link href="/dashboard/tracker?status=applied,interviewing,bookmarked">
+            <Link href="/dashboard/tracker?status=applied,interviewing">
               <Card className="border-blue-300 flex-1 cursor-pointer transition-colors hover:bg-blue-50">
                 <CardContent className="py-3">
                   <p className="text-sm text-blue-700 font-medium">
@@ -142,7 +101,7 @@ export default function DashboardPage() {
           </Card>
         </Link>
 
-        <Link href="/dashboard/tracker?status=applied,interviewing,bookmarked">
+        <Link href="/dashboard/tracker?status=applied,interviewing">
           <Card className="cursor-pointer transition-colors hover:bg-muted/50">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
