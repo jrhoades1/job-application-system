@@ -2,5 +2,39 @@
   "version": 1,
   "project": "JOB-APPLICATIONS",
   "description": "Job search automation — intake, resume tailoring, cover letters, tracking",
-  "expenses": []
+  "expenses": [
+    {
+      "id": "supabase-free",
+      "description": "Supabase database hosting (free tier)",
+      "category": "hosting",
+      "amount": 0.00,
+      "type": "recurring",
+      "frequency": "monthly",
+      "start_date": "2026-02-28",
+      "end_date": null,
+      "notes": "Free tier — upgrade tracked here when needed"
+    },
+    {
+      "id": "vercel-free",
+      "description": "Vercel deployment (hobby tier)",
+      "category": "hosting",
+      "amount": 0.00,
+      "type": "recurring",
+      "frequency": "monthly",
+      "start_date": "2026-02-28",
+      "end_date": null,
+      "notes": "Free tier — upgrade tracked here when needed"
+    },
+    {
+      "id": "anthropic-api",
+      "description": "Anthropic API credits for AI features",
+      "category": "api",
+      "amount": 0.00,
+      "type": "recurring",
+      "frequency": "monthly",
+      "start_date": "2026-02-28",
+      "end_date": null,
+      "notes": "Variable cost — actual spend tracked in Supabase ai_generations table and Anthropic console. Update monthly."
+    }
+  ]
 }
