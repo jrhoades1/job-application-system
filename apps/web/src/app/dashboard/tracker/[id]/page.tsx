@@ -329,6 +329,20 @@ export default function ApplicationDetailPage() {
         </div>
       </div>
 
+      {/* Job Description */}
+      {app.job_description && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Job Description</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <pre className="text-sm bg-muted p-4 rounded-lg overflow-auto max-h-96 whitespace-pre-wrap">
+              {app.job_description}
+            </pre>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Documents */}
       <Card>
         <CardHeader>
