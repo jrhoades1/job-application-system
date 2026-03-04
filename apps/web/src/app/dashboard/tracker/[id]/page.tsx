@@ -201,6 +201,7 @@ export default function ApplicationDetailPage() {
               className={`inline-flex rounded-full px-3 py-1 text-sm font-medium ${scoreCfg.color}`}
             >
               {scoreCfg.label}
+              {displayMatchPct != null && ` ${displayMatchPct}%`}
             </span>
           )}
           <Badge variant={statusCfg?.variant ?? "secondary"} className="text-sm">
