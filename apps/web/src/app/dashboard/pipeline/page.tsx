@@ -28,8 +28,12 @@ function ScoreTooltipBody({
   scoreDetails: Record<string, unknown> | null;
 }) {
   const hasFlags = redFlags?.length > 0;
-  const detailEntries = scoreDetails
-    ? Object.entries(scoreDetails).filter(
+  const parsed =
+    typeof scoreDetails === "string"
+      ? (() => { try { return JSON.parse(scoreDetails); } catch { return null; } })()
+      : scoreDetails;
+  const detailEntries = parsed && typeof parsed === "object"
+    ? Object.entries(parsed).filter(
         ([, v]) => v !== null && v !== undefined && v !== ""
       )
     : [];
