@@ -96,8 +96,17 @@ export async function POST(req: Request) {
       "tailor_resume"
     );
 
-    const content =
+    const rawContent =
       response.content[0].type === "text" ? response.content[0].text : "";
+
+    // Parse match percentage from AI response (last line: "MATCH_PERCENTAGE: 85")
+    let aiMatchPct: number | null = null;
+    let content = rawContent;
+    const pctMatch = rawContent.match(/\nMATCH_PERCENTAGE:\s*(\d+(?:\.\d+)?)\s*$/);
+    if (pctMatch) {
+      aiMatchPct = parseFloat(pctMatch[1]);
+      content = rawContent.slice(0, pctMatch.index).trimEnd();
+    }
 
     // Update application with content and version label
     await supabase
@@ -108,7 +117,7 @@ export async function POST(req: Request) {
       })
       .eq("id", app.id);
 
-    // Compute match_percentage from counts if not stored (older scores)
+    // Match percentage priority: DB score → computed from counts → AI assessment
     let matchPct = score?.match_percentage ?? null;
     if (matchPct == null && score) {
       const strong = score.strong_count ?? 0;
@@ -117,6 +126,9 @@ export async function POST(req: Request) {
       if (total > 0) {
         matchPct = Math.round(((strong + partial * 0.5) / total) * 1000) / 10;
       }
+    }
+    if (matchPct == null && aiMatchPct != null) {
+      matchPct = aiMatchPct;
     }
 
     return NextResponse.json({

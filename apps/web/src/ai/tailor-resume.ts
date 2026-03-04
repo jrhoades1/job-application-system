@@ -143,5 +143,7 @@ ${input.baseResume}
 7. Place the most relevant experience first within each role
 8. For addressable gaps, frame adjacent experience positively
 
-Output ONLY the tailored resume content in Markdown format. No commentary.`;
+Output the tailored resume content in Markdown format, then on the VERY LAST LINE output exactly:
+MATCH_PERCENTAGE: <number>
+where <number> is your assessment (0-100) of how well this tailored resume matches the job description. Consider keyword coverage, experience alignment, and skills fit. No other commentary.`;
 }
