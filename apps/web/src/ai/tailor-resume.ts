@@ -8,6 +8,14 @@
  * - Heavy (stretch/long shot): Creative positioning, transferable skills focus
  */
 
+export interface WorkHistoryEntry {
+  company: string;
+  title: string;
+  start_date: string;
+  end_date?: string | null;
+  current?: boolean;
+}
+
 export interface TailorResumeInput {
   baseResume: string;
   jobDescription: string;
@@ -20,6 +28,15 @@ export interface TailorResumeInput {
   addressableGaps: string[];
   achievements: string;
   narrative: string;
+  contactInfo: {
+    full_name: string;
+    email: string;
+    phone?: string | null;
+    location?: string | null;
+    linkedin_url?: string | null;
+    portfolio_url?: string | null;
+  };
+  workHistory: WorkHistoryEntry[];
 }
 
 export function buildTailorResumePrompt(input: TailorResumeInput): string {
@@ -51,6 +68,26 @@ export function buildTailorResumePrompt(input: TailorResumeInput): string {
 - One-page format mandatory — be aggressive with compression`,
   };
 
+  // Build contact header — only include fields that have actual values
+  const c = input.contactInfo;
+  const contactParts: string[] = [];
+  if (c.email) contactParts.push(`**Email:** ${c.email}`);
+  if (c.phone) contactParts.push(`**Phone:** ${c.phone}`);
+  if (c.location) contactParts.push(`**Location:** ${c.location}`);
+  if (c.linkedin_url) contactParts.push(`**LinkedIn:** ${c.linkedin_url}`);
+  if (c.portfolio_url) contactParts.push(`**Portfolio:** ${c.portfolio_url}`);
+  const contactBlock = contactParts.length > 0
+    ? contactParts.join(" | ")
+    : "NO CONTACT INFO PROVIDED — omit the contact line entirely, do NOT generate placeholder text";
+
+  // Build work history section
+  const workHistoryText = input.workHistory.length > 0
+    ? input.workHistory.map((w) => {
+        const dates = w.current ? `${w.start_date} – Present` : `${w.start_date} – ${w.end_date ?? ""}`;
+        return `- **${w.title}** at ${w.company} (${dates})`;
+      }).join("\n")
+    : "NONE PROVIDED";
+
   return `You are an expert resume writer tailoring a resume for a specific job application.
 
 ## Target Role
@@ -76,18 +113,35 @@ ${input.addressableGaps.map((g) => `- ${g}`).join("\n") || "None"}
 ## Career Narrative
 ${input.narrative || "Not provided"}
 
-## Base Resume
+## Contact Information (use EXACTLY as provided — do NOT invent or substitute)
+**Name:** ${c.full_name}
+${contactBlock}
+
+## Work History (use EXACT titles — do not change or invent)
+${workHistoryText}
+
+## Achievements & Skills
 ${input.baseResume}
 
-## Instructions
+## CRITICAL RULES — VIOLATIONS WILL MAKE THE RESUME UNUSABLE
 
-Produce a tailored resume in Markdown format that:
-1. Maintains the candidate's authentic experience — never fabricate
-2. Optimizes for this specific role using keyword injection and bullet reordering
-3. Fits on one page (aim for ~450 words max for bullet content)
-4. Uses strong action verbs and quantified results
-5. Places the most relevant experience first in each section
-6. For addressable gaps, frame adjacent experience positively
+**ACCURACY IS MANDATORY:**
+- Use the candidate's EXACT name as provided above: "${c.full_name}". Never use "John Doe" or any other name.
+- For contact details, copy the EXACT values above verbatim. If a field is missing, OMIT it — never write placeholder words like "Phone", "Email", "LinkedIn", or "Location".
+- For job titles: use ONLY the exact titles listed in Work History. If Work History says "NONE PROVIDED", then DO NOT create a "Professional Experience" section with job titles. Instead, organize bullets under company names only (e.g., "## ilumed Healthcare" with bullets underneath, no title).
+- NEVER invent, upgrade, or embellish job titles. "VP of Engineering" cannot become "Chief Technology Officer". This is a legal document.
+- NEVER fabricate companies, dates, degrees, or certifications not in the source data.
+
+## Resume Format Instructions
+
+1. Start with the candidate's name as an H1 heading, followed by contact details on the next line
+2. Include an Executive Summary / Professional Summary section
+3. Organize experience in reverse chronological order, mapping achievement bullets to the correct company
+4. Optimize for this specific role using keyword injection and bullet reordering
+5. Fit on one page (aim for ~450 words max for bullet content)
+6. Use strong action verbs and quantified results
+7. Place the most relevant experience first within each role
+8. For addressable gaps, frame adjacent experience positively
 
 Output ONLY the tailored resume content in Markdown format. No commentary.`;
 }

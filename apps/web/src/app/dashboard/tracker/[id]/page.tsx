@@ -67,6 +67,7 @@ export default function ApplicationDetailPage() {
   const [tailoring, setTailoring] = useState(false);
   const [generatingCL, setGeneratingCL] = useState(false);
   const [tailoredResume, setTailoredResume] = useState<string | null>(null);
+  const [tailorMatchPct, setTailorMatchPct] = useState<number | null>(null);
   const [coverLetter, setCoverLetter] = useState<string | null>(null);
 
   useEffect(() => {
@@ -118,7 +119,9 @@ export default function ApplicationDetailPage() {
       if (res.ok) {
         const data = await res.json();
         setTailoredResume(data.resume);
-        toast.success("Resume tailored");
+        setTailorMatchPct(data.match_percentage);
+        const pctLabel = data.match_percentage ? ` — ${data.match_percentage}% match` : "";
+        toast.success(`Resume tailored${pctLabel}`);
       } else {
         const err = await res.json();
         toast.error(err.error ?? "Failed to tailor resume");
@@ -370,9 +373,20 @@ export default function ApplicationDetailPage() {
           {/* Tailored Resume */}
           {resumeContent && (
             <div>
-              <h4 className="text-sm font-medium mb-2">
-                {tailoredResume ? "Tailored Resume" : "Saved Resume"}
-              </h4>
+              <div className="flex items-center gap-2 mb-2">
+                <h4 className="text-sm font-medium">
+                  {tailoredResume ? "Tailored Resume" : "Saved Resume"}
+                </h4>
+                {tailorMatchPct != null && (
+                  <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                    tailorMatchPct >= 80 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" :
+                    tailorMatchPct >= 60 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" :
+                    "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                  }`}>
+                    {tailorMatchPct}% match
+                  </span>
+                )}
+              </div>
               <pre className="text-xs bg-muted p-4 rounded-lg overflow-auto max-h-96 whitespace-pre-wrap">
                 {resumeContent}
               </pre>

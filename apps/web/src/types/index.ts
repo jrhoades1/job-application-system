@@ -1,6 +1,6 @@
 // Re-export all types from schemas for convenience
 export type { CreateApplication, UpdateApplication } from "@/schemas/application";
-export type { UpdateProfile, AchievementCategory } from "@/schemas/profile";
+export type { UpdateProfile, AchievementCategory, WorkHistoryEntry } from "@/schemas/profile";
 export type { MatchScore } from "@/schemas/match-score";
 
 // Database row types (what comes back from Supabase queries)
@@ -57,6 +57,7 @@ export interface ProfileRow {
   linkedin_url: string | null;
   portfolio_url: string | null;
   achievements: { category: string; items: { text: string; learned_date?: string }[] }[];
+  work_history: { company: string; title: string; start_date: string; end_date?: string | null; current?: boolean }[];
   narrative: string | null;
   base_resume_url: string | null;
   preferences: {

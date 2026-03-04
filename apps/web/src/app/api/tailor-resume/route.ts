@@ -36,10 +36,10 @@ export async function POST(req: Request) {
       );
     }
 
-    // Load profile
+    // Load profile (including contact info and work history for resume header)
     const { data: profile } = await supabase
       .from("profiles")
-      .select("achievements, narrative, base_resume_url")
+      .select("full_name, email, phone, location, linkedin_url, portfolio_url, achievements, work_history, narrative")
       .eq("clerk_user_id", userId)
       .single();
 
@@ -76,6 +76,15 @@ export async function POST(req: Request) {
       addressableGaps: score?.addressable_gaps ?? [],
       achievements,
       narrative: profile.narrative ?? "",
+      contactInfo: {
+        full_name: profile.full_name,
+        email: profile.email,
+        phone: profile.phone,
+        location: profile.location,
+        linkedin_url: profile.linkedin_url,
+        portfolio_url: profile.portfolio_url,
+      },
+      workHistory: profile.work_history ?? [],
     });
 
     const response = await createTrackedMessage(
@@ -99,7 +108,11 @@ export async function POST(req: Request) {
       })
       .eq("id", app.id);
 
-    return NextResponse.json({ resume: content });
+    return NextResponse.json({
+      resume: content,
+      match_percentage: score?.match_percentage ?? null,
+      match_overall: score?.overall ?? null,
+    });
   } catch (err) {
     if (err instanceof SpendCapExceededError) {
       return NextResponse.json(

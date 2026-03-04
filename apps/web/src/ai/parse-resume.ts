@@ -22,6 +22,15 @@ Return ONLY a valid JSON object with this exact structure (no commentary, no mar
   "location": "string or null — city/state format preferred",
   "linkedin_url": "string or null — full URL including https://",
   "narrative": "string — 2-3 sentence career positioning statement summarizing their background, core strengths, and career focus. Write in first person if the resume uses it, otherwise third person.",
+  "work_history": [
+    {
+      "company": "string — company name",
+      "title": "string — exact job title as written on the resume",
+      "start_date": "string — YYYY-MM or YYYY format",
+      "end_date": "string or null — YYYY-MM or YYYY format, null if current role",
+      "current": "boolean — true if this is the current/most recent position"
+    }
+  ],
   "achievements": [
     {
       "category": "string — a logical grouping like 'Leadership', 'Technical Skills', 'Healthcare IT', 'AI/ML', 'Education', etc.",
@@ -31,6 +40,12 @@ Return ONLY a valid JSON object with this exact structure (no commentary, no mar
     }
   ]
 }
+
+## Work History Extraction Rules
+- Extract ALL positions listed on the resume in reverse chronological order (most recent first)
+- Use the EXACT job title as written — never paraphrase or upgrade titles
+- Include start and end dates as precisely as given (YYYY-MM preferred, YYYY if month not available)
+- Mark the most recent/current position with "current": true
 
 ## Achievement Extraction Rules
 - Group achievements into 4-8 meaningful categories based on the candidate's background

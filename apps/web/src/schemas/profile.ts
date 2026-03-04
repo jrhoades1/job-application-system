@@ -10,6 +10,14 @@ const achievementCategorySchema = z.object({
   items: z.array(achievementItemSchema),
 });
 
+const workHistoryEntrySchema = z.object({
+  company: z.string(),
+  title: z.string(),
+  start_date: z.string(),
+  end_date: z.string().optional().nullable(),
+  current: z.boolean().optional(),
+});
+
 export const updateProfileSchema = z.object({
   full_name: z.string().min(1).optional().nullable(),
   email: z.string().email().optional().nullable(),
@@ -18,6 +26,7 @@ export const updateProfileSchema = z.object({
   linkedin_url: z.string().url().optional().or(z.literal("")).nullable(),
   portfolio_url: z.string().url().optional().or(z.literal("")).nullable(),
   achievements: z.array(achievementCategorySchema).optional().nullable(),
+  work_history: z.array(workHistoryEntrySchema).optional().nullable(),
   narrative: z.string().optional().nullable(),
   preferences: z
     .object({
@@ -31,3 +40,4 @@ export const updateProfileSchema = z.object({
 
 export type UpdateProfile = z.infer<typeof updateProfileSchema>;
 export type AchievementCategory = z.infer<typeof achievementCategorySchema>;
+export type WorkHistoryEntry = z.infer<typeof workHistoryEntrySchema>;
