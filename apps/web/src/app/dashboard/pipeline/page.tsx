@@ -44,7 +44,7 @@ function ScoreTooltipBody({
       {hasDetails && (
         <div>
           {detailEntries.map(([key, value]) => (
-            <div key={key} className="flex justify-between gap-3">
+            <div key={key} className="flex justify-between gap-3 whitespace-nowrap">
               <span className="text-muted-foreground capitalize">
                 {key.replace(/_/g, " ")}:
               </span>
@@ -233,7 +233,7 @@ export default function PipelinePage() {
                               </span>
                             </TooltipTrigger>
                             <TooltipContent
-                              className="max-w-xs text-left"
+                              className="min-w-[200px] max-w-xs text-left"
                               side="bottom"
                             >
                               <ScoreTooltipBody
