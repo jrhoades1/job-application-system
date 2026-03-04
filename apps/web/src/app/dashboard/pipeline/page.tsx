@@ -72,6 +72,7 @@ export default function PipelinePage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("filtered");
   const [reparsing, setReparsing] = useState(false);
+  const [deduping, setDeduping] = useState(false);
 
   useEffect(() => {
     fetchLeads();
@@ -113,6 +114,36 @@ export default function PipelinePage() {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Job Pipeline</h2>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={deduping}
+            onClick={async () => {
+              setDeduping(true);
+              try {
+                const res = await fetch("/api/pipeline/dedup", {
+                  method: "POST",
+                });
+                const data = await res.json();
+                if (res.ok) {
+                  if (data.removed > 0) {
+                    toast.success(`Removed ${data.removed} duplicate(s)`);
+                    fetchLeads();
+                  } else {
+                    toast.info("No duplicates found");
+                  }
+                } else {
+                  toast.error(data.error ?? "Dedup failed");
+                }
+              } catch {
+                toast.error("Dedup failed");
+              } finally {
+                setDeduping(false);
+              }
+            }}
+          >
+            {deduping ? "Removing..." : "Remove Duplicates"}
+          </Button>
           <Button
             variant="outline"
             size="sm"

@@ -160,7 +160,12 @@ export async function POST() {
 
     for (const msg of messages) {
       // Skip if base email ID or any multi-job variant already exists
-      if (existingUids.has(msg.id) || existingUids.has(`${msg.id}_0`)) {
+      // (reparse renames originals to {uid}_0, so check that too)
+      if (
+        existingUids.has(msg.id) ||
+        existingUids.has(`${msg.id}_0`) ||
+        existingUids.has(`${msg.id}_1`)
+      ) {
         skipped++;
         continue;
       }
@@ -197,14 +202,17 @@ export async function POST() {
       const fingerprint = await computeEmailFingerprint(from, subject, body);
 
       // Check fingerprint dedup (different message IDs can have same content)
+      // Also check by raw_subject match as a fallback
       const { data: fpExists } = await supabase
         .from("pipeline_leads")
         .select("id")
         .eq("clerk_user_id", userId)
-        .eq("email_uid", fingerprint)
+        .eq("raw_subject", subject)
+        .eq("email_date", emailDate)
         .maybeSingle();
 
       if (fpExists) {
+        existingUids.add(msg.id);
         skipped++;
         continue;
       }
