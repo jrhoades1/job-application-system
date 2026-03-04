@@ -310,6 +310,14 @@ export default function TrackerPage() {
               const scoreCfg = score?.overall
                 ? SCORE_CONFIG[score.overall as keyof typeof SCORE_CONFIG]
                 : null;
+              const matchPct = score?.match_percentage
+                ?? (score ? (() => {
+                    const s = score.strong_count ?? 0;
+                    const p = score.partial_count ?? 0;
+                    const total = s + p + (score.gap_count ?? 0);
+                    return total > 0 ? Math.round(((s + p * 0.5) / total) * 1000) / 10 : null;
+                  })()
+                : null);
 
               return (
                 <TableRow
@@ -343,6 +351,7 @@ export default function TrackerPage() {
                         className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${scoreCfg.color}`}
                       >
                         {scoreCfg.label}
+                        {matchPct != null && ` ${matchPct}%`}
                       </span>
                     ) : (
                       <span className="text-muted-foreground text-sm">—</span>

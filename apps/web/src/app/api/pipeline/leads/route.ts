@@ -108,11 +108,15 @@ export async function PATCH(req: Request) {
 
     // Create match score if available
     if (lead.score_overall) {
+      const details = lead.score_details as Record<string, unknown> | null;
       await supabase.from("match_scores").insert({
         application_id: app.id,
         clerk_user_id: userId,
         overall: lead.score_overall,
         match_percentage: lead.score_match_percentage,
+        strong_count: details?.strong_count ?? 0,
+        partial_count: details?.partial_count ?? 0,
+        gap_count: details?.gap_count ?? 0,
         red_flags: lead.red_flags ?? [],
       });
     }

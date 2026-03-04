@@ -14,7 +14,7 @@ export async function GET(req: Request) {
 
     let query = supabase
       .from("applications")
-      .select("id, company, role, status, source, applied_date, created_at, match_scores(overall)", { count: "exact" })
+      .select("id, company, role, status, source, applied_date, created_at, match_scores(overall, match_percentage, strong_count, partial_count, gap_count)", { count: "exact" })
       .eq("clerk_user_id", userId)
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
