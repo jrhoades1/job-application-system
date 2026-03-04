@@ -9,6 +9,11 @@ import {
   extractEmailText,
   computeEmailFingerprint,
 } from "@/lib/gmail";
+import {
+  extractRequirements,
+  scoreRequirement,
+  calculateOverallScore,
+} from "@/scoring";
 
 // Non-job email signals (ported from email_parse.py)
 const NON_JOB_PATTERNS = [
@@ -155,6 +160,33 @@ export async function POST() {
 
     const existingUids = new Set((existingLeads ?? []).map((l) => l.email_uid));
 
+    // Load user achievements for scoring
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("achievements")
+      .eq("clerk_user_id", userId)
+      .single();
+
+    const achievementsMap: Record<string, string[]> = {};
+    const achievements = profile?.achievements ?? [];
+    if (Array.isArray(achievements)) {
+      for (const cat of achievements) {
+        if (cat.category && Array.isArray(cat.items)) {
+          achievementsMap[cat.category] = cat.items.map(
+            (i: { text: string }) => i.text
+          );
+        }
+      }
+    }
+
+    function scoreLead(descriptionText: string) {
+      const reqs = extractRequirements(descriptionText);
+      const allReqs = [...reqs.hard_requirements, ...reqs.preferred];
+      const matches = allReqs.map((r) => scoreRequirement(r, achievementsMap));
+      const score = calculateOverallScore(matches);
+      return { score, red_flags: reqs.red_flags };
+    }
+
     let inserted = 0;
     let skipped = 0;
 
@@ -240,6 +272,9 @@ export async function POST() {
 
           if (existingUids.has(leadUid)) continue;
 
+          const leadText = body.slice(0, 5000);
+          const leadScore = scoreLead(leadText);
+
           await supabase.from("pipeline_leads").insert({
             clerk_user_id: userId,
             company: job.company,
@@ -249,9 +284,16 @@ export async function POST() {
             email_uid: leadUid,
             email_date: emailDate,
             raw_subject: subject,
-            description_text: body.slice(0, 5000),
+            description_text: leadText,
             status: "pending_review",
-            red_flags: [],
+            score_overall: leadScore.score.overall,
+            score_match_percentage: leadScore.score.match_percentage,
+            score_details: {
+              strong_count: leadScore.score.strong_count,
+              partial_count: leadScore.score.partial_count,
+              gap_count: leadScore.score.gap_count,
+            },
+            red_flags: leadScore.red_flags,
             created_at: new Date().toISOString(),
           });
 
@@ -266,6 +308,8 @@ export async function POST() {
 
       // Single-job email: extract from subject and auto-promote
       const extracted = extractCompanyRole(subject);
+      const singleText = body.slice(0, 5000);
+      const singleScore = scoreLead(singleText);
 
       await supabase.from("pipeline_leads").insert({
         clerk_user_id: userId,
@@ -275,22 +319,43 @@ export async function POST() {
         email_uid: msg.id,
         email_date: emailDate,
         raw_subject: subject,
-        description_text: body.slice(0, 5000),
+        description_text: singleText,
         status: "promoted",
-        red_flags: [],
+        score_overall: singleScore.score.overall,
+        score_match_percentage: singleScore.score.match_percentage,
+        score_details: {
+          strong_count: singleScore.score.strong_count,
+          partial_count: singleScore.score.partial_count,
+          gap_count: singleScore.score.gap_count,
+        },
+        red_flags: singleScore.red_flags,
         created_at: new Date().toISOString(),
       });
 
       // Auto-promote: create application immediately
-      await supabase.from("applications").insert({
+      const { data: newApp } = await supabase.from("applications").insert({
         clerk_user_id: userId,
         company: extracted?.company || subject,
         role: extracted?.role || subject,
         source: platform ?? "Email Pipeline",
-        job_description: body.slice(0, 5000),
+        job_description: singleText,
         status: "pending_review",
         email_uid: msg.id,
-      });
+      }).select("id").single();
+
+      // Create match_scores for the auto-promoted application
+      if (newApp) {
+        await supabase.from("match_scores").insert({
+          application_id: newApp.id,
+          clerk_user_id: userId,
+          overall: singleScore.score.overall,
+          match_percentage: singleScore.score.match_percentage,
+          strong_count: singleScore.score.strong_count,
+          partial_count: singleScore.score.partial_count,
+          gap_count: singleScore.score.gap_count,
+          red_flags: singleScore.red_flags,
+        });
+      }
 
       existingUids.add(msg.id);
       inserted++;

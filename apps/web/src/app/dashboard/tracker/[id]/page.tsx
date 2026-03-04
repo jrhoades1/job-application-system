@@ -66,6 +66,7 @@ export default function ApplicationDetailPage() {
   const [saving, setSaving] = useState(false);
   const [tailoring, setTailoring] = useState(false);
   const [generatingCL, setGeneratingCL] = useState(false);
+  const [scoring, setScoring] = useState(false);
   const [tailoredResume, setTailoredResume] = useState<string | null>(null);
   const [tailorMatchPct, setTailorMatchPct] = useState<number | null>(null);
   const [coverLetter, setCoverLetter] = useState<string | null>(null);
@@ -160,6 +161,30 @@ export default function ApplicationDetailPage() {
     await fetch(`/api/applications/${params.id}`, { method: "DELETE" });
     toast.success("Application deleted");
     router.push("/dashboard/tracker");
+  }
+
+  async function handleScore() {
+    if (!app) return;
+    setScoring(true);
+    try {
+      const res = await fetch(`/api/applications/${params.id}/score`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setApp({
+          ...app,
+          match_scores: [data],
+        });
+        toast.success(`Scored: ${data.overall} — ${data.match_percentage}%`);
+      } else {
+        const err = await res.json();
+        toast.error(err.error ?? "Failed to score");
+      }
+    } catch {
+      toast.error("Something went wrong");
+    }
+    setScoring(false);
   }
 
   if (loading) return <div className="text-muted-foreground">Loading...</div>;
@@ -366,6 +391,13 @@ export default function ApplicationDetailPage() {
         <CardContent className="space-y-4">
           {/* AI generation buttons */}
           <div className="flex gap-2">
+            <Button
+              onClick={handleScore}
+              disabled={scoring || !app.job_description}
+              variant="outline"
+            >
+              {scoring ? "Scoring..." : scoreCfg ? "Re-Score" : "Score"}
+            </Button>
             <Button
               onClick={handleTailorResume}
               disabled={tailoring}
