@@ -108,9 +108,20 @@ export async function POST(req: Request) {
       })
       .eq("id", app.id);
 
+    // Compute match_percentage from counts if not stored (older scores)
+    let matchPct = score?.match_percentage ?? null;
+    if (matchPct == null && score) {
+      const strong = score.strong_count ?? 0;
+      const partial = score.partial_count ?? 0;
+      const total = strong + partial + (score.gap_count ?? 0);
+      if (total > 0) {
+        matchPct = Math.round(((strong + partial * 0.5) / total) * 1000) / 10;
+      }
+    }
+
     return NextResponse.json({
       resume: content,
-      match_percentage: score?.match_percentage ?? null,
+      match_percentage: matchPct,
       match_overall: score?.overall ?? null,
     });
   } catch (err) {
