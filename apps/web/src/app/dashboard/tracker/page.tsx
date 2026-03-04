@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -58,12 +59,21 @@ export default function TrackerPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newApp, setNewApp] = useState({ company: "", role: "", source: "" });
   const [refreshKey, setRefreshKey] = useState(0);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkStatus, setBulkStatus] = useState<string>("");
+  const [bulkUpdating, setBulkUpdating] = useState(false);
 
   // Sync filter when URL params change after mount (e.g. back/forward navigation)
   useEffect(() => {
     const resolved = resolveFilterFromParams(searchParams);
     setStatusFilter((prev) => (prev !== resolved ? resolved : prev));
   }, [searchParams]);
+
+  // Clear selection when data changes
+  useEffect(() => {
+    setSelectedIds(new Set());
+    setBulkStatus("");
+  }, [statusFilter, refreshKey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -103,6 +113,59 @@ export default function TrackerPage() {
       setRefreshKey((k) => k + 1);
     } else {
       toast.error("Failed to add application");
+    }
+  }
+
+  const allSelected =
+    applications.length > 0 && selectedIds.size === applications.length;
+  const someSelected =
+    selectedIds.size > 0 && selectedIds.size < applications.length;
+
+  function toggleSelectAll() {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(applications.map((a) => a.id)));
+    }
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function handleBulkStatusUpdate() {
+    if (selectedIds.size === 0 || !bulkStatus) return;
+    setBulkUpdating(true);
+    try {
+      const res = await fetch("/api/applications/bulk-status", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ids: Array.from(selectedIds),
+          status: bulkStatus,
+        }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        toast.success(
+          `Updated ${result.updated} application${result.updated !== 1 ? "s" : ""}`
+        );
+        setSelectedIds(new Set());
+        setBulkStatus("");
+        setRefreshKey((k) => k + 1);
+      } else {
+        const err = await res.json();
+        toast.error(err.error ?? "Failed to update applications");
+      }
+    } catch {
+      toast.error("Failed to update applications");
+    } finally {
+      setBulkUpdating(false);
     }
   }
 
@@ -175,6 +238,43 @@ export default function TrackerPage() {
         </Select>
       </div>
 
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 rounded-lg border bg-muted/50 p-3">
+          <span className="text-sm font-medium">
+            {selectedIds.size} selected
+          </span>
+          <Select value={bulkStatus} onValueChange={setBulkStatus}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Change status to..." />
+            </SelectTrigger>
+            <SelectContent>
+              {APPLICATION_STATUSES.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {STATUS_CONFIG[s].label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            size="sm"
+            onClick={handleBulkStatusUpdate}
+            disabled={!bulkStatus || bulkUpdating}
+          >
+            {bulkUpdating ? "Updating..." : "Apply"}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setSelectedIds(new Set());
+              setBulkStatus("");
+            }}
+          >
+            Clear
+          </Button>
+        </div>
+      )}
+
       {loading ? (
         <div className="text-muted-foreground">Loading applications...</div>
       ) : applications.length === 0 ? (
@@ -185,6 +285,13 @@ export default function TrackerPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>
+                <Checkbox
+                  checked={allSelected ? true : someSelected ? "indeterminate" : false}
+                  onCheckedChange={toggleSelectAll}
+                  aria-label="Select all applications"
+                />
+              </TableHead>
               <TableHead>Company</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Status</TableHead>
@@ -205,7 +312,17 @@ export default function TrackerPage() {
                 : null;
 
               return (
-                <TableRow key={app.id}>
+                <TableRow
+                  key={app.id}
+                  data-state={selectedIds.has(app.id) ? "selected" : undefined}
+                >
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedIds.has(app.id)}
+                      onCheckedChange={() => toggleSelect(app.id)}
+                      aria-label={`Select ${app.company}`}
+                    />
+                  </TableCell>
                   <TableCell>
                     <Link
                       href={`/dashboard/tracker/${app.id}`}

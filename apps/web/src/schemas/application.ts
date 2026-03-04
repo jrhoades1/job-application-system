@@ -55,5 +55,14 @@ export const updateApplicationSchema = createApplicationSchema.partial().extend(
   skip_reason: z.string().optional().nullable(),
 });
 
+export const bulkUpdateStatusSchema = z.object({
+  ids: z
+    .array(z.string().uuid())
+    .min(1, "At least one application ID is required")
+    .max(50, "Cannot update more than 50 applications at once"),
+  status: applicationStatusSchema,
+});
+
 export type CreateApplication = z.infer<typeof createApplicationSchema>;
 export type UpdateApplication = z.infer<typeof updateApplicationSchema>;
+export type BulkUpdateStatus = z.infer<typeof bulkUpdateStatusSchema>;
