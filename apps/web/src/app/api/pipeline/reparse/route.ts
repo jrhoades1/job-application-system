@@ -2,33 +2,23 @@ import { NextResponse } from "next/server";
 import { getAuthenticatedClient } from "@/lib/supabase";
 import { extractJobsFromEmail } from "@/lib/extract-jobs";
 
-// Platforms that send multi-job digest emails
-const MULTI_JOB_PLATFORMS = [
-  "LinkedIn",
-  "Indeed",
-  "Glassdoor",
-  "ZipRecruiter",
-  "Handshake",
-];
-
 /**
  * POST /api/pipeline/reparse
  *
- * Re-processes existing pipeline leads from multi-job platforms.
- * Finds leads that were stored as a single entry (no _N suffix in email_uid)
- * and uses AI to extract all individual jobs from the description_text.
+ * Re-processes existing pipeline leads that have email body content.
+ * Uses AI to extract all individual jobs from the description_text,
+ * replacing single-entry leads with one lead per job found.
  */
 export async function POST() {
   try {
     const { supabase, userId } = await getAuthenticatedClient();
 
-    // Find leads from multi-job platforms that have description_text
-    // and whose email_uid doesn't already have a _N suffix (not yet reparsed)
+    // Find ALL leads that have description_text (email body stored)
+    // regardless of source_platform — old syncs may have null platform
     const { data: candidates, error } = await supabase
       .from("pipeline_leads")
       .select("*")
       .eq("clerk_user_id", userId)
-      .in("source_platform", MULTI_JOB_PLATFORMS)
       .not("description_text", "is", null);
 
     if (error) {
