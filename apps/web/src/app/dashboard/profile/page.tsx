@@ -271,9 +271,14 @@ export default function ProfilePage() {
           </div>
 
           {parsedPreview && (
-            <div className="rounded-lg border bg-muted/40 p-4 space-y-3">
+            <div className="rounded-lg border-2 border-blue-500 bg-blue-50 dark:bg-blue-950/30 p-4 space-y-3 relative">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium">Preview — what will be applied:</p>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900 px-2.5 py-0.5 text-xs font-semibold text-blue-800 dark:text-blue-200">
+                    Resume Preview
+                  </span>
+                  <p className="text-sm text-muted-foreground">Click &quot;Apply&quot; to fill in the form below</p>
+                </div>
                 <div className="flex gap-2">
                   <Button size="sm" onClick={applyParsedResume}>Apply to Profile</Button>
                   <Button size="sm" variant="ghost" onClick={() => setParsedPreview(null)}>Dismiss</Button>
@@ -297,17 +302,17 @@ export default function ProfilePage() {
                 )}
               </div>
               {parsedPreview.narrative && (
-                <p className="text-sm text-muted-foreground border-t pt-2">
+                <p className="text-sm text-muted-foreground border-t border-blue-200 dark:border-blue-800 pt-2">
                   <span className="font-medium text-foreground">Narrative:</span> {parsedPreview.narrative.slice(0, 200)}{parsedPreview.narrative.length > 200 ? "..." : ""}
                 </p>
               )}
               {parsedPreview.work_history && parsedPreview.work_history.length > 0 && (
-                <p className="text-sm text-muted-foreground border-t pt-2">
+                <p className="text-sm text-muted-foreground border-t border-blue-200 dark:border-blue-800 pt-2">
                   <span className="font-medium text-foreground">Work History:</span> {parsedPreview.work_history.map(w => `${w.title} at ${w.company}`).join(", ")}
                 </p>
               )}
               {parsedPreview.achievements && parsedPreview.achievements.length > 0 && (
-                <p className="text-sm text-muted-foreground border-t pt-2">
+                <p className="text-sm text-muted-foreground border-t border-blue-200 dark:border-blue-800 pt-2">
                   <span className="font-medium text-foreground">Achievements:</span> {parsedPreview.achievements.map(c => `${c.category} (${c.items.length})`).join(", ")}
                 </p>
               )}
