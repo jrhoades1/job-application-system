@@ -13,12 +13,12 @@ export async function GET() {
           .select("*", { count: "exact", head: true })
           .eq("clerk_user_id", userId),
 
-        // Active: applied, interviewing, bookmarked
+        // Active: applied, interviewing
         supabase
           .from("applications")
           .select("*", { count: "exact", head: true })
           .eq("clerk_user_id", userId)
-          .in("status", ["applied", "interviewing", "bookmarked"]),
+          .in("status", ["applied", "interviewing"]),
 
         // Interviewing
         supabase
