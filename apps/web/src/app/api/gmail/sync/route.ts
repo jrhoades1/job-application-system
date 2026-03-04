@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedClient } from "@/lib/supabase";
+import { extractJobsFromEmail, type ExtractedJob } from "@/lib/extract-jobs";
 import {
   getGmailTokens,
   listGmailMessages,
@@ -119,6 +120,10 @@ function extractCompanyRole(
   return null;
 }
 
+function isMultiJobPlatform(from: string): boolean {
+  return Object.values(MULTI_JOB_PLATFORMS).some((regex) => regex.test(from));
+}
+
 export async function POST() {
   try {
     const { supabase, userId } = await getAuthenticatedClient();
@@ -154,7 +159,8 @@ export async function POST() {
     let skipped = 0;
 
     for (const msg of messages) {
-      if (existingUids.has(msg.id)) {
+      // Skip if base email ID or any multi-job variant already exists
+      if (existingUids.has(msg.id) || existingUids.has(`${msg.id}_0`)) {
         skipped++;
         continue;
       }
@@ -170,7 +176,7 @@ export async function POST() {
       const emailDate = date ? new Date(date).toISOString() : new Date().toISOString();
 
       if (!isJobEmail(from, subject, body)) {
-        // Store as filtered so user can see what was caught — not silently dropped
+        // Store as auto_skipped so user can see what was caught — not silently dropped
         await supabase.from("pipeline_leads").insert({
           clerk_user_id: userId,
           company: from,
@@ -178,7 +184,8 @@ export async function POST() {
           email_uid: msg.id,
           email_date: emailDate,
           raw_subject: subject,
-          status: "filtered",
+          status: "auto_skipped",
+          skip_reason: "Non-job email (filtered by pattern matching)",
           red_flags: [],
           created_at: new Date().toISOString(),
         });
@@ -203,6 +210,53 @@ export async function POST() {
       }
 
       const platform = detectPlatform(from);
+
+      // Multi-job digest emails: extract all jobs via AI
+      if (isMultiJobPlatform(from)) {
+        let jobs: ExtractedJob[] = [];
+        try {
+          jobs = await extractJobsFromEmail(body, subject, platform);
+        } catch (err) {
+          console.error("AI job extraction failed, falling back to subject:", err);
+        }
+
+        if (jobs.length === 0) {
+          // Fallback: try subject extraction as single job
+          const extracted = extractCompanyRole(subject);
+          jobs = extracted ? [extracted] : [];
+        }
+
+        for (let i = 0; i < jobs.length; i++) {
+          const job = jobs[i];
+          const leadUid = `${msg.id}_${i}`;
+
+          if (existingUids.has(leadUid)) continue;
+
+          await supabase.from("pipeline_leads").insert({
+            clerk_user_id: userId,
+            company: job.company,
+            role: job.role,
+            location: job.location ?? null,
+            source_platform: platform,
+            email_uid: leadUid,
+            email_date: emailDate,
+            raw_subject: subject,
+            description_text: body.slice(0, 5000),
+            status: "pending_review",
+            red_flags: [],
+            created_at: new Date().toISOString(),
+          });
+
+          existingUids.add(leadUid);
+          inserted++;
+        }
+
+        // Also mark the base email ID as seen to avoid re-processing
+        existingUids.add(msg.id);
+        continue;
+      }
+
+      // Single-job email: extract from subject and auto-promote
       const extracted = extractCompanyRole(subject);
 
       await supabase.from("pipeline_leads").insert({

@@ -12,13 +12,66 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
 import { SCORE_CONFIG } from "@/lib/constants";
 import type { PipelineLeadRow } from "@/types";
+
+function ScoreTooltipBody({
+  redFlags,
+  scoreDetails,
+}: {
+  redFlags: string[];
+  scoreDetails: Record<string, unknown> | null;
+}) {
+  const hasFlags = redFlags?.length > 0;
+  const detailEntries = scoreDetails
+    ? Object.entries(scoreDetails).filter(
+        ([, v]) => v !== null && v !== undefined && v !== ""
+      )
+    : [];
+  const hasDetails = detailEntries.length > 0;
+
+  if (!hasFlags && !hasDetails) {
+    return <span>No scoring details available</span>;
+  }
+
+  return (
+    <div className="space-y-2 py-1">
+      {hasDetails && (
+        <div>
+          {detailEntries.map(([key, value]) => (
+            <div key={key} className="flex justify-between gap-3">
+              <span className="text-muted-foreground capitalize">
+                {key.replace(/_/g, " ")}:
+              </span>
+              <span className="font-medium">{String(value)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {hasFlags && (
+        <div>
+          <div className="font-medium text-destructive mb-0.5">Red flags:</div>
+          <ul className="list-disc pl-3.5 space-y-0.5">
+            {redFlags.map((flag, i) => (
+              <li key={i}>{flag}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function PipelinePage() {
   const [leads, setLeads] = useState<PipelineLeadRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("filtered");
+  const [reparsing, setReparsing] = useState(false);
 
   useEffect(() => {
     fetchLeads();
@@ -59,7 +112,34 @@ export default function PipelinePage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Job Pipeline</h2>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={reparsing}
+            onClick={async () => {
+              setReparsing(true);
+              try {
+                const res = await fetch("/api/pipeline/reparse", {
+                  method: "POST",
+                });
+                const data = await res.json();
+                if (res.ok) {
+                  toast.success(data.message);
+                  if (data.new_leads > 0) fetchLeads();
+                } else {
+                  toast.error(data.error ?? "Reparse failed");
+                }
+              } catch {
+                toast.error("Reparse failed");
+              } finally {
+                setReparsing(false);
+              }
+            }}
+          >
+            {reparsing ? "Reparsing..." : "Reparse Emails"}
+          </Button>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-[180px]">
             <SelectValue />
           </SelectTrigger>
@@ -70,6 +150,7 @@ export default function PipelinePage() {
             <SelectItem value="all">All</SelectItem>
           </SelectContent>
         </Select>
+        </div>
       </div>
 
       {loading ? (
@@ -110,13 +191,26 @@ export default function PipelinePage() {
                           {lead.company}
                         </h3>
                         {scoreCfg && (
-                          <span
-                            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${scoreCfg.color}`}
-                          >
-                            {scoreCfg.label}
-                            {lead.score_match_percentage != null &&
-                              ` ${lead.score_match_percentage}%`}
-                          </span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span
+                                className={`inline-flex cursor-help rounded-full px-2 py-0.5 text-xs font-medium ${scoreCfg.color}`}
+                              >
+                                {scoreCfg.label}
+                                {lead.score_match_percentage != null &&
+                                  ` ${lead.score_match_percentage}%`}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent
+                              className="max-w-xs text-left"
+                              side="bottom"
+                            >
+                              <ScoreTooltipBody
+                                redFlags={lead.red_flags}
+                                scoreDetails={lead.score_details}
+                              />
+                            </TooltipContent>
+                          </Tooltip>
                         )}
                       </div>
                       <p className="text-sm text-muted-foreground truncate">
