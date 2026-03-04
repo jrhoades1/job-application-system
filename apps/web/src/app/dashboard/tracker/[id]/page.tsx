@@ -173,6 +173,17 @@ export default function ApplicationDetailPage() {
     : null;
   const statusCfg = STATUS_CONFIG[app.status as keyof typeof STATUS_CONFIG];
 
+  // Compute match percentage: prefer API response, fall back to app data
+  const appMatchPct = score?.match_percentage
+    ?? (score ? (() => {
+        const s = score.strong_count ?? 0;
+        const p = score.partial_count ?? 0;
+        const total = s + p + (score.gap_count ?? 0);
+        return total > 0 ? Math.round(((s + p * 0.5) / total) * 1000) / 10 : null;
+      })()
+    : null);
+  const displayMatchPct = tailorMatchPct ?? appMatchPct;
+
   // Determine which content to show for resume and cover letter
   const resumeContent = tailoredResume ?? app.tailored_resume;
   const clContent = coverLetter ?? app.cover_letter;
@@ -377,13 +388,13 @@ export default function ApplicationDetailPage() {
                 <h4 className="text-sm font-medium">
                   {tailoredResume ? "Tailored Resume" : "Saved Resume"}
                 </h4>
-                {tailorMatchPct != null && (
+                {displayMatchPct != null && (
                   <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                    tailorMatchPct >= 80 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" :
-                    tailorMatchPct >= 60 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" :
+                    displayMatchPct >= 80 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" :
+                    displayMatchPct >= 60 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" :
                     "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
                   }`}>
-                    {tailorMatchPct}% match
+                    {displayMatchPct}% match
                   </span>
                 )}
               </div>
