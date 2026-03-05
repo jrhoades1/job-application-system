@@ -23,7 +23,31 @@ import {
 import { toast } from "sonner";
 import { STATUS_CONFIG, SCORE_CONFIG, APPLICATION_STATUSES } from "@/lib/constants";
 import { downloadMarkdown, downloadDocx, downloadPdf } from "@/lib/document-export";
-import type { ApplicationWithScores, MatchScoreRow } from "@/types";
+import type { ApplicationWithScores, MatchScoreRow, InterviewRound } from "@/types";
+
+const INTERVIEW_TYPES = [
+  "recruiter_screen",
+  "hiring_manager",
+  "technical_panel",
+  "behavioral",
+  "system_design",
+  "final",
+] as const;
+
+const INTERVIEW_TYPE_LABELS: Record<string, string> = {
+  recruiter_screen: "Recruiter Screen",
+  hiring_manager: "Hiring Manager",
+  technical_panel: "Technical Panel",
+  behavioral: "Behavioral",
+  system_design: "System Design",
+  final: "Final Round",
+};
+
+const INTERVIEW_STATUS_COLORS: Record<string, string> = {
+  scheduled: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+  completed: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+  cancelled: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
+};
 
 function ScoreTooltipBody({ score }: { score: MatchScoreRow }) {
   const counts = [
@@ -113,6 +137,212 @@ function DownloadButtons({ content, company, role, docType }: {
   );
 }
 
+function InterviewTimeline({
+  interviews,
+  onChange,
+}: {
+  interviews: InterviewRound[];
+  onChange: (interviews: InterviewRound[]) => void;
+}) {
+  const [expandedRound, setExpandedRound] = useState<number | null>(null);
+
+  function addRound() {
+    const nextRound = interviews.length > 0
+      ? Math.max(...interviews.map((i) => i.round)) + 1
+      : 1;
+    onChange([
+      ...interviews,
+      {
+        round: nextRound,
+        type: "recruiter_screen",
+        date: new Date().toISOString().split("T")[0],
+        interviewer: "",
+        status: "scheduled",
+      },
+    ]);
+    setExpandedRound(nextRound);
+  }
+
+  function updateRound(round: number, updates: Partial<InterviewRound>) {
+    onChange(
+      interviews.map((i) =>
+        i.round === round ? { ...i, ...updates } : i
+      )
+    );
+  }
+
+  function removeRound(round: number) {
+    onChange(interviews.filter((i) => i.round !== round));
+    if (expandedRound === round) setExpandedRound(null);
+  }
+
+  const sorted = [...interviews].sort((a, b) => a.round - b.round);
+
+  return (
+    <div className="space-y-3">
+      {sorted.length === 0 && (
+        <p className="text-sm text-muted-foreground">No interview rounds tracked yet.</p>
+      )}
+      {sorted.map((interview) => (
+        <div
+          key={interview.round}
+          className="border rounded-lg p-3 space-y-2"
+        >
+          <div
+            className="flex items-center justify-between cursor-pointer"
+            onClick={() =>
+              setExpandedRound(
+                expandedRound === interview.round ? null : interview.round
+              )
+            }
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">
+                R{interview.round}
+              </span>
+              <Badge
+                variant="secondary"
+                className={`text-xs ${INTERVIEW_STATUS_COLORS[interview.status] ?? ""}`}
+              >
+                {interview.status}
+              </Badge>
+              <span className="text-sm text-muted-foreground">
+                {INTERVIEW_TYPE_LABELS[interview.type] ?? interview.type}
+              </span>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {interview.date}
+            </span>
+          </div>
+
+          {interview.interviewer && expandedRound !== interview.round && (
+            <p className="text-xs text-muted-foreground pl-1">
+              {interview.interviewer}
+            </p>
+          )}
+
+          {expandedRound === interview.round && (
+            <div className="space-y-3 pt-2 border-t">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium">Date</label>
+                  <Input
+                    type="date"
+                    value={interview.date}
+                    onChange={(e) =>
+                      updateRound(interview.round, { date: e.target.value })
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium">Type</label>
+                  <Select
+                    value={interview.type}
+                    onValueChange={(v) =>
+                      updateRound(interview.round, { type: v })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {INTERVIEW_TYPES.map((t) => (
+                        <SelectItem key={t} value={t}>
+                          {INTERVIEW_TYPE_LABELS[t]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium">Interviewer(s)</label>
+                <Input
+                  placeholder="Name, Title"
+                  value={interview.interviewer}
+                  onChange={(e) =>
+                    updateRound(interview.round, { interviewer: e.target.value })
+                  }
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium">Duration</label>
+                  <Input
+                    placeholder="30 min"
+                    value={interview.duration ?? ""}
+                    onChange={(e) =>
+                      updateRound(interview.round, {
+                        duration: e.target.value || undefined,
+                      })
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium">Status</label>
+                  <Select
+                    value={interview.status}
+                    onValueChange={(v) =>
+                      updateRound(interview.round, {
+                        status: v as InterviewRound["status"],
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="scheduled">Scheduled</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium">Focus / Topics</label>
+                <Input
+                  placeholder="System design, behavioral, etc."
+                  value={interview.focus ?? ""}
+                  onChange={(e) =>
+                    updateRound(interview.round, {
+                      focus: e.target.value || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium">Outcome / Notes</label>
+                <Textarea
+                  rows={2}
+                  placeholder="How did it go? Key signals..."
+                  value={interview.outcome ?? ""}
+                  onChange={(e) =>
+                    updateRound(interview.round, {
+                      outcome: e.target.value || undefined,
+                    })
+                  }
+                />
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-destructive"
+                onClick={() => removeRound(interview.round)}
+              >
+                Remove Round
+              </Button>
+            </div>
+          )}
+        </div>
+      ))}
+      <Button size="sm" variant="outline" onClick={addRound}>
+        + Add Round
+      </Button>
+    </div>
+  );
+}
+
 export default function ApplicationDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -150,6 +380,8 @@ export default function ApplicationDetailPage() {
         interview_date: app.interview_date,
         interview_type: app.interview_type,
         interview_notes: app.interview_notes,
+        interviews: app.interviews ?? [],
+        resources: app.resources ?? [],
         rejection_date: app.rejection_date,
         rejection_reason: app.rejection_reason,
         rejection_insights: app.rejection_insights,
@@ -253,7 +485,6 @@ export default function ApplicationDetailPage() {
     : null;
   const statusCfg = STATUS_CONFIG[app.status as keyof typeof STATUS_CONFIG];
 
-  // Compute match percentage: prefer API response, fall back to app data
   const appMatchPct = score?.match_percentage
     ?? (score ? (() => {
         const s = score.strong_count ?? 0;
@@ -264,9 +495,10 @@ export default function ApplicationDetailPage() {
     : null);
   const displayMatchPct = tailorMatchPct ?? appMatchPct;
 
-  // Determine which content to show for resume and cover letter
   const resumeContent = tailoredResume ?? app.tailored_resume;
   const clContent = coverLetter ?? app.cover_letter;
+
+  const interviews: InterviewRound[] = app.interviews ?? [];
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -307,7 +539,18 @@ export default function ApplicationDetailPage() {
               <label className="text-sm font-medium">Status</label>
               <Select
                 value={app.status}
-                onValueChange={(v) => setApp({ ...app, status: v })}
+                onValueChange={(v) => {
+                  const updates: Partial<ApplicationWithScores> = { status: v };
+                  if (v === "rejected" && !app.rejection_date) {
+                    updates.rejection_date = new Date().toISOString().split("T")[0];
+                  }
+                  setApp({ ...app, ...updates });
+                  if (v === "rejected") {
+                    setTimeout(() => {
+                      document.getElementById("rejection-card")?.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }, 100);
+                  }
+                }}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -352,43 +595,26 @@ export default function ApplicationDetailPage() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Interview</CardTitle>
+              <CardTitle>
+                Interviews
+                {interviews.length > 0 && (
+                  <span className="text-sm font-normal text-muted-foreground ml-2">
+                    ({interviews.filter((i) => i.status === "completed").length}/{interviews.length} completed)
+                  </span>
+                )}
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">Interview Date</label>
-                <Input
-                  type="date"
-                  value={app.interview_date ?? ""}
-                  onChange={(e) =>
-                    setApp({ ...app, interview_date: e.target.value || null })
-                  }
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Type</label>
-                <Input
-                  placeholder="phone, video, onsite..."
-                  value={app.interview_type ?? ""}
-                  onChange={(e) =>
-                    setApp({ ...app, interview_type: e.target.value || null })
-                  }
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Notes</label>
-                <Textarea
-                  rows={3}
-                  value={app.interview_notes ?? ""}
-                  onChange={(e) =>
-                    setApp({ ...app, interview_notes: e.target.value || null })
-                  }
-                />
-              </div>
+            <CardContent>
+              <InterviewTimeline
+                interviews={interviews}
+                onChange={(updated) =>
+                  setApp({ ...app, interviews: updated })
+                }
+              />
             </CardContent>
           </Card>
 
-          <Card>
+          <Card id="rejection-card">
             <CardHeader>
               <CardTitle>Rejection / Outcome</CardTitle>
             </CardHeader>
@@ -451,7 +677,6 @@ export default function ApplicationDetailPage() {
           <CardTitle>Documents</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* AI generation buttons */}
           <div className="flex gap-2">
             <Button
               onClick={handleScore}
@@ -476,7 +701,6 @@ export default function ApplicationDetailPage() {
             </Button>
           </div>
 
-          {/* Tailored Resume */}
           {resumeContent && (
             <div>
               <div className="flex items-center gap-2 mb-2">
@@ -512,7 +736,6 @@ export default function ApplicationDetailPage() {
             </div>
           )}
 
-          {/* Cover Letter */}
           {clContent && (
             <div>
               <h4 className="text-sm font-medium mb-2">

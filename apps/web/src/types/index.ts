@@ -4,6 +4,25 @@ export type { UpdateProfile, AchievementCategory, WorkHistoryEntry } from "@/sch
 export type { MatchScore } from "@/schemas/match-score";
 
 // Database row types (what comes back from Supabase queries)
+export interface InterviewRound {
+  round: number;
+  type: string;
+  date: string;
+  interviewer: string;
+  duration?: string;
+  focus?: string;
+  notes_file?: string;
+  status: "scheduled" | "completed" | "cancelled";
+  outcome?: string;
+}
+
+export interface ResourceLink {
+  url: string;
+  title?: string;
+  type?: string;
+  notes?: string;
+}
+
 export interface ApplicationRow {
   id: string;
   clerk_user_id: string;
@@ -28,6 +47,8 @@ export interface ApplicationRow {
   interview_round: number | null;
   interview_type: string | null;
   interview_notes: string | null;
+  interviews: InterviewRound[];
+  resources: ResourceLink[];
   rejection_date: string | null;
   rejection_reason: string | null;
   rejection_insights: string | null;

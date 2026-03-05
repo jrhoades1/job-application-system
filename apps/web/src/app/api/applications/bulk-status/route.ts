@@ -17,9 +17,17 @@ export async function PATCH(req: Request) {
 
     const { ids, status } = parsed.data;
 
+    const updatePayload: Record<string, string> = {
+      status,
+      updated_at: new Date().toISOString(),
+    };
+    if (status === "rejected") {
+      updatePayload.rejection_date = new Date().toISOString().split("T")[0];
+    }
+
     const { data, error } = await supabase
       .from("applications")
-      .update({ status, updated_at: new Date().toISOString() })
+      .update(updatePayload)
       .in("id", ids)
       .eq("clerk_user_id", userId)
       .select("id");

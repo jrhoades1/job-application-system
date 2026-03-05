@@ -1,5 +1,24 @@
 import { z } from "zod";
 
+export const interviewRoundSchema = z.object({
+  round: z.number().int().positive(),
+  type: z.string().min(1),
+  date: z.string(),
+  interviewer: z.string(),
+  duration: z.string().optional(),
+  focus: z.string().optional(),
+  notes_file: z.string().optional(),
+  status: z.enum(["scheduled", "completed", "cancelled"]),
+  outcome: z.string().optional(),
+});
+
+export const resourceLinkSchema = z.object({
+  url: z.string().url(),
+  title: z.string().optional(),
+  type: z.string().optional(),
+  notes: z.string().optional(),
+});
+
 export const applicationStatusSchema = z.enum([
   "evaluating",
   "pending_review",
@@ -50,6 +69,8 @@ export const updateApplicationSchema = createApplicationSchema.partial().extend(
     .optional()
     .nullable(),
   offer_accepted: z.boolean().optional().nullable(),
+  interviews: z.array(interviewRoundSchema).optional(),
+  resources: z.array(resourceLinkSchema).optional(),
   learning_flags: z.array(z.string()).optional(),
   skip_date: z.string().optional().nullable(),
   skip_reason: z.string().optional().nullable(),
