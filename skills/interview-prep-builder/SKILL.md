@@ -44,8 +44,14 @@ ask based on the role type, and what to ask them.
 
 - Application folder with `metadata.json` and `job-description.md`
 - `master/achievements.md` for pulling specific accomplishments
-- Optional but valuable: previous `interview-notes.md` files from other applications
-  (for pattern-based question prediction)
+- **Match score must exist** — if `metadata.json` has no `match_score` (or it's empty),
+  prompt the user to run scoring first via job-intake or the web app Score button.
+  Interview prep without a match score means no gap bridges, no keyword targeting,
+  and weaker talking points. Don't proceed without it.
+- Optional but valuable: previous `interview-notes.md` or `interview-debrief-rN.md`
+  files from other applications (for pattern-based question prediction)
+- Optional: `master/interview-learnings.md` for proven tactical lessons from past
+  interviews
 
 ## Workflow
 
@@ -58,16 +64,23 @@ exists.
 ### Step 2: Load context
 
 Read:
-- `metadata.json` — match score, gaps, keywords, tailoring intensity
+- `metadata.json` — match score, gaps, keywords, tailoring intensity, `interviews[]` for prior round context
 - `job-description.md` — the full role requirements
 - `company-brief.md` — company research (if it exists, from company-research skill)
 - `study-sheet.md` — quick-reference study data (if it exists)
 - `master/achievements.md` — your accomplishment inventory
 - `master/narrative.md` — your positioning themes for this role type
-- Previous `interview-notes.md` files (if any) — for question patterns
+- `master/interview-learnings.md` — proven tactical lessons from past interviews (if it exists)
+- Previous `interview-debrief-rN.md` files in this application folder — for THIS company's prior rounds
+- Previous `interview-notes.md` files across applications (if any) — for cross-company question patterns
 
 If `company-brief.md` does not exist, suggest running company-research first for
 richer, company-specific talking points and questions.
+
+**Match score gate:** If `match_score.overall` is empty/missing, stop and tell the
+user: "This application hasn't been scored yet. Run scoring first so I can generate
+gap bridges and keyword-targeted talking points. Use the Score button in the web app
+or run the job-intake skill."
 
 ### Step 3: Generate the prep document
 
@@ -148,6 +161,29 @@ Quick-reference for your key metrics (from achievements.md):
 | [Achievement 2] | [Number] | [Company, Year] |
 | [Achievement 3] | [Number] | [Company, Year] |
 
+## Lessons from Past Interviews
+
+> Populated from `master/interview-learnings.md` — only include lessons tagged as
+> "proven" or directly relevant to this interview type.
+
+- [Relevant proven lesson 1]
+- [Relevant proven lesson 2]
+- [Relevant "what to improve" item if applicable]
+
+## System Design Scenarios
+
+> Include this section ONLY when interview type is `system_design` or `technical_panel`.
+> Generate 2-3 design scenarios relevant to the company's domain.
+
+### Scenario 1: [Domain-relevant problem]
+**Problem:** [1-2 sentence description]
+**Components:** [Key building blocks — API gateway, queue, DB, cache, etc.]
+**Key trade-offs:** [2-3 decision points with pros/cons]
+**Your experience connection:** [How your past work relates]
+
+### Scenario 2: [Another domain-relevant problem]
+...
+
 ## Pre-Interview Checklist
 
 - [ ] Review the job description one more time
@@ -156,6 +192,8 @@ Quick-reference for your key metrics (from achievements.md):
 - [ ] Have your talking points fresh in mind
 - [ ] Prepare 3-4 questions for them
 - [ ] Have a copy of your tailored resume handy
+- [ ] **If system design/technical panel:** Drawing tool ready (Excalidraw, Miro, etc.)
+- [ ] **If system design/technical panel:** Practice sketching one scenario before the call
 ```
 
 ### Step 4: Customize for interview round
@@ -182,12 +220,27 @@ Quick-reference for your key metrics (from achievements.md):
 
 ### Step 5: Incorporate past interview learning
 
-If previous `interview-notes.md` files exist:
+**From this company's prior rounds** (check `interviews[]` in metadata and
+`interview-debrief-rN.md` files in the application folder):
+- What topics were already covered? Don't repeat the same stories.
+- What did the interviewer probe on? Expect follow-up depth.
+- What intel was gathered? Use it in your questions and positioning.
+
+**From cross-company patterns** (check `interview-notes.md` across other apps):
 - Pull recurring questions from similar roles
 - Note which stories/approaches worked well
 - Highlight gap bridges that succeeded or failed
-- Flag: "In your HealthFirst interview, they asked about HITRUST specifically.
-  Similar roles may ask about compliance frameworks — have your answer ready."
+
+**From `master/interview-learnings.md`** (the accumulated knowledge base):
+- Include "proven" lessons (3+ occurrences) in the "Lessons from Past Interviews" section
+- Include "what to improve" items relevant to this interview type as reminders
+- Match lessons by interview type: system_design, behavioral, recruiter_screen, etc.
+
+**System design detection:** If the interview type (from `interviews[]` or user input)
+is `system_design` or `technical_panel`, generate the "System Design Scenarios" section:
+- 2-3 scenarios relevant to the company's domain and the role's focus area
+- Include component diagrams (ASCII or description), key trade-offs, and connection to candidate's experience
+- Reference the company's tech stack from company-brief.md or job-description.md
 
 ### Step 6: Present the prep
 

@@ -25,6 +25,7 @@
 - **dark-software-factory** — DSF methodology repo. cost-tracking skill created here, used by job-app-assistant.
 
 ## Learned Behaviors
+- **Git branches:** Single branch `main`. Vercel deploys from `main`. Push directly to `origin main`.
 - pipeline_config.json contains credentials — never commit
 - Check existing pipeline state before processing new applications
 - settings.local.json hooks use relative paths — break when CWD changes (e.g., to job-app-assistant). Use absolute paths.

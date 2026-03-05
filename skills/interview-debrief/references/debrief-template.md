@@ -80,6 +80,77 @@ When writing interview-notes.md, classify signals:
 - "We're looking for someone who can do everything"
 - Negative comments about departing team members
 
+## Transcript Import (Path B)
+
+When the user provides a `.txt` transcript file instead of a conversational debrief:
+
+### Speaker Identification
+- The person describing their background and answering questions = **candidate**
+- The person asking questions and describing the company = **interviewer**
+- Look for name introductions, role descriptions, and conversational patterns
+- If multiple interviewers (panel), identify each by their focus area
+
+### Segment Extraction
+Break the transcript into logical segments:
+- **Introductions** — who they are, what they do, team context
+- **Background review** — candidate's experience walkthrough
+- **Technical deep-dive** — system design, architecture, specific technologies
+- **Behavioral questions** — leadership, conflict, teamwork examples
+- **AI/technology discussion** — philosophy, approach, current thinking
+- **Domain validation** — industry-specific knowledge (healthcare, fintech, etc.)
+- **Questions from candidate** — what the candidate asked
+- **Closing/next steps** — timeline, process, follow-up
+
+### What to Extract
+- **What landed:** Interviewer reactions (follow-up questions, "that's great", visible interest)
+- **What was probed:** Topics where the interviewer pushed for more depth
+- **What was redirected:** Topics the interviewer steered away from (possible concern)
+- **Intel gathered:** Team structure, challenges, priorities, culture signals
+- **Signals:** Positive (sold the role, went over time) or concerning (vague, rushed)
+
+## Achievement Extraction Triggers
+
+After generating the debrief, scan for achievements NOT already in `master/achievements.md`:
+
+### What qualifies as a new achievement
+- **Quantified wins** — "reduced latency by 40%", "managed team of 12", "processed 2M records/day"
+- **Technical specifics** — "built a custom integration engine", "designed auto-scaling architecture"
+- **Leadership examples** — "hired and onboarded 8 engineers in 6 months", "instituted code review process"
+- **Process improvements** — "reduced deployment time from 2 hours to 15 minutes"
+- **Business impact** — "saved $500K annually", "increased customer retention by 25%"
+
+### What does NOT qualify
+- Vague statements without specifics ("I worked on scaling")
+- Interviewer's descriptions of their own work
+- Hypothetical or aspirational statements ("I would like to...")
+- Achievements already captured in `master/achievements.md`
+
+### Tagging
+Append confirmed new achievements with `[learned: YYYY-MM-DD]` to track when they were discovered through interviews vs. original resume content.
+
+## Tactical Learnings Categories
+
+After generating the debrief, extract lessons into these categories for `master/interview-learnings.md`:
+
+| Category | What to capture |
+|----------|----------------|
+| `system_design` | Drawing approaches, component trade-offs, how to structure a design walkthrough, pacing |
+| `behavioral` | STAR method execution, which stories landed, how to frame failures as growth |
+| `ai_discussion` | How to discuss AI philosophy, what positions resonate, what sounds hollow |
+| `storytelling` | Intro/elevator pitch effectiveness, narrative arc, transitions between topics |
+| `questions_asked` | Which questions to the interviewer got good responses, which fell flat |
+| `signals` | How to read interviewer body language, tone shifts, engagement patterns |
+| `interview_format` | Panel dynamics, technical whiteboard tactics, video call tips, timing |
+
+### Promotion Rules
+- **1 occurrence** = "observed" — worth noting but could be situational
+- **2 occurrences** = "emerging" — starting to see a pattern
+- **3+ occurrences** = "proven" — reliable enough to include in future interview prep
+
+### Source Tagging
+Every lesson gets a source tag: `[source: Company Round N, YYYY-MM-DD]`
+When a lesson appears in multiple interviews, list all sources.
+
 ## Learning Flag Triggers
 
 Add a learning_flag to metadata.json when:

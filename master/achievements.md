@@ -15,13 +15,16 @@
 - Built engineering team from zero to 22 (MedQuest), including QA, Product, and offshore
 - Built and scaled team from inception to 15 with key offshore resources (Red Spot)
 - Directed team of 10 engineers launching healthcare apps in startup environment (Perceptive)
+- Scaled engineering org from 4 to 25 as company grew from 140 to 200 total headcount (ilumed) [learned: 2026-03-04]
 - Managed 50+ developers across US, Ukraine, and Central America (Cognizant)
+- Managed managers with direct-line reporting at MedQuest (first time) and Cognizant [learned: 2026-03-04]
 - Mentored engineers on agile best practices, increasing team velocity by 15% within 6 months
 - Cultivated high-performing culture delivering 4 product launches annually
 
 ## AI / ML Integration
 
 - Spearheaded AI/ML integration into healthcare workflows, reducing processing times (ilumed)
+- Built ML-driven risk stratification models generating prioritized work lists for nurse practitioners — determining who to contact, when, and by which modality (text via Twilio, email, phone) (ilumed) [learned: 2026-03-04]
 - Integrated AI into product offerings, slashing development cycles by 30% and boosting feature adoption by 40% (Perceptive)
 - Implemented AI-driven analytics, enhancing decision-making and cutting operational costs by 18% (Red Spot)
 - AI-driven optimizations expanded beneficiary coverage from 50K to 90K (ilumed)
@@ -29,6 +32,7 @@
 
 ## Healthcare IT & Compliance
 
+- Built protocol-agnostic integration engine connecting to 18+ healthcare systems (Epic, Athena, CMS) via FHIR, HL7, and REST APIs with bi-directional data flow — read ingestion and write-back of alerts/notes to source EHRs (ilumed) [learned: 2026-03-04]
 - Overhauled system architecture for HIPAA compliance, achieving 99.9% uptime (ilumed)
 - Led technical reviews ensuring compliance with HL7, FHIR standards, improving data accuracy by 15% (Cognizant)
 - Revamped failing diagnostic imaging system to production-ready across 100 centers in 13 states (MedQuest)
@@ -40,6 +44,7 @@
 
 - Transformed monolithic app into scalable microservices and multi-tenant architecture (Cognizant)
 - Designed microservices architecture cutting latency by 20% across patient-facing platforms (Cognizant)
+- Built auto-scaling data ingestion infrastructure — ramped up processors for nightly batch loads from CMS/hospitals, scaled back down after completion for cost optimization (ilumed) [learned: 2026-03-04]
 - Enhanced system scalability with cloud solutions enabling 50% increase in user base (Perceptive)
 - Revamped patient scheduling system integrating AWS, Azure, and SaaS — enabled 200K+ appointments with 40% revenue increase (Red Spot)
 - Executed AWS integrations accelerating deployment timelines by 25% for 5 key projects (Cognizant)
@@ -49,6 +54,8 @@
 - Expanded beneficiary coverage from 50,000 to 90,000 (ilumed)
 - Developed multi-quarter roadmaps driving 20% growth in operational efficiency (ilumed)
 - Drove digital transformation launching four mobile healthcare apps (Perceptive)
+- Built insurance call stacking automation — queued next 3 patients when operators got an insurance company on the line, dramatically improving throughput during hold-time-heavy workflows (ilumed) [learned: 2026-03-04]
+- Implemented fully automated CI/CD deployments with zero developer production access; "break the glass" emergency credentials available but never needed (ilumed) [learned: 2026-03-04]
 - Instituted DevOps and CI/CD practices, improving reliability by 35% and deployment frequency by 50% (Red Spot)
 - Aligned technical roadmaps with business needs, growing client base by 12% in 2 years (Red Spot)
 - Pioneered web-based scheduling platform increasing appointment efficiency by 45% across 100+ centers (MedQuest)
@@ -62,8 +69,9 @@
 
 ## Technical Breadth
 
-- Languages: Python, Java, C#, NodeJS, SQL
+- Languages: Python, Java, C#/.NET Core, NodeJS/TypeScript, SQL
 - Databases: SQL Server, MySQL, Oracle, DynamoDB
-- Cloud: AWS, Azure, Google Cloud
+- Cloud: Azure (primary at Perceptive, Red Spot, ilumed), AWS, Google Cloud
+- Frameworks: .NET/.NET Core (Perceptive, Red Spot — Azure-first .NET shops)
 - Practices: Kubernetes, CI/CD, Microservices, API Development, Agile/Scrum
 - Healthcare: EHR (Epic, HL7, FHIR), Claims Processing, DICOM, Value-Based Care

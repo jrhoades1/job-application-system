@@ -13,8 +13,8 @@ work better through technology.
 ## Differentiators
 
 1. **Built from scratch, repeatedly.** Three separate teams built from inception
-   (MedQuest 0→22, Red Spot 0→15, Perceptive 0→10). Not inheriting teams —
-   recruiting, hiring, and building culture from nothing.
+   (MedQuest 0→22, Red Spot 0→15, Perceptive 0→10) plus scaled ilumed from 4→25.
+   Not inheriting teams — recruiting, hiring, and building culture from nothing.
 
 2. **Healthcare is not a side gig.** Entire career in healthtech — EHR systems,
    HIPAA compliance, claims processing, diagnostic imaging, value-based care.
@@ -51,8 +51,8 @@ work better through technology.
 
 ### Chief Architect / Principal Engineer
 - Monolith-to-microservices transformation
-- Healthcare interoperability (HL7, FHIR, DICOM)
-- Cloud architecture across AWS and Azure
+- Healthcare interoperability (HL7, FHIR, DICOM) — built protocol-agnostic integration engine with 18+ EMR connections
+- Cloud architecture: Azure primary (Perceptive, Red Spot, ilumed), plus AWS and GCP
 - Performance optimization with measurable latency reduction
 
 ## What NOT to Say

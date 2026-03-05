@@ -5,7 +5,7 @@ export async function GET() {
   try {
     const { supabase, userId } = await getAuthenticatedClient();
 
-    const [totalRes, activeRes, interviewingRes, offeredRes, stalledRes, followupsRes, recentRes] =
+    const [totalRes, activeRes, interviewingRes, offeredRes, stalledRes, followupsRes, recentRes, debriefRes] =
       await Promise.all([
         // Total count
         supabase
@@ -57,7 +57,39 @@ export async function GET() {
           .eq("clerk_user_id", userId)
           .order("updated_at", { ascending: false })
           .limit(5),
+
+        // Interviews needing debrief: past scheduled interviews without completed status
+        supabase
+          .from("applications")
+          .select("id, company, role, interviews")
+          .eq("clerk_user_id", userId)
+          .not("interviews", "eq", "[]"),
       ]);
+
+    // Filter interviews needing debrief (scheduled + date in past)
+    const today = new Date().toISOString().split("T")[0];
+    interface InterviewRound {
+      round: number;
+      date: string;
+      status: string;
+      type?: string;
+    }
+    const debriefs_needed: { id: string; company: string; role: string; round: number; date: string; type: string }[] = [];
+    for (const app of debriefRes.data ?? []) {
+      const interviews = (app.interviews ?? []) as InterviewRound[];
+      for (const iv of interviews) {
+        if (iv.status === "scheduled" && iv.date && iv.date <= today) {
+          debriefs_needed.push({
+            id: app.id,
+            company: app.company,
+            role: app.role,
+            round: iv.round,
+            date: iv.date,
+            type: iv.type ?? "interview",
+          });
+        }
+      }
+    }
 
     return NextResponse.json({
       total: totalRes.count ?? 0,
@@ -67,6 +99,7 @@ export async function GET() {
       stalled: stalledRes.count ?? 0,
       followups_due: followupsRes.count ?? 0,
       recent: recentRes.data ?? [],
+      debriefs_needed,
     });
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

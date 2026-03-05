@@ -6,6 +6,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { STATUS_CONFIG } from "@/lib/constants";
 
+interface DebriefNeeded {
+  id: string;
+  company: string;
+  role: string;
+  round: number;
+  date: string;
+  type: string;
+}
+
 interface DashboardStats {
   total: number;
   active: number;
@@ -20,6 +29,7 @@ interface DashboardStats {
   }[];
   stalled: number;
   followups_due: number;
+  debriefs_needed: DebriefNeeded[];
 }
 
 export default function DashboardPage() {
@@ -51,6 +61,7 @@ export default function DashboardPage() {
     recent: [],
     stalled: 0,
     followups_due: 0,
+    debriefs_needed: [],
   };
 
   return (
@@ -58,8 +69,22 @@ export default function DashboardPage() {
       <h2 className="text-2xl font-bold">Dashboard</h2>
 
       {/* Alert cards */}
-      {(s.stalled > 0 || s.followups_due > 0) && (
-        <div className="flex gap-3">
+      {(s.stalled > 0 || s.followups_due > 0 || s.debriefs_needed.length > 0) && (
+        <div className="flex flex-wrap gap-3">
+          {s.debriefs_needed.length > 0 && (
+            <Link href={`/dashboard/tracker/${s.debriefs_needed[0].id}`}>
+              <Card className="border-purple-300 flex-1 cursor-pointer transition-colors hover:bg-purple-50">
+                <CardContent className="py-3">
+                  <p className="text-sm text-purple-700 font-medium">
+                    {s.debriefs_needed.length} interview{s.debriefs_needed.length > 1 ? "s" : ""} need{s.debriefs_needed.length === 1 ? "s" : ""} debrief
+                  </p>
+                  <p className="text-xs text-purple-500 mt-1">
+                    {s.debriefs_needed.map((d) => `${d.company} R${d.round}`).join(", ")}
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+          )}
           {s.stalled > 0 && (
             <Link href="/dashboard/tracker?status=applied">
               <Card className="border-yellow-300 flex-1 cursor-pointer transition-colors hover:bg-yellow-50">
