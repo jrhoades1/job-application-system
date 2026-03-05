@@ -83,8 +83,7 @@ export default function PipelinePage() {
   const [leads, setLeads] = useState<PipelineLeadRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("filtered");
-  const [reparsing, setReparsing] = useState(false);
-  const [deduping, setDeduping] = useState(false);
+  const [reparsingId, setReparsingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchLeads();
@@ -126,62 +125,6 @@ export default function PipelinePage() {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Job Pipeline</h2>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={deduping}
-            onClick={async () => {
-              setDeduping(true);
-              try {
-                const res = await fetch("/api/pipeline/dedup", {
-                  method: "POST",
-                });
-                const data = await res.json();
-                if (res.ok) {
-                  if (data.removed > 0) {
-                    toast.success(`Removed ${data.removed} duplicate(s)`);
-                    fetchLeads();
-                  } else {
-                    toast.info("No duplicates found");
-                  }
-                } else {
-                  toast.error(data.error ?? "Dedup failed");
-                }
-              } catch {
-                toast.error("Dedup failed");
-              } finally {
-                setDeduping(false);
-              }
-            }}
-          >
-            {deduping ? "Removing..." : "Remove Duplicates"}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={reparsing}
-            onClick={async () => {
-              setReparsing(true);
-              try {
-                const res = await fetch("/api/pipeline/reparse", {
-                  method: "POST",
-                });
-                const data = await res.json();
-                if (res.ok) {
-                  toast.success(data.message);
-                  if (data.new_leads > 0) fetchLeads();
-                } else {
-                  toast.error(data.error ?? "Reparse failed");
-                }
-              } catch {
-                toast.error("Reparse failed");
-              } finally {
-                setReparsing(false);
-              }
-            }}
-          >
-            {reparsing ? "Reparsing..." : "Reparse Emails"}
-          </Button>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-[180px]">
             <SelectValue />
@@ -281,6 +224,36 @@ export default function PipelinePage() {
                     </div>
                     {lead.status === "pending_review" && (
                       <div className="flex gap-2 shrink-0">
+                        {lead.description_text && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={reparsingId === lead.id}
+                            onClick={async () => {
+                              setReparsingId(lead.id);
+                              try {
+                                const res = await fetch("/api/pipeline/reparse", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ id: lead.id }),
+                                });
+                                const data = await res.json();
+                                if (res.ok) {
+                                  toast.success(data.message);
+                                  if (data.new_leads > 0) fetchLeads();
+                                } else {
+                                  toast.error(data.error ?? "Reparse failed");
+                                }
+                              } catch {
+                                toast.error("Reparse failed");
+                              } finally {
+                                setReparsingId(null);
+                              }
+                            }}
+                          >
+                            {reparsingId === lead.id ? "Reparsing..." : "Reparse"}
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           onClick={() => handleAction(lead.id, "promote")}

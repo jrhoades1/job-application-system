@@ -49,6 +49,9 @@ function resolveFilterFromParams(
   return compositeMatch ? compositeMatch[0] : urlStatus;
 }
 
+type SortColumn = "company" | "role" | "status" | "source" | "applied_date" | "created_at";
+type SortOrder = "asc" | "desc";
+
 export default function TrackerPage() {
   const searchParams = useSearchParams();
   const [applications, setApplications] = useState<ApplicationWithScores[]>([]);
@@ -56,12 +59,31 @@ export default function TrackerPage() {
   const [statusFilter, setStatusFilter] = useState<string>(() =>
     resolveFilterFromParams(searchParams)
   );
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [sortColumn, setSortColumn] = useState<SortColumn>("created_at");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newApp, setNewApp] = useState({ company: "", role: "", source: "" });
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkStatus, setBulkStatus] = useState<string>("");
   const [bulkUpdating, setBulkUpdating] = useState(false);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  function handleSort(column: SortColumn) {
+    if (sortColumn === column) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortColumn(column);
+      setSortOrder("asc");
+    }
+  }
 
   // Sync filter when URL params change after mount (e.g. back/forward navigation)
   useEffect(() => {
@@ -79,11 +101,17 @@ export default function TrackerPage() {
     let cancelled = false;
 
     async function loadApplications() {
+      setLoading(true);
       const params = new URLSearchParams();
       if (statusFilter !== "all") {
         const composite = COMPOSITE_FILTERS[statusFilter];
         params.set("status", composite ? composite.statuses : statusFilter);
       }
+      if (debouncedSearch) {
+        params.set("search", debouncedSearch);
+      }
+      params.set("sort", sortColumn);
+      params.set("order", sortOrder);
       const res = await fetch(`/api/applications?${params}`);
       const json = await res.json();
       if (!cancelled) {
@@ -94,7 +122,7 @@ export default function TrackerPage() {
 
     loadApplications();
     return () => { cancelled = true; };
-  }, [statusFilter, refreshKey]);
+  }, [statusFilter, debouncedSearch, sortColumn, sortOrder, refreshKey]);
 
   async function handleCreate() {
     if (!newApp.company || !newApp.role) {
@@ -221,6 +249,12 @@ export default function TrackerPage() {
       </div>
 
       <div className="flex gap-2">
+        <Input
+          placeholder="Search company or role..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-64"
+        />
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-48">
             <SelectValue placeholder="Filter by status" />
@@ -292,12 +326,32 @@ export default function TrackerPage() {
                   aria-label="Select all applications"
                 />
               </TableHead>
-              <TableHead>Company</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Status</TableHead>
+              {([
+                ["company", "Company"],
+                ["role", "Role"],
+                ["status", "Status"],
+              ] as const).map(([col, label]) => (
+                <TableHead
+                  key={col}
+                  className="cursor-pointer select-none hover:text-foreground"
+                  onClick={() => handleSort(col)}
+                >
+                  {label} {sortColumn === col ? (sortOrder === "asc" ? "\u25B2" : "\u25BC") : ""}
+                </TableHead>
+              ))}
               <TableHead>Score</TableHead>
-              <TableHead>Source</TableHead>
-              <TableHead>Date</TableHead>
+              {([
+                ["source", "Source"],
+                ["applied_date", "Date"],
+              ] as const).map(([col, label]) => (
+                <TableHead
+                  key={col}
+                  className="cursor-pointer select-none hover:text-foreground"
+                  onClick={() => handleSort(col)}
+                >
+                  {label} {sortColumn === col ? (sortOrder === "asc" ? "\u25B2" : "\u25BC") : ""}
+                </TableHead>
+              ))}
             </TableRow>
           </TableHeader>
           <TableBody>

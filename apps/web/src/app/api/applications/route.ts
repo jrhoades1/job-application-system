@@ -9,16 +9,26 @@ export async function GET(req: Request) {
 
     const status = searchParams.get("status");
     const source = searchParams.get("source");
+    const search = searchParams.get("search");
+    const sortBy = searchParams.get("sort") ?? "created_at";
+    const sortOrder = searchParams.get("order") ?? "desc";
     const limit = parseInt(searchParams.get("limit") ?? "50");
     const offset = parseInt(searchParams.get("offset") ?? "0");
+
+    const allowedSortColumns = ["company", "role", "status", "source", "applied_date", "created_at"];
+    const safeSort = allowedSortColumns.includes(sortBy) ? sortBy : "created_at";
+    const safeOrder = sortOrder === "asc";
 
     let query = supabase
       .from("applications")
       .select("id, company, role, status, source, applied_date, created_at, match_scores(overall, match_percentage, strong_count, partial_count, gap_count)", { count: "exact" })
       .eq("clerk_user_id", userId)
-      .order("created_at", { ascending: false })
+      .order(safeSort, { ascending: safeOrder })
       .range(offset, offset + limit - 1);
 
+    if (search) {
+      query = query.or(`company.ilike.%${search}%,role.ilike.%${search}%`);
+    }
     if (status) {
       const statuses = status.split(",").map((s) => s.trim());
       if (statuses.length === 1) {
