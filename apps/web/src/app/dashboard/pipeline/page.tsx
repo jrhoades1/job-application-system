@@ -82,7 +82,7 @@ function ScoreTooltipBody({
 export default function PipelinePage() {
   const [leads, setLeads] = useState<PipelineLeadRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState("filtered");
+  const [statusFilter, setStatusFilter] = useState("pending_review");
   const [reparsingId, setReparsingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -130,9 +130,10 @@ export default function PipelinePage() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="pending_review">Pending Review</SelectItem>
             <SelectItem value="promoted">Promoted</SelectItem>
-            <SelectItem value="filtered">Filtered Out</SelectItem>
             <SelectItem value="skipped">Skipped</SelectItem>
+            <SelectItem value="filtered">Filtered Out</SelectItem>
             <SelectItem value="all">All</SelectItem>
           </SelectContent>
         </Select>
