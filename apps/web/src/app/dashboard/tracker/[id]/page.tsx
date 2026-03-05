@@ -15,10 +15,65 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { STATUS_CONFIG, SCORE_CONFIG, APPLICATION_STATUSES } from "@/lib/constants";
 import { downloadMarkdown, downloadDocx, downloadPdf } from "@/lib/document-export";
-import type { ApplicationWithScores } from "@/types";
+import type { ApplicationWithScores, MatchScoreRow } from "@/types";
+
+function ScoreTooltipBody({ score }: { score: MatchScoreRow }) {
+  const counts = [
+    ["Strong", score.strong_count],
+    ["Partial", score.partial_count],
+    ["Gaps", score.gap_count],
+  ] as const;
+
+  const topMatches = score.requirements_matched?.slice(0, 2) ?? [];
+  const topGaps = [...(score.hard_gaps ?? []), ...(score.addressable_gaps ?? [])].slice(0, 2);
+
+  return (
+    <div className="space-y-2 py-1">
+      <div>
+        {counts.map(([label, value]) => (
+          <div key={label} className="flex justify-between gap-3 whitespace-nowrap">
+            <span className="text-muted-foreground">{label}:</span>
+            <span className="font-medium">{value}</span>
+          </div>
+        ))}
+      </div>
+      {topMatches.length > 0 && (
+        <div className="flex flex-col">
+          <span className="text-muted-foreground">Top Matches:</span>
+          <span className="font-medium break-words">
+            {topMatches.map((m) => m.requirement).join(", ")}
+          </span>
+        </div>
+      )}
+      {topGaps.length > 0 && (
+        <div className="flex flex-col">
+          <span className="text-muted-foreground">Top Gaps:</span>
+          <span className="font-medium break-words">
+            {topGaps.join(", ")}
+          </span>
+        </div>
+      )}
+      {score.red_flags?.length > 0 && (
+        <div>
+          <div className="font-medium text-destructive mb-0.5">Red flags:</div>
+          <ul className="list-disc pl-3.5 space-y-0.5">
+            {score.red_flags.map((flag, i) => (
+              <li key={i}>{flag}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function sanitizeFilename(s: string): string {
   return s.replace(/[^a-zA-Z0-9_-]/g, "_").toLowerCase();
@@ -221,13 +276,20 @@ export default function ApplicationDetailPage() {
           <p className="text-lg text-muted-foreground">{app.role}</p>
         </div>
         <div className="flex gap-2 items-center">
-          {scoreCfg && (
-            <span
-              className={`inline-flex rounded-full px-3 py-1 text-sm font-medium ${scoreCfg.color}`}
-            >
-              {scoreCfg.label}
-              {displayMatchPct != null && ` ${displayMatchPct}%`}
-            </span>
+          {scoreCfg && score && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  className={`inline-flex cursor-help rounded-full px-3 py-1 text-sm font-medium ${scoreCfg.color}`}
+                >
+                  {scoreCfg.label}
+                  {displayMatchPct != null && ` ${displayMatchPct}%`}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent className="min-w-[200px] max-w-sm text-left" side="bottom">
+                <ScoreTooltipBody score={score} />
+              </TooltipContent>
+            </Tooltip>
           )}
           <Badge variant={statusCfg?.variant ?? "secondary"} className="text-sm">
             {statusCfg?.label ?? app.status}
@@ -421,14 +483,21 @@ export default function ApplicationDetailPage() {
                 <h4 className="text-sm font-medium">
                   {tailoredResume ? "Tailored Resume" : "Saved Resume"}
                 </h4>
-                {displayMatchPct != null && (
-                  <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                    displayMatchPct >= 80 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" :
-                    displayMatchPct >= 60 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" :
-                    "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-                  }`}>
-                    {displayMatchPct}% match
-                  </span>
+                {displayMatchPct != null && score && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className={`inline-flex cursor-help rounded-full px-2 py-0.5 text-xs font-medium ${
+                        displayMatchPct >= 80 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" :
+                        displayMatchPct >= 60 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" :
+                        "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                      }`}>
+                        {displayMatchPct}% match
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent className="min-w-[200px] max-w-sm text-left" side="bottom">
+                      <ScoreTooltipBody score={score} />
+                    </TooltipContent>
+                  </Tooltip>
                 )}
               </div>
               <pre className="text-xs bg-muted p-4 rounded-lg overflow-auto max-h-96 whitespace-pre-wrap">
