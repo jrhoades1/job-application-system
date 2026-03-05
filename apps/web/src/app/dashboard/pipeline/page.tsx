@@ -47,14 +47,22 @@ function ScoreTooltipBody({
     <div className="space-y-2 py-1">
       {hasDetails && (
         <div>
-          {detailEntries.map(([key, value]) => (
-            <div key={key} className="flex justify-between gap-3 whitespace-nowrap">
-              <span className="text-muted-foreground capitalize">
-                {key.replace(/_/g, " ")}:
-              </span>
-              <span className="font-medium">{String(value)}</span>
-            </div>
-          ))}
+          {detailEntries.map(([key, value]) => {
+            const isNumeric = typeof value === "number";
+            return (
+              <div
+                key={key}
+                className={`flex gap-3 ${isNumeric ? "justify-between whitespace-nowrap" : "flex-col"}`}
+              >
+                <span className="text-muted-foreground capitalize shrink-0">
+                  {key.replace(/_/g, " ")}:
+                </span>
+                <span className={`font-medium ${isNumeric ? "" : "break-words"}`}>
+                  {String(value)}
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
       {hasFlags && (
@@ -237,7 +245,7 @@ export default function PipelinePage() {
                               </span>
                             </TooltipTrigger>
                             <TooltipContent
-                              className="min-w-[200px] max-w-xs text-left"
+                              className="min-w-[200px] max-w-sm text-left"
                               side="bottom"
                             >
                               <ScoreTooltipBody
