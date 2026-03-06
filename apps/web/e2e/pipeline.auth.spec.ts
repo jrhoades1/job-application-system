@@ -34,15 +34,10 @@ test.describe("Insights page", () => {
     skipWithoutAuth();
   });
 
-  test("renders heading or error state", async ({ page }) => {
+  test("renders heading", async ({ page }) => {
     await page.goto("/dashboard/insights");
-    // Insights may show heading, error overlay, or loading depending on data
-    const heading = page.getByRole("heading", { name: "Insights" });
-    const runtimeError = page.getByText("Runtime TypeError");
-    const noData = page.getByText(/no application data/i);
-
     await expect(
-      heading.or(runtimeError).or(noData)
+      page.getByRole("heading", { name: "Insights" })
     ).toBeVisible({ timeout: 15000 });
   });
 });

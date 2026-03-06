@@ -45,7 +45,7 @@ export default function InsightsPage() {
   }, []);
 
   if (loading) return <p className="text-muted-foreground">Loading...</p>;
-  if (!data || data.total === 0) {
+  if (!data || data.total === 0 || !data.conversion_funnel) {
     return (
       <div className="space-y-6">
         <h2 className="text-2xl font-bold">Insights</h2>
