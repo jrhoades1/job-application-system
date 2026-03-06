@@ -118,7 +118,15 @@
 - **Practice with the drawing tool beforehand.** Fumbling with Excalidraw/Miro controls during the interview wastes time and breaks flow. Jesse was gracious about it but it added friction. [Ensemble R3, 2026-03-05]
 
 ### VP / Hiring Manager Screens
-- (Populated from future debriefs)
+- **They evaluate through frameworks, not free-form chat.** Matthew structured R2 around three pillars (delivering value, delivering faster, scaling) plus accountability. Expect hiring managers to have a mental rubric — listen for the structure and address each pillar explicitly. [Ensemble R2, 2026-02-20]
+- **Your data integration experience is your strongest card.** Matthew explicitly said "this resonates very much with Ensemble" when you described the bi-directional integration engine. For healthcare companies, lead with integration architecture. [Ensemble R2, 2026-02-20]
+- **Redefine their terms before answering.** When Matthew asked about "faster," you reframed it first. This gave you framing control and showed strategic thinking. Use the "Define the Term First" technique for any abstract question from a HM. [Ensemble R2, 2026-02-20]
+- **Have a crisp "managing managers" example ready.** Matthew probed this and the answer could have been stronger. Prepare a specific story with situation/outcome, not just "I managed managers at MedQuest and Cognizant." [Ensemble R2, 2026-02-20]
+- **Hiring managers share insider intel when they're interested.** Matthew revealed A/R follow-up as the pod focus, the deterministic + AI hybrid philosophy, CEO urgency for hires, and that he's playing interim pod leader. Detailed intel = strong buying signal. [Ensemble R2, 2026-02-20]
 
 ### Recruiter Screens
-- (Populated from future debriefs)
+- **Keep it to 15-20 minutes.** Recruiter screens are quick — R1 was ~15 minutes. Deliver your PPF opener, answer their 2-3 questions concisely, and ask 1-2 smart questions. Don't over-talk. [Ensemble R1, 2026-02-03]
+- **Find a personal bonding moment.** The F1 analogy created a genuine connection with Bethany. The Easter Island project showed authentic curiosity. Recruiters who like you become advocates — Bethany fed intel about the VP's priorities, hiring urgency, and what to emphasize in R2. [Ensemble R1, 2026-02-03]
+- **Anchor salary high but vague.** "Low twos" anchored at the top of their range without boxing in. Bethany confirmed alignment (~$200K base + bonus + stock). Name a range, not a number. [Ensemble R1, 2026-02-03]
+- **Ask about the interview process.** Bethany laid out 3 rounds, who you'd meet, and what the VP looks for (articulate, AI experience, culture fit). This is free prep material for the next round. Always ask. [Ensemble R1, 2026-02-03]
+- **Beneficiary numbers land with non-technical interviewers.** "50K to 90K" is concrete and impressive even to someone who doesn't understand the technical architecture behind it. Lead with business impact numbers for recruiters, save technical depth for later rounds. [Ensemble R1, 2026-02-03]
