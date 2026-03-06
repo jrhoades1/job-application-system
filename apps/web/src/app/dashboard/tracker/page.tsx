@@ -364,7 +364,17 @@ export default function TrackerPage() {
                     </Button>
                   </div>
                   {scrapeError && (
-                    <p className="text-sm text-destructive mt-1">{scrapeError}</p>
+                    <p className="text-sm text-destructive mt-1">
+                      {scrapeError}
+                      {" — "}
+                      <button
+                        type="button"
+                        className="underline text-foreground hover:text-foreground/80"
+                        onClick={() => setScrapeMode("paste")}
+                      >
+                        paste the job description instead
+                      </button>
+                    </p>
                   )}
                 </div>
 
