@@ -44,14 +44,8 @@ test.describe("Cost Admin page", () => {
 
   test("renders heading and spend cards", async ({ page }) => {
     await page.goto("/dashboard/admin");
-    // May show the page or a rate-limit / error state
-    const heading = page.getByRole("heading", { name: "Cost Admin" });
-    const spend = page.getByText(/AI Spend This Month/i);
-    const loading = page.getByText("Loading...");
-    const error = page.getByText(/error|too many requests/i);
-
     await expect(
-      heading.or(spend).or(loading).or(error)
+      page.getByText("AI Spend This Month")
     ).toBeVisible({ timeout: 15000 });
   });
 });

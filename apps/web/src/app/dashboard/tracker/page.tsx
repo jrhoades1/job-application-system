@@ -181,6 +181,18 @@ export default function TrackerPage() {
 
   async function handleScrape() {
     if (!scrapeUrl.trim()) return;
+    const url = scrapeUrl.trim();
+
+    // LinkedIn blocks server-side scraping — skip the request entirely
+    if (/linkedin\.com/i.test(url)) {
+      setScrapeError(
+        "LinkedIn blocks automated scraping. Copy the job description from the listing and use"
+      );
+      // Store the URL so it's preserved when switching modes
+      setNewApp({ ...newApp, source: "LinkedIn", source_url: url });
+      return;
+    }
+
     setScraping(true);
     setScrapeError("");
     try {
@@ -218,10 +230,16 @@ export default function TrackerPage() {
       toast.error("Company and role are required");
       return;
     }
+    // Strip empty optional fields so Zod/Supabase don't choke on them
+    const payload: Record<string, unknown> = { company: newApp.company, role: newApp.role };
+    if (newApp.source) payload.source = newApp.source;
+    if (newApp.source_url) payload.source_url = newApp.source_url;
+    if (newApp.job_description) payload.job_description = newApp.job_description;
+
     const res = await fetch("/api/applications", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(newApp),
+      body: JSON.stringify(payload),
     });
     if (res.ok) {
       const created = await res.json();
@@ -244,7 +262,8 @@ export default function TrackerPage() {
           });
       }
     } else {
-      toast.error("Failed to add application");
+      const err = await res.json().catch(() => null);
+      toast.error(err?.error || "Failed to add application");
     }
   }
 

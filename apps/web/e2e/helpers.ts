@@ -9,7 +9,6 @@ export const hasClerkCreds =
 
 /**
  * Skip the current test if Clerk credentials are not configured.
- * Use this in .auth.spec.ts files to gracefully degrade.
  */
 export function skipWithoutAuth() {
   test.skip(
