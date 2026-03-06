@@ -481,26 +481,28 @@ export default function TrackerPage() {
 
             {/* Paste JD mode */}
             {scrapeMode === "paste" && (
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium">Company</label>
-                  <Input
-                    value={newApp.company}
-                    onChange={(e) =>
-                      setNewApp({ ...newApp, company: e.target.value })
-                    }
-                    placeholder="Company name"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Role</label>
-                  <Input
-                    value={newApp.role}
-                    onChange={(e) =>
-                      setNewApp({ ...newApp, role: e.target.value })
-                    }
-                    placeholder="Job title"
-                  />
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium">Company</label>
+                    <Input
+                      value={newApp.company}
+                      onChange={(e) =>
+                        setNewApp({ ...newApp, company: e.target.value })
+                      }
+                      placeholder="Company name"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Role</label>
+                    <Input
+                      value={newApp.role}
+                      onChange={(e) =>
+                        setNewApp({ ...newApp, role: e.target.value })
+                      }
+                      placeholder="Job title"
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="text-sm font-medium">Source</label>
@@ -513,20 +515,23 @@ export default function TrackerPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium">Job Description</label>
+                  <div className="flex items-baseline justify-between">
+                    <label className="text-sm font-medium">Job Description</label>
+                    {newApp.job_description && (
+                      <span className="text-xs text-muted-foreground">
+                        {newApp.job_description.length.toLocaleString()} characters
+                      </span>
+                    )}
+                  </div>
                   <Textarea
                     value={newApp.job_description}
                     onChange={(e) =>
                       setNewApp({ ...newApp, job_description: e.target.value })
                     }
                     placeholder="Paste the full job description here..."
-                    rows={8}
+                    className="mt-1 max-h-[40vh] resize-y"
+                    rows={6}
                   />
-                  {newApp.job_description && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {newApp.job_description.length.toLocaleString()} characters
-                    </p>
-                  )}
                 </div>
                 <Button onClick={handleCreate} className="w-full">
                   Add
