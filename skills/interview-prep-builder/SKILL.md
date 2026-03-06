@@ -210,6 +210,7 @@ Quick-reference for your key metrics (from achievements.md):
 
 ## Pre-Interview Checklist
 
+- [ ] Practice your Past, Present, Future opener out loud (aim for 60-90 seconds)
 - [ ] Review the job description one more time
 - [ ] Review company-brief.md and study-sheet.md (run company-research if missing)
 - [ ] Confirm interview logistics (link, time zone, who you're meeting)

@@ -81,7 +81,32 @@
 > Patterns observed across multiple interviews. Updated as data accumulates.
 > Minimum 3 occurrences to flag a pattern.
 
-(No patterns yet — tracking begins with first debrief entries.)
+### Confirmed Patterns (3+ occurrences across Ensemble R1–R3)
+
+- **Healthcare interoperability is always validated.** Every interviewer touched on
+  FHIR/HL7/Epic/Athena experience. It's a credibility checkpoint, not a deep-dive
+  topic — answer fluently and move on. Don't over-explain unless probed.
+  [Ensemble R1 (Bethany), R2 (Matthew), R3 (Jesse)]
+
+- **AI philosophy is now a standard topic.** All three rounds included AI discussion
+  — R1 (passion/curiosity), R2 (practical application, tokens philosophy), R3 (deep
+  vision, Dark Software Factory, intent hierarchy). Expect it at every stage, but
+  calibrate depth: recruiter gets enthusiasm, HM gets practical examples, technical
+  gets architecture and governance. [Ensemble R1, R2, R3]
+
+- **Structured frameworks impress at every level.** The 5-part system architecture
+  (R2), the PPF intro (all rounds), the intent hierarchy (R3) — presenting ideas as
+  numbered/named structures consistently lands well. Interviewers remember frameworks
+  more than free-form answers. [Ensemble R1, R2, R3]
+
+- **Team building from zero is the differentiator.** Every interviewer engaged when
+  hearing "built 3 orgs from scratch, scaled a 4th." It's unusual and impressive.
+  Always include it in the Past section of PPF. [Ensemble R1, R2, R3]
+
+- **Bi-directional data flow gets attention.** Not just consuming data — pushing
+  alerts/notes back to source EHRs. Matthew explicitly said "this resonates very
+  much with Ensemble." This is a rare capability that most candidates don't have.
+  Lead with it for any integration-heavy role. [Ensemble R2 (deep probe), R3 (validation)]
 
 ---
 
