@@ -43,5 +43,10 @@ next-env.d.ts
 .vercel
 .env*.local
 
+# playwright
+test-results/
+playwright-report/
+
 # clerk configuration (can include secrets)
 /.clerk/
+playwright/.clerk/
