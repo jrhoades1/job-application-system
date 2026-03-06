@@ -95,6 +95,7 @@ npx vitest run       # Run tests (21 scoring tests)
 | `/api/pipeline/leads` | GET, PATCH | Pipeline leads list / promote or skip |
 | `/api/insights` | GET | Analytics aggregation |
 | `/api/admin/usage` | GET | Cost tracking data |
+| `/api/scrape-job` | POST | Scrape job listing URL for company/role/description |
 | `/api/webhooks/clerk` | POST | User sync on signup (creates profile + cost_config) |
 
 ## Scoring Engine (`src/scoring/`)
