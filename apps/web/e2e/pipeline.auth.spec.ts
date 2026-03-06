@@ -1,8 +1,9 @@
 import { test, expect } from "@playwright/test";
-import { skipWithoutAuth } from "./helpers";
+import { skipWithoutAuth, refreshClerkSession } from "./helpers";
 
-test.beforeEach(() => {
+test.beforeEach(async ({ page }) => {
   skipWithoutAuth();
+  await refreshClerkSession(page);
 });
 
 test.describe("Pipeline page", () => {
@@ -30,9 +31,6 @@ test.describe("Pipeline page", () => {
 });
 
 test.describe("Insights page", () => {
-  test.beforeEach(() => {
-    skipWithoutAuth();
-  });
 
   test("renders heading", async ({ page }) => {
     await page.goto("/dashboard/insights");
@@ -43,9 +41,6 @@ test.describe("Insights page", () => {
 });
 
 test.describe("Cost Admin page", () => {
-  test.beforeEach(() => {
-    skipWithoutAuth();
-  });
 
   test("renders heading and spend cards", async ({ page }) => {
     await page.goto("/dashboard/admin");
@@ -62,9 +57,6 @@ test.describe("Cost Admin page", () => {
 });
 
 test.describe("Settings page", () => {
-  test.beforeEach(() => {
-    skipWithoutAuth();
-  });
 
   test("renders heading and email pipeline card", async ({ page }) => {
     await page.goto("/dashboard/settings");

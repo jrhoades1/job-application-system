@@ -51,7 +51,7 @@ setup("authenticate test user", async ({ page }) => {
     },
     body: JSON.stringify({
       user_id: userId,
-      expires_in_seconds: 300,
+      expires_in_seconds: 600,
     }),
   });
   if (!tokenRes.ok) {

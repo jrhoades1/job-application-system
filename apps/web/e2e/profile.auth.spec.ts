@@ -1,8 +1,9 @@
 import { test, expect } from "@playwright/test";
-import { skipWithoutAuth } from "./helpers";
+import { skipWithoutAuth, refreshClerkSession } from "./helpers";
 
-test.beforeEach(() => {
+test.beforeEach(async ({ page }) => {
   skipWithoutAuth();
+  await refreshClerkSession(page);
 });
 
 test.describe("Profile page", () => {
@@ -42,23 +43,18 @@ test.describe("Profile page", () => {
     );
   });
 
-  test("upload resume button is present", async ({ page }) => {
+  test("action buttons are present", async ({ page }) => {
     await page.goto("/dashboard/profile");
     await page.getByRole("heading", { name: "Profile Setup" }).waitFor({ timeout: 15000 });
 
     await expect(
       page.getByRole("button", { name: /Upload Resume/i })
     ).toBeVisible();
-  });
-
-  test("add position and category buttons work", async ({ page }) => {
-    await page.goto("/dashboard/profile");
-    await page.getByRole("heading", { name: "Profile Setup" }).waitFor({ timeout: 15000 });
-
-    const addPosition = page.getByRole("button", { name: /Add Position/i });
-    await expect(addPosition).toBeVisible();
-
-    const addCategory = page.getByRole("button", { name: /Add Category/i });
-    await expect(addCategory).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Add Position/i })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Add Category/i })
+    ).toBeVisible();
   });
 });

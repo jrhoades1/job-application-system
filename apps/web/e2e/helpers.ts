@@ -1,4 +1,6 @@
 import { test } from "@playwright/test";
+import { setupClerkTestingToken } from "@clerk/testing/playwright";
+import type { Page } from "@playwright/test";
 
 export const hasClerkCreds =
   !!process.env.CLERK_SECRET_KEY &&
@@ -14,4 +16,13 @@ export function skipWithoutAuth() {
     !hasClerkCreds,
     "Skipped — add CLERK_SECRET_KEY, E2E_CLERK_USER_USERNAME, E2E_CLERK_USER_PASSWORD to .env.local"
   );
+}
+
+/**
+ * Refresh Clerk testing token for the page to prevent session expiry mid-suite.
+ */
+export async function refreshClerkSession(page: Page) {
+  if (hasClerkCreds) {
+    await setupClerkTestingToken({ page });
+  }
 }

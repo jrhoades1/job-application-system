@@ -1,8 +1,9 @@
 import { test, expect } from "@playwright/test";
-import { skipWithoutAuth } from "./helpers";
+import { skipWithoutAuth, refreshClerkSession } from "./helpers";
 
-test.beforeEach(() => {
+test.beforeEach(async ({ page }) => {
   skipWithoutAuth();
+  await refreshClerkSession(page);
 });
 
 test.describe("Analyze Job page", () => {
