@@ -495,7 +495,7 @@ export default function ApplicationDetailPage() {
     : null);
   const displayMatchPct = tailorMatchPct ?? appMatchPct;
 
-  const resumeContent = tailoredResume ?? app.tailored_resume;
+  const resumeContent = tailoredResume ?? app.tailored_resume ?? app.resume_version;
   const clContent = coverLetter ?? app.cover_letter;
 
   const interviews: InterviewRound[] = app.interviews ?? [];
