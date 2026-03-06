@@ -256,6 +256,20 @@ After generating the debrief, analyze it for tactical lessons:
    - "Extracted N tactical lessons from this interview."
    - List the key ones briefly
 
+### Step 5b: Update story and analogy deployment tracking
+
+After extracting learnings, update deployment history in the master files:
+
+1. **Read `master/story-bank.md`** — for each story used in this interview, update
+   the "Deployed in" field with the company name, round, and context
+2. **Read `master/analogy-arsenal.md`** — for each analogy/line used, update the
+   "Landed in" field. Flag if the same line was used twice in one conversation.
+3. **If a new story emerged** (candidate told a story not yet in the bank), add it
+   to `master/story-bank.md` with proper pillar tags and deployment record
+4. **If a new analogy landed well**, add it to `master/analogy-arsenal.md`
+
+This keeps the prep builder's reuse detection current for future interviews.
+
 ### Step 6: Confirm and summarize
 
 Give the user a brief summary covering:
@@ -295,6 +309,8 @@ tactics). 1 cross-interview pattern: AI governance is now a recurring topic acro
 | | | search-optimizer (strategic signals) |
 | | | achievements.md (learning loop) |
 | | | interview-learnings.md (tactical compounding) |
+| | | story-bank.md (deployment tracking) |
+| | | analogy-arsenal.md (usage tracking) |
 | | | interview-prep-builder (feeds future prep) |
 
 Read `references/debrief-template.md` for the full question framework.

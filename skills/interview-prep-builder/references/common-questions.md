@@ -72,9 +72,24 @@ over time as the system captures more debriefs.
 - "How have you worked with clinical teams?"
 - "Describe a healthcare-specific technical challenge you solved."
 
-## Behavioral Question Frameworks
+## Answer Techniques
 
-For behavioral questions, use the STAR method with emphasis on numbers:
+### Define the Term First
+Before answering broad questions ("How do you measure faster?" / "What does scaling
+mean to you?"), redefine the term on your terms. This:
+- Shows critical thinking ("faster means different things to different people")
+- Gives you framing control — you set the goalposts
+- Buys 10-15 seconds to organize your answer
+- Demonstrates you don't just execute, you think about *what* to execute
+
+**Example (from Ensemble R2):** Asked about "delivering value faster," Jimmy first
+said: "Define what 'faster' means — people have different definitions. Getting the
+list to zero vs. getting it done accurately." Then answered with a concrete example.
+
+Use this for any abstract/strategic question. Don't use it for specific behavioral
+questions ("Tell me about a time...") — those need a direct story.
+
+### STAR Method (for behavioral questions)
 
 **Situation:** 1-2 sentences setting the context
 **Task:** What was your specific responsibility

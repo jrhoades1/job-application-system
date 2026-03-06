@@ -32,6 +32,7 @@ recommended_model:
 5. **Confidence from preparation** — knowing your best stories and how they connect to the role reduces anxiety and improves performance
 6. **Learning loop from past interviews** — previous debrief patterns inform question prediction; prep improves with every interview in the system
 7. **Prep document in 15-20 minutes; 3 talking points minimum; 10-15 likely questions** — comprehensive enough to be useful, concise enough to actually be reviewed before the interview
+8. **Past, Present, Future is the default opener** — every prep starts with a customized 60-90 second intro using the PPF framework (see `references/past-present-future.md`); this format has proven effective across interviews and should always be generated first
 
 ## Why this skill exists
 
@@ -70,9 +71,16 @@ Read:
 - `study-sheet.md` — quick-reference study data (if it exists)
 - `master/achievements.md` — your accomplishment inventory
 - `master/narrative.md` — your positioning themes for this role type
+- `master/story-bank.md` — signature stories with pillar tags and deployment history
+- `master/analogy-arsenal.md` — memorable metaphors with usage tracking
 - `master/interview-learnings.md` — proven tactical lessons from past interviews (if it exists)
 - Previous `interview-debrief-rN.md` files in this application folder — for THIS company's prior rounds
 - Previous `interview-notes.md` files across applications (if any) — for cross-company question patterns
+
+**Story reuse check:** Before selecting stories and analogies for this prep, check
+the "Deployed in" fields in `master/story-bank.md` and `master/analogy-arsenal.md`.
+If prepping for a later round at the same company, do NOT reuse stories or lines
+already deployed in earlier rounds. Flag any conflicts and suggest alternatives.
 
 If `company-brief.md` does not exist, suggest running company-research first for
 richer, company-specific talking points and questions.
@@ -92,6 +100,22 @@ Create `interview-prep.md` in the application folder:
 **Interview date:** [date]
 **Interview type:** [phone/video/in-person/panel]
 **Interviewer(s):** [if known]
+
+## Your Opening — Past, Present, Future
+
+> Your 60-90 second intro when they say "Tell me about yourself."
+> Practice this out loud until it's natural, not memorized.
+
+**Past:** "[Career arc + biggest proof point with a number. Pull from achievements.md,
+emphasizing the experience most relevant to this role.]"
+
+**Present:** "[What you're actively doing now that shows growth and relevance.
+Pick the angle that resonates most with this specific role.]"
+
+**Future:** "[Why THIS company specifically. Reference their mission, challenge,
+or approach by name. Connect it to your experience. Never generic.]"
+
+> See `references/past-present-future.md` for the full framework and proven example.
 
 ## Your Top 3 Talking Points
 
@@ -198,22 +222,39 @@ Quick-reference for your key metrics (from achievements.md):
 
 ### Step 4: Customize for interview round
 
+**Round escalation strategy:** Each round serves a different purpose. The intensity
+and depth of your content should escalate naturally:
+- R1 = rapport + high-level fit (they decide if you're worth more time)
+- R2 = depth + proof (they validate your claims with stories and numbers)
+- R3+ = technical calibration + vision (they test your ceiling)
+
 **Recruiter screen (Round 1):**
+- Deliver the full PPF opener — this is where it shines most
 - Focus on: fit, salary alignment, high-level background
-- Keep stories short (1-2 minutes each)
+- Keep stories short (1-2 minutes each), use short versions from `master/story-bank.md`
 - Emphasize enthusiasm for the role
+- **Recruiter-as-ally:** Invest 60 seconds in a genuine personal connection — find a
+  bonding moment (shared interest, side project, anything human). Recruiters who like
+  you become advocates: they feed you intel about the hiring manager's priorities,
+  timeline pressure, and what to emphasize. This paid off at Ensemble — Bethany
+  connected over F1 and Easter Island, then provided detailed insider context for R2.
 
 **Hiring manager (Round 2):**
+- Deliver the full PPF opener, tuned toward leadership and strategy
 - Focus on: leadership, strategic thinking, team building
-- Share detailed stories with numbers
+- Share detailed stories with numbers — use full versions from `master/story-bank.md`
+- Select analogies from `master/analogy-arsenal.md` that match the discussion topic
 - Ask about their vision and challenges
 
 **Technical panel (Round 3+):**
+- Shorten PPF to 30-45 seconds — they want to get to technical depth quickly
 - Focus on: architecture decisions, technical trade-offs
 - Be ready for whiteboard or system design
 - Show depth in their specific tech stack
+- Use the "Define the Term First" technique for strategic questions (see `references/common-questions.md`)
 
 **Final round / executive:**
+- Deliver the full PPF opener, emphasizing business impact in Past and mission alignment in Future
 - Focus on: business impact, cultural fit, long-term vision
 - Ask about company strategy and growth
 - Show alignment with company mission
@@ -247,6 +288,10 @@ is `system_design` or `technical_panel`, generate the "System Design Scenarios" 
 Share the document. Ask if there are specific areas the user wants to drill
 deeper on. Offer to do mock Q&A for the gap bridge sections.
 
+**PPF practice:** Suggest the candidate read their Past, Present, Future opener
+out loud 2-3 times. It should feel conversational, not rehearsed. Time it —
+if it's over 90 seconds, trim.
+
 ## Edge cases
 
 - **No interview date set** — Create the prep anyway. Better to be ready early.
@@ -265,4 +310,7 @@ deeper on. Offer to do mock Q&A for the gap bridge sections.
 | company-research (company intel) | | |
 | interview-debrief (past patterns) | | |
 
-Read `references/common-questions.md` for question frameworks by role type.
+Read `references/common-questions.md` for question frameworks, answer techniques, and role-type patterns.
+Read `references/past-present-future.md` for the PPF opener framework and proven example.
+Read `master/story-bank.md` for signature stories tagged by pillar with deployment tracking.
+Read `master/analogy-arsenal.md` for memorable metaphors with usage rules.
