@@ -4,6 +4,10 @@
 Updates applied_date and status for rejected/closed applications
 that are missing this data.
 
+IMPORTANT: The Closed tab labels every entry as "Closed", but the rawText
+field contains the actual per-row status (e.g. "Applied", "Interviewing").
+We parse rawText to get the real status.
+
 Usage:
     python import_swooped_closed_dates.py <swooped_closed_jobs.json>
 """
@@ -28,11 +32,31 @@ HEADERS = {
 }
 
 STATUS_MAP = {
+    "Applied": "applied",
+    "Interviewing": "interviewing",
+    "Offered": "offered",
+    "Saved": "evaluating",
     "Closed": "rejected",
     "Not Selected": "rejected",
     "Rejected": "rejected",
     "Withdrawn": "withdrawn",
 }
+
+# Statuses that appear in Swooped rawText (the actual per-row status)
+RAW_TEXT_STATUSES = ["Applied", "Rejected", "Interviewing", "Offered", "Saved",
+                     "Not Selected", "Withdrawn", "Closed"]
+
+
+def parse_raw_text_status(raw_text: str) -> str | None:
+    """Extract the actual application status from a Swooped rawText field.
+
+    The Closed tab labels everything as 'Closed', but the rawText contains
+    the real per-row status (e.g. 'Applied', 'Interviewing').
+    """
+    for s in RAW_TEXT_STATUSES:
+        if f"\n{s}\n" in raw_text or raw_text.strip().endswith(s):
+            return s
+    return None
 
 
 def normalize(s: str) -> str:
@@ -107,10 +131,15 @@ def main():
     apps = load_applications()
     print(f"Loaded {len(apps)} applications from Supabase\n")
 
-    app_index: dict[tuple[str, str], dict] = {}
+    # Use (company, role, date) as primary key to avoid collisions
+    app_index: dict[tuple[str, str, str], dict] = {}
+    app_index_no_date: dict[tuple[str, str], list[dict]] = {}
     for app in apps:
-        key = (normalize(app["company"]), normalize(app["role"]))
+        date_key = (app.get("applied_date") or "")[:10]
+        key = (normalize(app["company"]), normalize(app["role"]), date_key)
         app_index[key] = app
+        no_date_key = (normalize(app["company"]), normalize(app["role"]))
+        app_index_no_date.setdefault(no_date_key, []).append(app)
 
     dates_filled = 0
     status_fixed = 0
@@ -123,19 +152,43 @@ def main():
         if not company or not role:
             continue
 
-        key = (normalize(company), normalize(role))
+        # Parse the REAL status from rawText, not the tab-level "Closed" label
+        raw_text = cj.get("rawText", "")
+        real_status = parse_raw_text_status(raw_text) or cj.get("status", "Closed")
+
+        applied_date = parse_date(cj.get("appliedDate")) or parse_date(cj.get("createdDate"))
+        date_key = applied_date or ""
+
+        # Try exact match with date first
+        key = (normalize(company), normalize(role), date_key)
         app = app_index.get(key)
 
+        # Fallback: match without date but only if there's exactly one match
+        if not app:
+            no_date_key = (normalize(company), normalize(role))
+            candidates = app_index_no_date.get(no_date_key, [])
+            if len(candidates) == 1:
+                app = candidates[0]
+            elif len(candidates) > 1:
+                # Multiple matches — try to find one with matching date
+                for c in candidates:
+                    if (c.get("applied_date") or "")[:10] == date_key:
+                        app = c
+                        break
+
+        # Last resort: fuzzy match (only if no collisions)
         if not app:
             best_score = 0
-            best_app = None
-            for (ac, ar), a in app_index.items():
+            best_apps = []
+            for a in apps:
                 score = (similarity(company, a["company"]) + similarity(role, a["role"])) / 2
                 if score > best_score:
                     best_score = score
-                    best_app = a
-            if best_score >= 0.75:
-                app = best_app
+                    best_apps = [a]
+                elif score == best_score:
+                    best_apps.append(a)
+            if best_score >= 0.75 and len(best_apps) == 1:
+                app = best_apps[0]
             else:
                 not_found += 1
                 continue
@@ -143,13 +196,11 @@ def main():
         updates = {}
 
         # Fill in applied_date if missing
-        applied_date = parse_date(cj.get("appliedDate")) or parse_date(cj.get("createdDate"))
         if applied_date and not app.get("applied_date"):
             updates["applied_date"] = applied_date
 
-        # Fix status if needed
-        swooped_status = cj.get("status", "Closed")
-        expected = STATUS_MAP.get(swooped_status, "rejected")
+        # Fix status using the REAL status from rawText
+        expected = STATUS_MAP.get(real_status, "applied")
         if app.get("status") != expected and app.get("status") not in ("withdrawn", "offered", "interviewing"):
             updates["status"] = expected
 

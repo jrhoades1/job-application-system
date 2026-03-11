@@ -198,6 +198,18 @@ STATUS_MAP = {
     "Withdrawn": "withdrawn",
 }
 
+# Statuses that appear in Swooped rawText (the actual per-row status)
+RAW_TEXT_STATUSES = ["Applied", "Rejected", "Interviewing", "Offered", "Saved",
+                     "Not Selected", "Withdrawn", "Closed"]
+
+
+def parse_raw_text_status(raw_text: str) -> str | None:
+    """Extract the actual application status from a Swooped rawText field."""
+    for s in RAW_TEXT_STATUSES:
+        if f"\n{s}\n" in raw_text or raw_text.strip().endswith(s):
+            return s
+    return None
+
 
 def main():
     if not SUPABASE_KEY:
@@ -237,11 +249,15 @@ def main():
     apps = load_applications()
     print(f"  Supabase applications: {len(apps)}")
 
-    # Build index
-    app_index: dict[tuple[str, str], dict] = {}
+    # Build index — use (company, role, date) to avoid collisions
+    app_index: dict[tuple[str, str, str], dict] = {}
+    app_index_no_date: dict[tuple[str, str], list[dict]] = {}
     for app in apps:
-        key = (normalize(app["company"]), normalize(app["role"]))
+        date_key = (app.get("applied_date") or "")[:10]
+        key = (normalize(app["company"]), normalize(app["role"]), date_key)
         app_index[key] = app
+        nd_key = (normalize(app["company"]), normalize(app["role"]))
+        app_index_no_date.setdefault(nd_key, []).append(app)
 
     # ============================================================
     # PART 1: Find and create missing jobs
@@ -260,16 +276,32 @@ def main():
         if not company or not role:
             continue
 
-        key = (normalize(company), normalize(role))
+        nd_key = (normalize(company), normalize(role))
 
-        # Check exact match
-        if key in app_index:
+        # Get date first so we can build a full key
+        applied_date = cl_date_lookup.get(nd_key)
+        if not applied_date:
+            for (dc, dr), d in cl_date_lookup.items():
+                if similarity(company.lower(), dc) > 0.85 and similarity(role.lower(), dr) > 0.85:
+                    applied_date = d
+                    break
+
+        date_key = applied_date or ""
+        full_key = (normalize(company), normalize(role), date_key)
+
+        # Check exact match with date
+        if full_key in app_index:
+            already_exists += 1
+            continue
+
+        # Check match without date — only if there's an existing entry
+        if nd_key in app_index_no_date:
             already_exists += 1
             continue
 
         # Check fuzzy match
         best_score = 0
-        for (ac, ar), a in app_index.items():
+        for a in apps:
             score = (similarity(company, a["company"]) + similarity(role, a["role"])) / 2
             if score > best_score:
                 best_score = score
@@ -279,30 +311,29 @@ def main():
             continue
 
         # This job is MISSING from Supabase — create it
-        # Get date: try cover letter creation date, fallback to None
-        applied_date = cl_date_lookup.get(key)
-        if not applied_date:
-            # Try fuzzy date lookup
-            for (dc, dr), d in cl_date_lookup.items():
-                if similarity(company.lower(), dc) > 0.85 and similarity(role.lower(), dr) > 0.85:
-                    applied_date = d
-                    break
+        # Parse real status from rawText if available, otherwise use the
+        # swooped_status_lookup, and only fall back to "rejected" as last resort
+        raw_text = cl.get("rawText", "")
+        real_swooped_status = parse_raw_text_status(raw_text) if raw_text else None
+        if not real_swooped_status:
+            real_swooped_status = swooped_status_lookup.get(nd_key)
+        import_status = STATUS_MAP.get(real_swooped_status or "Closed", "rejected")
 
         content = cl.get("content")
 
         result = create_application(
             company=company,
             role=role,
-            status="rejected",  # These are from the closed tab
+            status=import_status,
             applied_date=applied_date,
             cover_letter=content,
         )
 
         if result:
             created += 1
-            # Add to index so we don't create duplicates
-            app_index[key] = result
-            print(f"  Created: {company} | {role} | date={applied_date or 'unknown'} | CL={len(content or '')} chars".encode("ascii", "replace").decode())
+            app_index[full_key] = result
+            app_index_no_date.setdefault(nd_key, []).append(result)
+            print(f"  Created: {company} | {role} | status={import_status} | date={applied_date or 'unknown'} | CL={len(content or '')} chars".encode("ascii", "replace").decode())
         else:
             create_errors += 1
 
@@ -317,13 +348,28 @@ def main():
 
     # Reload apps to include newly created ones
     apps = load_applications()
-    _ = {a["id"]: a for a in apps}  # available for debugging
 
-    # Rebuild normalized index
-    app_index = {}
-    for app in apps:
-        key = (normalize(app["company"]), normalize(app["role"]))
-        app_index[key] = app
+    # Rebuild normalized index with date-aware keys
+    swooped_status_lookup_with_date: dict[tuple[str, str, str], str] = {}
+    for item in swooped_data.get("trackJobs", {}).get("structured", []):
+        text = item.get("text", "")
+        lines = text.split("\n")
+        tabs = None
+        for line in lines:
+            parts = line.split("\t")
+            cleaned = [p.strip() for p in parts if p.strip()]
+            if len(cleaned) >= 2:
+                tabs = cleaned
+                break
+        status = None
+        for s in ["Saved", "Applied", "Interviewing", "Offered", "Rejected",
+                   "Closed", "Not Selected", "Withdrawn"]:
+            if any(s == line.strip() for line in lines):
+                status = s
+                break
+        if tabs and len(tabs) >= 2 and status:
+            date_val = parse_date(tabs[3]) if len(tabs) > 3 else (parse_date(tabs[2]) if len(tabs) > 2 else "")
+            swooped_status_lookup_with_date[(normalize(tabs[0]), normalize(tabs[1]), date_val or "")] = status
 
     status_fixed = 0
     status_ok = 0
@@ -333,16 +379,17 @@ def main():
         if app.get("source") != "Swooped":
             continue
 
-        key = (normalize(app["company"]), normalize(app["role"]))
-        swooped_status = swooped_status_lookup.get(key)
+        nd_key = (normalize(app["company"]), normalize(app["role"]))
+        date_key = (app.get("applied_date") or "")[:10]
+        full_key = (nd_key[0], nd_key[1], date_key)
+
+        # Try date-aware lookup first, then fall back to no-date lookup
+        swooped_status = swooped_status_lookup_with_date.get(full_key)
+        if not swooped_status:
+            swooped_status = swooped_status_lookup.get(nd_key)
 
         if not swooped_status:
-            # This job isn't in the active track — it's from the closed tab
-            # If we just created it, it should already be "rejected"
-            if app["status"] == "rejected":
-                status_ok += 1
-            else:
-                status_no_swooped += 1
+            status_no_swooped += 1
             continue
 
         expected_status = STATUS_MAP.get(swooped_status, "evaluating")
@@ -352,9 +399,9 @@ def main():
             status_ok += 1
             continue
 
-        # Status mismatch — fix it
-        # But don't downgrade: if Supabase has a more advanced status, keep it
-        # Priority: rejected > withdrawn > offered > interviewing > applied > evaluating > pending_review > ready_to_apply
+        # Status mismatch — fix it, but don't downgrade manually-set statuses
+        # Exception: DO allow downgrading from "rejected" since that's likely a bug
+        # from the previous key-collision issue
         priority = {
             "ready_to_apply": 0, "pending_review": 1, "evaluating": 2,
             "applied": 3, "interviewing": 4, "offered": 5,
@@ -364,8 +411,7 @@ def main():
         current_pri = priority.get(current_status, 0)
         expected_pri = priority.get(expected_status, 0)
 
-        if expected_pri > current_pri:
-            # Swooped has a more advanced status — update
+        if expected_pri > current_pri or current_status == "rejected":
             if update_application(app["id"], {"status": expected_status}):
                 status_fixed += 1
                 print(f"  Fixed: {app['company']} | {app['role']}: {current_status} -> {expected_status}".encode("ascii", "replace").decode())
@@ -400,6 +446,12 @@ def main():
     print("  PART 3: Fill in missing cover letters for existing jobs")
     print(f"{'=' * 60}\n")
 
+    # Rebuild no-date index for cover letter matching (collision-safe: stores lists)
+    cl_app_index: dict[tuple[str, str], list[dict]] = {}
+    for app in apps:
+        nd_key = (normalize(app["company"]), normalize(app["role"]))
+        cl_app_index.setdefault(nd_key, []).append(app)
+
     cl_filled = 0
     cl_already = 0
 
@@ -410,14 +462,16 @@ def main():
         if not company or not role or not content:
             continue
 
-        key = (normalize(company), normalize(role))
-        app = app_index.get(key)
+        nd_key = (normalize(company), normalize(role))
+        candidates = cl_app_index.get(nd_key, [])
+        # For cover letters, fill all matching apps that are missing one
+        app = candidates[0] if len(candidates) == 1 else None
 
-        # Try fuzzy match
-        if not app:
+        # Try fuzzy match only if no exact match
+        if not app and not candidates:
             best_score = 0
             best_app = None
-            for (ac, ar), a in app_index.items():
+            for a in apps:
                 score = (similarity(company, a["company"]) + similarity(role, a["role"])) / 2
                 if score > best_score:
                     best_score = score

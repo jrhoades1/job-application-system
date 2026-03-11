@@ -1,0 +1,59 @@
+{
+  "company": "Varsity Tutors (Nerdy)",
+  "role": "Director of Engineering (AI-Native)",
+  "location": "Remote",
+  "compensation": null,
+  "applied_date": "2026-03-06",
+  "source": "Swooped",
+  "source_url": "https://swooped.co/app/jobs-tracker/d9fabb9c-1336-46b9-b2d9-1c7f3d14656b",
+  "status": "applied",
+  "follow_up_date": null,
+  "contact": "",
+  "resume_version": "Jimmy Rhoades Varsity Tutors, a Nerdy Company Resume.docx",
+  "cover_letter": "Jimmy Rhoades Varsity Tutors, a Nerdy Company Cover Letter.pdf",
+  "former_employer": false,
+  "former_employer_role": null,
+  "notes": "Applied via Swooped on 2026-03-06. AI-native consumer acquisition engineering org. Manages teams across US, Canada, LATAM. NYSE: NRDY.",
+  "match_score": {
+    "overall": "Strong Match (90%)",
+    "requirements_matched": [
+      "8+ years software engineering",
+      "4+ years leading engineering teams",
+      "Managing multiple squads / 15+ person orgs",
+      "Remote/distributed teams across time zones",
+      "Strong agentic (LLM) coding / hands-on tech leadership",
+      "Deep expertise in web apps, distributed systems, APIs",
+      "Balance technical excellence with business delivery",
+      "AI-native tools (Claude Code, Supabase, Vercel, etc.)"
+    ],
+    "requirements_partial": [
+      "Track record shipping B2C/SaaS at scale",
+      "Sales tools, CRM, or marketing technology"
+    ],
+    "gaps": [],
+    "addressable_gaps": [
+      "B2C gap bridged by consumer-facing scheduling platform (200K+ appointments at MedQuest)",
+      "Sales/CRM gap bridged by call stacking automation and Twilio workflows at ilumed"
+    ],
+    "hard_gaps": [],
+    "keywords": ["Python", "TypeScript", "AWS", "Kubernetes", "Kafka", "Twilio", "AI/ML", "microservices", "CI/CD", "Agile"]
+  },
+  "tailoring_intensity": null,
+  "interview_date": null,
+  "interview_round": null,
+  "interview_type": null,
+  "interview_notes_file": null,
+  "rejection_date": null,
+  "rejection_reason": null,
+  "rejection_insights": null,
+  "offer": {
+    "salary": null,
+    "equity": null,
+    "signing_bonus": null,
+    "remote": null,
+    "benefits_notes": null,
+    "decision_deadline": null
+  },
+  "offer_accepted": null,
+  "learning_flags": []
+}

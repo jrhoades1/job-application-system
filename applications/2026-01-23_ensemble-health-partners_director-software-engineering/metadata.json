@@ -85,15 +85,15 @@
     {
       "round": 4,
       "type": "executive",
-      "date": null,
-      "interviewer": "SVP (name TBD)",
+      "date": "2026-03-09",
+      "interviewer": "Arathi Ramani, SVP Engineering",
       "duration": "30 min",
-      "notes_file": null,
-      "status": "scheduling",
-      "outcome": null
+      "notes_file": "interview-debrief-r4.md",
+      "status": "completed",
+      "outcome": "Solid pass — executive alignment check. Arathi sold the vision, warm close. Expect offer discussion or final step within the week."
     }
   ],
-  "interview_date": "2026-03-05",
+  "interview_date": "2026-03-09",
   "interview_round": 4,
   "interview_type": "executive",
   "interview_notes_file": null,
