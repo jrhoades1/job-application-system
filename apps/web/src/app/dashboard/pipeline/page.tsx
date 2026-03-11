@@ -84,10 +84,19 @@ export default function PipelinePage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("pending_review");
   const [reparsingId, setReparsingId] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [gmailConnected, setGmailConnected] = useState<boolean | null>(null);
 
   useEffect(() => {
     fetchLeads();
   }, [statusFilter]);
+
+  useEffect(() => {
+    fetch("/api/gmail/status")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setGmailConnected(!!data?.is_active))
+      .catch(() => setGmailConnected(false));
+  }, []);
 
   async function fetchLeads() {
     setLoading(true);
@@ -97,6 +106,33 @@ export default function PipelinePage() {
     const data = await res.json();
     setLeads(Array.isArray(data) ? data : []);
     setLoading(false);
+  }
+
+  async function handleSync() {
+    setSyncing(true);
+    try {
+      const res = await fetch("/api/gmail/sync", { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        toast.success(
+          `Sync complete — ${data.inserted} new lead${data.inserted !== 1 ? "s" : ""} found`
+        );
+        fetchLeads();
+      } else {
+        const err = await res.json();
+        toast.error(err.error ?? "Sync failed");
+        // Refresh connection status in case tokens expired
+        const updated = await fetch("/api/gmail/status");
+        if (updated.ok) {
+          const status = await updated.json();
+          setGmailConnected(!!status?.is_active);
+        }
+      }
+    } catch {
+      toast.error("Something went wrong");
+    } finally {
+      setSyncing(false);
+    }
   }
 
   async function handleAction(
@@ -125,6 +161,20 @@ export default function PipelinePage() {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Job Pipeline</h2>
         <div className="flex items-center gap-2">
+          {gmailConnected ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSync}
+              disabled={syncing}
+            >
+              {syncing ? "Syncing..." : "Sync Email"}
+            </Button>
+          ) : gmailConnected === false ? (
+            <Button variant="outline" size="sm" asChild>
+              <a href="/dashboard/settings">Connect Gmail</a>
+            </Button>
+          ) : null}
           <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-[180px]">
             <SelectValue />

@@ -17,7 +17,6 @@ export default function SettingsPage() {
   const searchParams = useSearchParams();
   const [connection, setConnection] = useState<EmailConnection | null>(null);
   const [loadingConnection, setLoadingConnection] = useState(true);
-  const [syncing, setSyncing] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
 
   useEffect(() => {
@@ -41,29 +40,6 @@ export default function SettingsPage() {
       })
       .catch(() => setLoadingConnection(false));
   }, []);
-
-  async function handleSync() {
-    setSyncing(true);
-    try {
-      const res = await fetch("/api/gmail/sync", { method: "POST" });
-      if (res.ok) {
-        const data = await res.json();
-        toast.success(
-          `Sync complete — ${data.inserted} new lead${data.inserted !== 1 ? "s" : ""} found`
-        );
-        // Refresh connection status to update last_fetch_at
-        const updated = await fetch("/api/gmail/status");
-        if (updated.ok) setConnection(await updated.json());
-      } else {
-        const err = await res.json();
-        toast.error(err.error ?? "Sync failed");
-      }
-    } catch {
-      toast.error("Something went wrong");
-    } finally {
-      setSyncing(false);
-    }
-  }
 
   async function handleDisconnect() {
     if (!confirm("Disconnect Gmail? You can reconnect at any time.")) return;
@@ -112,20 +88,15 @@ export default function SettingsPage() {
                   {new Date(connection.last_fetch_at).toLocaleString()}
                 </p>
               )}
-              <div className="flex gap-2">
-                <Button onClick={handleSync} disabled={syncing}>
-                  {syncing ? "Syncing..." : "Sync Now"}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleDisconnect}
-                  disabled={disconnecting}
-                >
-                  Disconnect
-                </Button>
-              </div>
+              <Button
+                variant="outline"
+                onClick={handleDisconnect}
+                disabled={disconnecting}
+              >
+                Disconnect
+              </Button>
               <p className="text-xs text-muted-foreground">
-                Syncs the last 7 days of emails and adds new job leads to your Pipeline.
+                Use the Sync Email button on the Dashboard or Pipeline page to fetch new leads.
               </p>
             </div>
           ) : (

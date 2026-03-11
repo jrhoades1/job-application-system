@@ -136,8 +136,8 @@ export async function POST() {
     const tokens = await getGmailTokens(supabase, userId);
     if (!tokens) {
       return NextResponse.json(
-        { error: "Gmail not connected. Go to Settings to connect your account." },
-        { status: 400 }
+        { error: "Gmail session expired. Please reconnect your account." },
+        { status: 401 }
       );
     }
 

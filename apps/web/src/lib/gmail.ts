@@ -63,7 +63,14 @@ export async function getGmailTokens(
   // Refresh if expired or within 5 minutes of expiry
   if (Date.now() >= tokens.expiry - 5 * 60 * 1000) {
     const refreshed = await refreshAccessToken(tokens.refresh_token);
-    if (!refreshed) return null;
+    if (!refreshed) {
+      // Token refresh failed — deactivate connection so status stays consistent
+      await supabase
+        .from("email_connections")
+        .update({ is_active: false })
+        .eq("clerk_user_id", userId);
+      return null;
+    }
 
     tokens = { ...refreshed, refresh_token: tokens.refresh_token };
 

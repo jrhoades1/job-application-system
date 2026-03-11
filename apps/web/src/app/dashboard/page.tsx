@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import { STATUS_CONFIG } from "@/lib/constants";
 
 interface DebriefNeeded {
@@ -35,6 +37,11 @@ interface DashboardStats {
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [emailStatus, setEmailStatus] = useState<{
+    connected: boolean;
+    last_fetch_at: string | null;
+  } | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -49,7 +56,46 @@ export default function DashboardPage() {
       setLoading(false);
     }
     load();
+
+    fetch("/api/gmail/status")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) =>
+        setEmailStatus({
+          connected: !!data?.is_active,
+          last_fetch_at: data?.last_fetch_at ?? null,
+        })
+      )
+      .catch(() => setEmailStatus({ connected: false, last_fetch_at: null }));
   }, []);
+
+  async function handleSync() {
+    setSyncing(true);
+    try {
+      const res = await fetch("/api/gmail/sync", { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        toast.success(
+          `Sync complete — ${data.inserted} new lead${data.inserted !== 1 ? "s" : ""} found`
+        );
+      } else {
+        const err = await res.json();
+        toast.error(err.error ?? "Sync failed");
+      }
+      // Refresh status
+      const updated = await fetch("/api/gmail/status");
+      if (updated.ok) {
+        const data = await updated.json();
+        setEmailStatus({
+          connected: !!data?.is_active,
+          last_fetch_at: data?.last_fetch_at ?? null,
+        });
+      }
+    } catch {
+      toast.error("Something went wrong");
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   if (loading) return <p className="text-muted-foreground">Loading...</p>;
 
@@ -66,7 +112,26 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Dashboard</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold">Dashboard</h2>
+        {emailStatus?.connected && (
+          <div className="flex items-center gap-3">
+            {emailStatus.last_fetch_at && (
+              <span className="text-xs text-muted-foreground">
+                Last sync: {new Date(emailStatus.last_fetch_at).toLocaleDateString()}
+              </span>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSync}
+              disabled={syncing}
+            >
+              {syncing ? "Syncing..." : "Sync Email"}
+            </Button>
+          </div>
+        )}
+      </div>
 
       {/* Alert cards */}
       {(s.stalled > 0 || s.followups_due > 0 || s.debriefs_needed.length > 0) && (
