@@ -1,0 +1,191 @@
+# Bullseye Profile — Jimmy Rhoades
+# Derived from Varsity Tutors (Nerdy) 90% match — the "perfect job" archetype.
+# Used by job_alert_filter.py to quick-score incoming JDs.
+#
+# Update this file as your preferences evolve or you discover new signals.
+
+version: 1
+
+# --- MUST-HAVE signals (each worth points) ---
+# These are the dimensions that made VT a 90%. A JD needs most of these.
+must_have:
+  - id: ai_native_leadership
+    label: "AI-native / LLM leadership"
+    weight: 20
+    patterns:
+      - "ai.native"
+      - "agentic"
+      - "\\bllm\\b"
+      - "generative ai"
+      - "ai.first"
+      - "ai.powered"
+      - "claude|gpt|copilot"
+      - "ai.driven"
+    description: "Role explicitly requires AI/LLM expertise in engineering leadership"
+
+  - id: director_vp_level
+    label: "Director / VP engineering level"
+    weight: 15
+    patterns:
+      - "director.+(?:engineer|software|technology|platform|product)"
+      - "vp.+engineer"
+      - "vice president.+engineer"
+      - "head of engineer"
+      - "engineering leader"
+    description: "Title is Director, VP, or Head of Engineering"
+
+  - id: remote_distributed
+    label: "Remote / distributed team"
+    weight: 10
+    patterns:
+      - "(?:fully |100%\\s*)?remote"
+      - "remote.first"
+      - "distributed.+team"
+      - "work from (?:home|anywhere)"
+    description: "Role is remote or remote-first"
+
+  - id: team_scale
+    label: "Managing 15+ person orgs / multiple squads"
+    weight: 15
+    patterns:
+      - "(?:15|20|25|30|40|50)\\+?\\s*(?:person|engineer|developer|report)"
+      - "multiple.+(?:squad|team|group)"
+      - "managing.+(?:managers|leads|staff engineers)"
+      - "engineering org"
+      - "multi.?squad"
+    description: "Org management at scale, not just one small team"
+
+  - id: hands_on_technical
+    label: "Hands-on technical leadership"
+    weight: 10
+    patterns:
+      - "hands.on"
+      - "code review"
+      - "architecture decision"
+      - "technical.+problem.solving"
+      - "player.coach"
+      - "still cod(?:e|ing)"
+      - "build.+and.+lead"
+    description: "Not a pure people-manager — expects technical involvement"
+
+  - id: web_distributed_systems
+    label: "Web apps / distributed systems / APIs"
+    weight: 10
+    patterns:
+      - "web app"
+      - "distributed system"
+      - "\\bapi\\b"
+      - "microservice"
+      - "event.driven"
+      - "real.time"
+      - "platform engineer"
+    description: "Core technical domain aligns with experience"
+
+  - id: business_delivery
+    label: "Balance tech excellence with business outcomes"
+    weight: 5
+    patterns:
+      - "business.+deliver"
+      - "revenue"
+      - "conversion"
+      - "stakeholder"
+      - "product.+partner"
+      - "cross.functional"
+      - "roadmap"
+    description: "Not purely technical — business impact expected"
+
+# --- BONUS signals (extra points if present) ---
+bonus:
+  - id: healthcare_adjacent
+    label: "Healthcare / regulated industry"
+    weight: 5
+    patterns:
+      - "(?:hipaa|soc.?2|hitrust|healthcare|health.?tech|clinical|patient)"
+      - "regulated"
+      - "compliance"
+
+  - id: cloud_stack_match
+    label: "AWS / Azure / Kubernetes stack"
+    weight: 5
+    patterns:
+      - "\\baws\\b"
+      - "\\bazure\\b"
+      - "kubernetes|k8s"
+      - "docker"
+      - "terraform"
+
+  - id: python_typescript
+    label: "Python / TypeScript stack"
+    weight: 3
+    patterns:
+      - "\\bpython\\b"
+      - "\\btypescript\\b"
+      - "\\bnode\\.?js\\b"
+      - "\\bnext\\.?js\\b"
+
+  - id: equity_comp
+    label: "Equity / competitive compensation"
+    weight: 2
+    patterns:
+      - "equity|rsu|stock"
+      - "\\$\\d{3}"
+
+# --- DEALBREAKERS (instant disqualify or heavy penalty) ---
+dealbreakers:
+  - id: onsite_required
+    label: "Onsite / hybrid required"
+    penalty: -30
+    patterns:
+      - "(?:on.?site|in.?office|in.?person).+(?:required|mandatory|must)"
+      - "hybrid.+(?:required|mandatory|must|\\d+ days)"
+    # Note: "hybrid optional" or just "hybrid" doesn't trigger this
+
+  - id: contract_role
+    label: "Contract / temp position"
+    penalty: -50
+    patterns:
+      - "\\b(?:contract|contractor|c2c|w2|1099|temporary)\\b"
+    exclude_context:
+      - "federal contract"
+      - "government contract"
+      - "contract compliance"
+
+  - id: ic_role
+    label: "Individual contributor (not leadership)"
+    penalty: -40
+    patterns:
+      - "senior (?:software )?engineer(?!ing)"
+      - "staff engineer(?!ing)"
+      - "principal engineer(?!ing)"
+      - "\\bsde\\b|\\bswe\\b"
+    # Only triggers if no leadership signals found
+
+  - id: too_junior
+    label: "Manager-level (not director+)"
+    penalty: -20
+    patterns:
+      - "engineering manager(?!.+director)"
+      - "team lead(?!.+director)"
+    # Mild penalty — could still be interesting if other signals strong
+
+# --- Thresholds ---
+thresholds:
+  bullseye: 75      # "Apply immediately" — matches VT-level quality
+  strong: 55        # "Worth a close look"
+  maybe: 35         # "Skim the JD"
+  skip: 0           # Below maybe = don't bother
+
+# --- Search queries ---
+# Suggested search strings for job boards
+search_queries:
+  primary:
+    - "Director of Engineering AI"
+    - "VP Engineering AI-native"
+    - "Head of Engineering AI"
+    - "Director of Engineering remote"
+    - "Director Software Engineering LLM"
+  secondary:
+    - "Director of Engineering distributed systems"
+    - "VP Engineering healthtech"
+    - "Head of Engineering platform"
+    - "Director of Engineering microservices remote"

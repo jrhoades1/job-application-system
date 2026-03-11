@@ -855,6 +855,8 @@ def generate_review_queue(ranked_leads, auto_skipped, unresolved):
             "confidence": lead.get("confidence", 0),
             "red_flags": lead.get("red_flags", []),
             "dedup_note": lead.get("dedup_note", ""),
+            "bullseye_score": lead.get("bullseye_score", 0),
+            "bullseye_tier": lead.get("bullseye_tier", ""),
             "status": "pending_review",
         })
 
@@ -900,6 +902,10 @@ def _write_review_md(queue):
             pct = lead["score"]["match_percentage"]
             source = lead["source_platform"]
             flags = []
+            if lead.get("bullseye_tier") == "bullseye":
+                flags.append("BULLSEYE")
+            elif lead.get("bullseye_tier") == "strong":
+                flags.append("STRONG FIT")
             if lead.get("red_flags"):
                 flags.append("RED FLAGS")
             if lead.get("employment_type") not in ("full_time", "unknown"):
@@ -1072,6 +1078,17 @@ def main():
             continue
 
         scored_leads.append(scored_lead)
+
+    # Apply bullseye filter (quick pattern-match against ideal profile)
+    try:
+        from job_alert_filter import load_profile, filter_for_pipeline
+        profile = load_profile()
+        scored_leads = filter_for_pipeline(scored_leads, profile)
+        bullseye_count = sum(1 for lead in scored_leads if lead.get("bullseye_tier") == "bullseye")
+        if bullseye_count:
+            print(f"\n  *** {bullseye_count} BULLSEYE match(es) found! ***")
+    except Exception as e:
+        print(f"  (Bullseye filter skipped: {e})")
 
     # Rank
     print(f"\n  Ranking {len(scored_leads)} scored leads...")
