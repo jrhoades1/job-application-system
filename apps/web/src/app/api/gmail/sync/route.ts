@@ -62,24 +62,25 @@ const MULTI_JOB_PLATFORMS: Record<string, RegExp> = {
 };
 
 function isJobEmail(from: string, subject: string, body: string): boolean {
-  const combined = `${from} ${subject} ${body.slice(0, 500)}`;
-
-  // Reject obvious non-job emails
-  for (const pattern of NON_JOB_PATTERNS) {
-    if (pattern.test(combined)) return false;
-  }
-
   // Always accept forwarded emails — user explicitly forwarded it, so they want it tracked
   if (/^(fw|fwd)\s*:/i.test(subject.trim())) return true;
+
+  // Accept known job platforms — check from AND subject for forwarded emails
+  // (forwarded emails show from=user, but subject/body mention the platform)
+  const fromAndSubject = `${from} ${subject}`;
+  for (const regex of Object.values(MULTI_JOB_PLATFORMS)) {
+    if (regex.test(fromAndSubject)) return true;
+  }
 
   // Accept if subject matches job patterns
   for (const pattern of JOB_SUBJECT_PATTERNS) {
     if (pattern.test(subject)) return true;
   }
 
-  // Accept known job platforms
-  for (const regex of Object.values(MULTI_JOB_PLATFORMS)) {
-    if (regex.test(from)) return true;
+  // Only reject via non-job patterns when no positive signal matched above.
+  // Check subject + from only — body contains "unsubscribe" in nearly every email.
+  for (const pattern of NON_JOB_PATTERNS) {
+    if (pattern.test(fromAndSubject)) return false;
   }
 
   return false;
@@ -152,13 +153,28 @@ export async function POST() {
       return NextResponse.json({ found: 0, inserted: 0, skipped: 0 });
     }
 
-    // Load existing fingerprints to avoid duplicates
+    // Load existing leads — also select status so we can clear auto_skipped for re-evaluation
     const { data: existingLeads } = await supabase
       .from("pipeline_leads")
-      .select("email_uid")
+      .select("email_uid, status")
       .eq("clerk_user_id", userId);
 
     const existingUids = new Set((existingLeads ?? []).map((l) => l.email_uid));
+
+    // Clear auto_skipped records so they get re-evaluated with updated filter
+    const autoSkippedUids = (existingLeads ?? [])
+      .filter((l) => l.status === "auto_skipped")
+      .map((l) => l.email_uid);
+    if (autoSkippedUids.length > 0) {
+      await supabase
+        .from("pipeline_leads")
+        .delete()
+        .eq("clerk_user_id", userId)
+        .eq("status", "auto_skipped");
+      for (const uid of autoSkippedUids) {
+        existingUids.delete(uid);
+      }
+    }
 
     // Load user achievements for scoring
     const { data: profile } = await supabase
