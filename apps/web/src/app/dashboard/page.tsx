@@ -37,9 +37,9 @@ interface DashboardStats {
     id: string;
     company: string;
     role: string;
-    platform: string | null;
-    match_score: number | null;
-    match_tier: string | null;
+    source_platform: string | null;
+    score_match_percentage: number | null;
+    score_overall: string | null;
     created_at: string;
     email_date: string | null;
   }[];
@@ -254,8 +254,8 @@ export default function DashboardPage() {
           <CardContent>
             <div className="space-y-2">
               {s.pipeline_leads.map((lead) => {
-                const scoreCfg = lead.match_tier
-                  ? SCORE_CONFIG[lead.match_tier as ScoreTier]
+                const scoreCfg = lead.score_overall
+                  ? SCORE_CONFIG[lead.score_overall as ScoreTier]
                   : null;
                 return (
                   <Link
@@ -270,7 +270,7 @@ export default function DashboardPage() {
                     <div className="flex items-center gap-2">
                       {scoreCfg && (
                         <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${scoreCfg.color}`}>
-                          {scoreCfg.label} {lead.match_score != null && `${lead.match_score}%`}
+                          {scoreCfg.label} {lead.score_match_percentage != null && `${lead.score_match_percentage}%`}
                         </span>
                       )}
                       <span className="text-xs text-muted-foreground">

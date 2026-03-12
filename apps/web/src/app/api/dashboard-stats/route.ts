@@ -76,11 +76,11 @@ export async function GET() {
         // Pipeline leads pending review (top 5 by score)
         supabase
           .from("pipeline_leads")
-          .select("id, company, role, platform, match_score, match_tier, created_at, email_date")
+          .select("id, company, role, source_platform, score_match_percentage, score_overall, created_at, email_date")
           .eq("clerk_user_id", userId)
           .eq("status", "pending_review")
           .is("deleted_at", null)
-          .order("match_score", { ascending: false })
+          .order("score_match_percentage", { ascending: false, nullsFirst: false })
           .limit(5),
       ]);
 
