@@ -287,6 +287,9 @@ export default function JobsPage() {
           `${data.score.overall} — ${data.score.match_percentage}% match`
         );
         fetchLeads();
+      } else if (res.ok && data.rejected) {
+        toast.success(data.message);
+        fetchLeads();
       } else if (res.ok) {
         toast.info(data.message);
       } else {

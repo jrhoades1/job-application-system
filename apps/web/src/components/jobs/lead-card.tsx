@@ -165,14 +165,15 @@ export function LeadCard({
           {lead.status === "pending_review" && (
             <div className="flex gap-2 shrink-0">
               {(lead.score_match_percentage === 0 ||
-                lead.score_match_percentage == null) && (
+                lead.score_match_percentage == null ||
+                (lead.red_flags?.length > 0)) && (
                 <Button
                   size="sm"
                   variant="outline"
                   disabled={rescoringId === lead.id}
                   onClick={() => onRescore(lead.id)}
                 >
-                  {rescoringId === lead.id ? "Scoring..." : "Score"}
+                  {rescoringId === lead.id ? "Scoring..." : lead.red_flags?.length > 0 ? "Rescore" : "Score"}
                 </Button>
               )}
               {lead.description_text && (
