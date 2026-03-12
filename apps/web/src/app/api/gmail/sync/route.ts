@@ -410,11 +410,13 @@ export async function POST() {
           jobs = extracted ? [extracted] : [];
         }
 
+        const URL_LIKE_COMPANY = /^(https?|http|ftp|www)$/i;
         for (let i = 0; i < jobs.length; i++) {
           const job = jobs[i];
           const leadUid = `${msg.id}_${i}`;
 
           if (existingUids.has(leadUid)) continue;
+          if (URL_LIKE_COMPANY.test(job.company.trim())) continue;
 
           const leadText = body.slice(0, 5000);
           const leadScore = await scoreLead(leadText, job.role, job.company, { digestEmail: true });
@@ -478,7 +480,8 @@ export async function POST() {
       const finalRole = extracted?.role || subject.replace(/^(fw|fwd|re)\s*:\s*/gi, "").trim() || subject;
 
       // Skip leads where we truly can't determine the company — don't store "Unknown"
-      if (!finalCompany || /^(unknown|n\/a|none)$/i.test(finalCompany)) {
+      const URL_PROTOCOL = /^(https?|http|ftp|www)$/i;
+      if (!finalCompany || /^(unknown|n\/a|none)$/i.test(finalCompany) || URL_PROTOCOL.test(finalCompany.trim())) {
         existingUids.add(msg.id);
         skipped++;
         if (processedLabelId) labelMessage(tokens.access_token, msg.id, processedLabelId).catch(() => {});

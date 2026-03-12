@@ -29,6 +29,7 @@ export async function extractJobsFromEmail(
 IMPORTANT RULES:
 - Every job MUST have a real company name. Look for company names in the email body, links, sender info, or any context clues.
 - NEVER use "Unknown", "N/A", "Company", or generic placeholders as the company name.
+- NEVER extract URL protocols (https, http, www) or URL fragments as company names. If you only see a URL with no company context, SKIP that job.
 - If you truly cannot determine the company name for a job, SKIP that job entirely — do not include it in the array.
 - For forwarded emails, the company name is often in the original email body, not the subject.
 
@@ -56,12 +57,14 @@ If you cannot extract any jobs with real company names, return an empty array: [
   try {
     const parsed = JSON.parse(jsonMatch[0]);
     if (!Array.isArray(parsed)) return [];
-    const BAD_NAMES = /^(unknown|n\/a|company|none|not specified|-)$/i;
+    const BAD_NAMES = /^(unknown|n\/a|company|none|not specified|-|https?|http|ftp|www)$/i;
+    const URL_LIKE = /^(https?:\/\/|www\.)|[/:].*\.(com|org|net|io)\b/i;
     return parsed.filter(
       (j: Record<string, unknown>) =>
         typeof j.company === "string" &&
         j.company.length > 0 &&
         !BAD_NAMES.test(j.company.trim()) &&
+        !URL_LIKE.test(j.company.trim()) &&
         typeof j.role === "string" &&
         j.role.length > 0
     );
