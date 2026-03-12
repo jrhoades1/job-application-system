@@ -434,9 +434,18 @@ export async function POST() {
         extracted?.company ?? ""
       );
 
-      // Use subject as fallback so leads are identifiable even without AI extraction
-      const finalCompany = extracted?.company || from.replace(/<.*>/, "").trim() || "Unknown";
+      // Use sender name as fallback so leads are identifiable even without AI extraction
+      const senderName = from.replace(/<.*>/, "").replace(/"/g, "").trim();
+      const finalCompany = extracted?.company || senderName || null;
       const finalRole = extracted?.role || subject.replace(/^(fw|fwd|re)\s*:\s*/gi, "").trim() || subject;
+
+      // Skip leads where we truly can't determine the company — don't store "Unknown"
+      if (!finalCompany || /^(unknown|n\/a|none)$/i.test(finalCompany)) {
+        existingUids.add(msg.id);
+        skipped++;
+        if (processedLabelId) labelMessage(tokens.access_token, msg.id, processedLabelId).catch(() => {});
+        continue;
+      }
 
       await supabase.from("pipeline_leads").insert({
         clerk_user_id: userId,

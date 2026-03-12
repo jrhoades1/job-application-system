@@ -92,10 +92,17 @@ export default function DashboardPage() {
         const err = await res.json();
         toast.error(err.error ?? "Sync failed");
       }
-      // Refresh status
-      const updated = await fetch("/api/gmail/status");
-      if (updated.ok) {
-        const data = await updated.json();
+      // Refresh dashboard stats + email status
+      const [statsRes, statusRes] = await Promise.all([
+        fetch("/api/dashboard-stats"),
+        fetch("/api/gmail/status"),
+      ]);
+      if (statsRes.ok) {
+        const freshStats = await statsRes.json();
+        setStats(freshStats);
+      }
+      if (statusRes.ok) {
+        const data = await statusRes.json();
         setEmailStatus({
           connected: !!data?.is_active,
           last_fetch_at: data?.last_fetch_at ?? null,
