@@ -74,11 +74,8 @@ export default function DashboardPage() {
       const res = await fetch("/api/gmail/sync", { method: "POST" });
       if (res.ok) {
         const data = await res.json();
-        const d = data._debug;
-        const debug = d ? ` [${d.connected_email ?? "?"} | fetched:${d.messages_fetched ?? 0}, existing:${d.existing_leads_count ?? "?"}, cleared:${d.auto_skipped_cleared ?? "?"}]` : "";
         toast.success(
-          `Sync complete — ${data.inserted} new lead${data.inserted !== 1 ? "s" : ""} found${debug}`,
-          { duration: 10000 }
+          `Sync complete — ${data.inserted} new lead${data.inserted !== 1 ? "s" : ""} found`
         );
       } else {
         const err = await res.json();
