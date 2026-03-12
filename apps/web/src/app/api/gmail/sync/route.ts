@@ -199,8 +199,8 @@ export async function POST() {
 
     // Identify leads that should be re-processed:
     // 1. auto_skipped — re-evaluate with updated filter
-    // 2. Badly parsed — company is "Fw", "Fwd", "Re", or empty
-    const BAD_COMPANY = /^(fw|fwd|re|)$/i;
+    // 2. Badly parsed — company is "Fw", "Fwd", "Re", "Unknown", or empty
+    const BAD_COMPANY = /^(fw|fwd|re|unknown|)$/i;
     const reprocessUids = (existingLeads ?? [])
       .filter((l) => l.status === "auto_skipped" || BAD_COMPANY.test((l.company ?? "").trim()))
       .map((l) => l.email_uid);
