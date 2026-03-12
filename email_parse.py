@@ -576,6 +576,25 @@ def _parse_linkedin_text_cards(text):
                 break
 
         if role and company:
+            # Extract LinkedIn job URL from location or nearby lines
+            linkedin_url = None
+            url_match = re.search(r'<(https?://[^>]*linkedin\.com/[^>]+)>', location)
+            if url_match:
+                linkedin_url = url_match.group(1)
+                # Clean the URL out of the location field
+                location = re.sub(r'\s*<https?://[^>]+>\s*', '', location).strip()
+
+            # Also check the role line for a LinkedIn URL
+            if not linkedin_url:
+                for j in range(max(0, i - 4), i + 1):
+                    url_match = re.search(
+                        r'<(https?://[^>]*linkedin\.com/comm/jobs/view/[^>]+)>',
+                        lines[j]
+                    )
+                    if url_match:
+                        linkedin_url = url_match.group(1)
+                        break
+
             # Extract salary if on the next line
             salary = None
             if i + 1 < len(lines):
@@ -592,6 +611,8 @@ def _parse_linkedin_text_cards(text):
             }
             if salary:
                 lead["salary_range"] = salary
+            if linkedin_url:
+                lead["linkedin_url"] = linkedin_url
             leads.append(lead)
 
     return leads

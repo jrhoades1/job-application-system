@@ -56,10 +56,22 @@ def load_config():
 # Career page discovery
 # ---------------------------------------------------------------------------
 
-def find_career_page(company, role, config):
+def extract_linkedin_job_id(linkedin_url):
+    """Extract the numeric job ID from a LinkedIn job URL.
+
+    Example: https://www.linkedin.com/comm/jobs/view/4343698348/... -> '4343698348'
+    """
+    if not linkedin_url:
+        return None
+    match = re.search(r'linkedin\.com/(?:comm/)?jobs/view/(\d+)', linkedin_url)
+    return match.group(1) if match else None
+
+
+def find_career_page(company, role, config, linkedin_url=None):
     """Search for the specific job posting on the company career site.
 
     Strategy:
+      0. If linkedin_url provided, extract job ID and search with it
       1. Search for '{company} careers {role}' — prefer specific job URLs
       2. If we land on a general careers page, scan for links to the specific role
       3. Detect ATS type from URL
@@ -68,6 +80,15 @@ def find_career_page(company, role, config):
     throttle = config.get("throttle", {})
     delay = throttle.get("google_search_seconds", 2.0)
     ats_handlers = config.get("ats_handlers", {})
+
+    # Strategy 0: Use LinkedIn job ID to find the direct posting
+    job_id = extract_linkedin_job_id(linkedin_url)
+    if job_id:
+        id_urls = _search_by_job_id(company, role, job_id, delay)
+        for url in id_urls:
+            ats_type = detect_ats(url, ats_handlers)
+            if _is_job_listing_url(url):
+                return {"url": url, "ats_type": ats_type, "confidence": 0.9}
 
     urls = google_search_careers(company, role, delay)
     if not urls:
@@ -188,6 +209,49 @@ def google_search_careers(company, role, throttle_seconds=2.0):
             unique.append(url)
 
     return unique[:5]
+
+
+def _search_by_job_id(company, role, job_id, throttle_seconds=2.0):
+    """Search for a specific job posting using the LinkedIn job ID.
+
+    Uses DuckDuckGo to search for the job by company + role + job ID,
+    which often surfaces the direct ATS posting.
+    """
+    excluded_sites = [
+        "linkedin.com", "indeed.com", "glassdoor.com", "ziprecruiter.com",
+        "dice.com", "monster.com",
+    ]
+
+    query = f'"{company}" "{role}" job {job_id}'
+    search_url = f"https://html.duckduckgo.com/html/?q={quote_plus(query)}"
+
+    time.sleep(throttle_seconds)
+
+    try:
+        resp = requests.get(search_url, headers=HEADERS, timeout=15)
+        resp.raise_for_status()
+    except requests.RequestException:
+        return []
+
+    soup = BeautifulSoup(resp.text, "html.parser")
+    urls = []
+
+    for a_tag in soup.find_all("a", class_="result__a"):
+        href = a_tag.get("href", "")
+        uddg_match = re.search(r'uddg=([^&]+)', href)
+        if uddg_match:
+            from urllib.parse import unquote
+            url = unquote(uddg_match.group(1))
+        elif href.startswith("http"):
+            url = href
+        else:
+            continue
+
+        domain = urlparse(url).netloc.lower()
+        if not any(exc in domain for exc in excluded_sites):
+            urls.append(url)
+
+    return urls[:3]
 
 
 def _probe_direct_career_urls(company, excluded_domains):
@@ -344,7 +408,7 @@ def detect_ats(url, ats_handlers=None):
 # Job description scrapers
 # ---------------------------------------------------------------------------
 
-def scrape_job_description(url, ats_type, config):
+def scrape_job_description(url, ats_type, config, role=None):
     """Scrape the actual job description from the career page.
 
     Routes to ATS-specific or generic scraper based on ats_type.
@@ -359,17 +423,23 @@ def scrape_job_description(url, ats_type, config):
         if result:
             return result
 
-    # Use requests + BeautifulSoup
+    # Use requests + BeautifulSoup (or API for supported ATS)
     if ats_type == "greenhouse":
         return scrape_greenhouse(url)
     elif ats_type == "lever":
         return scrape_lever(url)
+    elif ats_type == "ashby":
+        return scrape_ashby(url, role=role)
     elif ats_type == "smartrecruiters":
         return scrape_generic(url)
-    elif ats_type == "ashby":
-        return scrape_generic(url)
     else:
-        return scrape_generic(url)
+        # For unknown ATS types, try generic first; if JS-blocked, try Playwright
+        result = scrape_generic(url)
+        if _is_js_blocked(result):
+            pw_result = _scrape_with_playwright(url, ats_type)
+            if pw_result and not _is_js_blocked(pw_result):
+                return pw_result
+        return result
 
 
 def scrape_greenhouse(url):
@@ -448,6 +518,102 @@ def scrape_lever(url):
             description = content_el.get_text(separator="\n", strip=True)
 
     return _build_scrape_result(url, "lever", title, company, location, description, resp.text)
+
+
+def scrape_ashby(url, role=None):
+    """ATS-specific scraper for Ashby using their public API.
+
+    Ashby job boards at jobs.ashbyhq.com are JS-rendered, but Ashby exposes
+    a public posting API that returns job data as JSON.
+    """
+    # Extract company slug from URL: jobs.ashbyhq.com/{slug} or jobs.ashbyhq.com/{slug}/{job_id}
+    parsed = urlparse(url)
+    path_parts = [p for p in parsed.path.strip("/").split("/") if p]
+
+    if not path_parts:
+        return scrape_generic(url)
+
+    company_slug = path_parts[0]
+    job_id = path_parts[1] if len(path_parts) > 1 else None
+
+    # Try the Ashby posting API to get all jobs for this company
+    api_url = f"https://api.ashbyhq.com/posting-api/job-board/{company_slug}"
+    try:
+        resp = requests.get(api_url, headers={"Accept": "application/json"}, timeout=15)
+        resp.raise_for_status()
+        data = resp.json()
+    except (requests.RequestException, ValueError) as e:
+        print(f"      Ashby API failed, falling back to Playwright: {e}")
+        pw_result = _scrape_with_playwright(url, "ashby")
+        return pw_result if pw_result else {"error": str(e), "url": url}
+
+    jobs = data.get("jobs", [])
+    if not jobs:
+        return _build_scrape_result(url, "ashby", "", company_slug, "", "", "")
+
+    # If we have a specific job ID, find it
+    target_job = None
+    if job_id:
+        for job in jobs:
+            if job.get("id") == job_id or str(job.get("id")) == job_id:
+                target_job = job
+                break
+
+    # If no ID match, fuzzy-match by role title
+    if not target_job and role:
+        role_lower = role.lower()
+        role_words = set(re.findall(r'\b[a-z]{3,}\b', role_lower))
+        role_words -= {'the', 'and', 'for', 'with'}
+
+        best_job = None
+        best_score = 0
+        for job in jobs:
+            job_title = (job.get("title") or "").lower()
+            job_words = set(re.findall(r'\b[a-z]{3,}\b', job_title))
+            overlap = len(role_words & job_words)
+            if overlap > best_score:
+                best_score = overlap
+                best_job = job
+        if best_job and best_score >= 2:
+            target_job = best_job
+
+    # Fallback to first job
+    if not target_job:
+        target_job = jobs[0]
+
+    title = target_job.get("title", "")
+    location = target_job.get("location", "")
+    company_name = data.get("jobBoard", {}).get("title", company_slug)
+
+    # Ashby API returns description as HTML in the descriptionHtml field
+    desc_html = target_job.get("descriptionHtml", "")
+    description = html_to_text_bs4(desc_html) if desc_html else ""
+
+    return _build_scrape_result(url, "ashby", title, company_name, location, description, desc_html)
+
+
+def html_to_text_bs4(html):
+    """Convert HTML to plain text using BeautifulSoup."""
+    if not html:
+        return ""
+    soup = BeautifulSoup(html, "html.parser")
+    return soup.get_text(separator="\n", strip=True)
+
+
+def _is_js_blocked(result):
+    """Check if a scrape result indicates a JS-only page that couldn't be rendered."""
+    if not result:
+        return True
+    desc = result.get("description_text", "")
+    if not desc or len(desc) < 100:
+        return True
+    js_indicators = [
+        "you need to enable javascript",
+        "javascript is required",
+        "please enable javascript",
+        "this app requires javascript",
+    ]
+    return any(ind in desc.lower() for ind in js_indicators)
 
 
 def scrape_generic(url):
@@ -815,8 +981,9 @@ def process_parsed_leads(config, limit=None, retry_unresolved=False):
         role = lead.get("role", "Unknown")
         print(f"\n    [{i+1}/{len(leads_to_process)}] {company.encode('ascii', 'replace').decode()} — {role.encode('ascii', 'replace').decode()}")
 
-        # Find career page
-        career_result = find_career_page(company, role, config)
+        # Find career page (use LinkedIn URL if available for better results)
+        linkedin_url = lead.get("linkedin_url")
+        career_result = find_career_page(company, role, config, linkedin_url=linkedin_url)
 
         if not career_result:
             print("      No career page found")
@@ -830,7 +997,7 @@ def process_parsed_leads(config, limit=None, retry_unresolved=False):
 
         # Scrape the job description
         time.sleep(career_delay)
-        scraped = scrape_job_description(url, ats_type, config)
+        scraped = scrape_job_description(url, ats_type, config, role=role)
 
         if scraped.get("error"):
             print(f"      Scrape failed: {scraped['error']}")

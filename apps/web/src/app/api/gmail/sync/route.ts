@@ -67,8 +67,8 @@ const MULTI_JOB_PLATFORMS: Record<string, RegExp> = {
   Handshake: /joinhandshake\.com/i,
 };
 
-// Rejection / status update patterns — these are NOT new job leads
-const REJECTION_PATTERNS = [
+// Rejection / status update patterns in subject — these are NOT new job leads
+const REJECTION_SUBJECT_PATTERNS = [
   /thank you for (participating|applying|your (interest|application))/i,
   /we('ve| have) (decided|chosen) (to|not to)/i,
   /unfortunately/i,
@@ -78,12 +78,39 @@ const REJECTION_PATTERNS = [
   /after careful (review|consideration)/i,
 ];
 
+// Rejection patterns that appear in the email body — more specific to avoid false positives
+const REJECTION_BODY_PATTERNS = [
+  /we('ve| have) (decided|chosen) to (move|go) forward with other/i,
+  /will not be (moving|proceeding) forward/i,
+  /not (moving|proceeding) forward with your/i,
+  /position has been filled/i,
+  /we regret to inform you/i,
+  /after careful (review|consideration).{0,60}(decided|chosen|pursuing other)/i,
+  /application (has been |was )?unsuccessful/i,
+  /role is no longer available/i,
+  /unfortunately.{0,40}(not able to|will not|won't|cannot).{0,40}(offer|move forward|proceed)/i,
+];
+
+function isRejectionEmail(subject: string, body: string): boolean {
+  const subjectClean = subject.replace(/^(fw|fwd|re)\s*:\s*/gi, "").trim();
+
+  // Check subject-level patterns
+  for (const pattern of REJECTION_SUBJECT_PATTERNS) {
+    if (pattern.test(subjectClean)) return true;
+  }
+
+  // Check body-level patterns (first 3000 chars to avoid scanning footers)
+  const bodySnippet = body.slice(0, 3000);
+  for (const pattern of REJECTION_BODY_PATTERNS) {
+    if (pattern.test(bodySnippet)) return true;
+  }
+
+  return false;
+}
+
 function isJobEmail(from: string, subject: string, body: string): boolean {
   // Check for rejection/status emails first — even if forwarded, these aren't new leads
-  const subjectClean = subject.replace(/^(fw|fwd|re)\s*:\s*/gi, "").trim();
-  for (const pattern of REJECTION_PATTERNS) {
-    if (pattern.test(subjectClean)) return false;
-  }
+  if (isRejectionEmail(subject, body)) return false;
 
   // Accept forwarded emails — user explicitly forwarded it, so they want it tracked
   if (/^(fw|fwd)\s*:/i.test(subject.trim())) return true;

@@ -197,6 +197,36 @@ class TestNormalizeRoleTitle(unittest.TestCase):
         self.assertIsNone(normalize_role_title(None))
 
 
+class TestLinkedInUrlExtraction(unittest.TestCase):
+    """Test that LinkedIn job URLs are extracted from multi-job emails."""
+
+    def test_extracts_linkedin_url_from_location(self):
+        from email_parse import _parse_linkedin_text_cards
+        text = (
+            "Some header\n"
+            "VP, Platform Engineering <https://www.linkedin.com/comm/jobs/view/4343698348/?tracking=abc>\n"
+            "Thrive Resources · Windermere, FL (On-site)<https://www.linkedin.com/comm/jobs/view/4343698348/?tracking=abc>\n"
+            "$250K - $300K/yr\n"
+        )
+        leads = _parse_linkedin_text_cards(text)
+        self.assertEqual(len(leads), 1)
+        self.assertEqual(leads[0]["company"], "Thrive Resources")
+        self.assertEqual(leads[0]["location"], "Windermere, FL (On-site)")
+        self.assertIn("linkedin_url", leads[0])
+        self.assertIn("4343698348", leads[0]["linkedin_url"])
+
+    def test_location_cleaned_of_url(self):
+        from email_parse import _parse_linkedin_text_cards
+        text = (
+            "Director of Engineering\n"
+            "Acme Corp · Remote<https://linkedin.com/comm/jobs/view/123456>\n"
+        )
+        leads = _parse_linkedin_text_cards(text)
+        self.assertEqual(len(leads), 1)
+        self.assertEqual(leads[0]["location"], "Remote")
+        self.assertNotIn("<", leads[0]["location"])
+
+
 class TestParseSingleJobEmail(unittest.TestCase):
 
     def test_linkedin_subject_pattern(self):
