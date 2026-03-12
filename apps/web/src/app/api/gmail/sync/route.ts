@@ -167,25 +167,38 @@ export async function POST() {
       return NextResponse.json({ found: 0, inserted: 0, skipped: 0 });
     }
 
-    // Load existing leads — also select status so we can clear auto_skipped for re-evaluation
+    // Load existing leads — select status + company so we can clear re-processable records
     const { data: existingLeads } = await supabase
       .from("pipeline_leads")
-      .select("email_uid, status")
+      .select("email_uid, status, company")
       .eq("clerk_user_id", userId);
 
     const existingUids = new Set((existingLeads ?? []).map((l) => l.email_uid));
 
-    // Clear auto_skipped records so they get re-evaluated with updated filter
-    const autoSkippedUids = (existingLeads ?? [])
-      .filter((l) => l.status === "auto_skipped")
+    // Identify leads that should be re-processed:
+    // 1. auto_skipped — re-evaluate with updated filter
+    // 2. Badly parsed — company is "Fw", "Fwd", "Re", or empty
+    const BAD_COMPANY = /^(fw|fwd|re|)$/i;
+    const reprocessUids = (existingLeads ?? [])
+      .filter((l) => l.status === "auto_skipped" || BAD_COMPANY.test((l.company ?? "").trim()))
       .map((l) => l.email_uid);
-    if (autoSkippedUids.length > 0) {
+
+    if (reprocessUids.length > 0) {
+      // Delete bad pipeline_leads
       await supabase
         .from("pipeline_leads")
         .delete()
         .eq("clerk_user_id", userId)
-        .eq("status", "auto_skipped");
-      for (const uid of autoSkippedUids) {
+        .in("email_uid", reprocessUids);
+
+      // Also delete any auto-promoted applications from bad parses
+      await supabase
+        .from("applications")
+        .delete()
+        .eq("clerk_user_id", userId)
+        .in("email_uid", reprocessUids);
+
+      for (const uid of reprocessUids) {
         existingUids.delete(uid);
       }
     }
