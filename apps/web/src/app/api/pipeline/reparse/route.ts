@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedClient } from "@/lib/supabase";
 import { extractJobsFromEmail } from "@/lib/extract-jobs";
-import { extractRequirementsWithAI } from "@/lib/extract-requirements-ai";
+import {
+  extractRequirementsWithAI,
+  requirementsFromRoleTitle,
+} from "@/lib/extract-requirements-ai";
 import {
   extractRequirements,
   scoreRequirement,
@@ -112,6 +115,11 @@ export async function POST(req: Request) {
         } catch (err) {
           console.error("AI requirement extraction failed during reparse:", err);
         }
+      }
+
+      // Last resort: infer requirements from role title
+      if (allReqs.length === 0 && role) {
+        allReqs = requirementsFromRoleTitle(role);
       }
 
       const matches = allReqs.map((r) => scoreRequirement(r, achievementsMap));

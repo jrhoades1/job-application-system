@@ -290,8 +290,7 @@ export default function PipelinePage() {
                     </div>
                     {lead.status === "pending_review" && (
                       <div className="flex gap-2 shrink-0">
-                        {lead.description_text &&
-                          (lead.score_match_percentage === 0 ||
+                        {(lead.score_match_percentage === 0 ||
                             lead.score_match_percentage == null) && (
                           <Button
                             size="sm"

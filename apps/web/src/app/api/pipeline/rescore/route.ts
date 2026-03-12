@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthenticatedClient } from "@/lib/supabase";
-import { extractRequirementsWithAI } from "@/lib/extract-requirements-ai";
+import {
+  extractRequirementsWithAI,
+  requirementsFromRoleTitle,
+} from "@/lib/extract-requirements-ai";
 import {
   extractRequirements,
   scoreRequirement,
@@ -48,12 +51,6 @@ export async function POST(req: Request) {
     }
 
     const text = lead.description_text ?? "";
-    if (text.length < 50) {
-      return NextResponse.json(
-        { error: "Lead has no description text to score" },
-        { status: 400 }
-      );
-    }
 
     // Load profile achievements
     const { data: profile } = await supabase
@@ -80,7 +77,7 @@ export async function POST(req: Request) {
     let allReqs = [...reqs.hard_requirements, ...reqs.preferred];
     let redFlags = reqs.red_flags;
 
-    if (allReqs.length === 0) {
+    if (allReqs.length === 0 && text.length > 200) {
       const aiReqs = await extractRequirementsWithAI(
         text,
         lead.role ?? "",
@@ -90,7 +87,12 @@ export async function POST(req: Request) {
       redFlags = [...redFlags, ...aiReqs.red_flags];
     }
 
-    if (allReqs.length === 0) {
+    // Last resort: infer requirements from role title (free, no AI call)
+    if (allReqs.length === 0 && lead.role) {
+      allReqs = requirementsFromRoleTitle(lead.role);
+    }
+
+    if (allReqs.length === 0 && text.length > 200) {
       return NextResponse.json({
         rescored: false,
         message: "Could not extract any requirements from this lead.",

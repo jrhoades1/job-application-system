@@ -16,7 +16,10 @@ import {
   scoreRequirement,
   calculateOverallScore,
 } from "@/scoring";
-import { extractRequirementsWithAI } from "@/lib/extract-requirements-ai";
+import {
+  extractRequirementsWithAI,
+  requirementsFromRoleTitle,
+} from "@/lib/extract-requirements-ai";
 
 // Non-job email signals (ported from email_parse.py)
 const NON_JOB_PATTERNS = [
@@ -270,6 +273,11 @@ export async function POST() {
         } catch (err) {
           console.error("AI requirement extraction failed:", err);
         }
+      }
+
+      // Last resort: infer requirements from role title
+      if (allReqs.length === 0 && role) {
+        allReqs = requirementsFromRoleTitle(role);
       }
 
       const matches = allReqs.map((r) => scoreRequirement(r, achievementsMap));
