@@ -8,6 +8,8 @@ import {
   getHeader,
   extractEmailText,
   computeEmailFingerprint,
+  getOrCreateLabel,
+  labelMessage,
 } from "@/lib/gmail";
 import {
   extractRequirements,
@@ -278,6 +280,10 @@ export async function POST() {
     let inserted = 0;
     let skipped = 0;
 
+    // Resolve Gmail labels for tagging processed messages
+    const processedLabelId = await getOrCreateLabel(tokens.access_token, "pipeline/processed");
+    const notJobLabelId = await getOrCreateLabel(tokens.access_token, "pipeline/not-job");
+
     for (const msg of messages) {
       // Skip if base email ID or any multi-job variant already exists
       // (reparse renames originals to {uid}_0, so check that too)
@@ -316,6 +322,7 @@ export async function POST() {
         });
         existingUids.add(msg.id);
         skipped++;
+        if (notJobLabelId) labelMessage(tokens.access_token, msg.id, notJobLabelId).catch(() => {});
         continue;
       }
 
@@ -452,6 +459,7 @@ export async function POST() {
 
       existingUids.add(msg.id);
       inserted++;
+      if (processedLabelId) labelMessage(tokens.access_token, msg.id, processedLabelId).catch(() => {});
     }
 
     // Update last_fetch_at

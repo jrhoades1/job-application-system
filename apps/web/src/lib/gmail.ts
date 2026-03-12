@@ -270,6 +270,64 @@ function decodeBase64Url(data: string): string {
 }
 
 /**
+ * Get or create a Gmail label by name. Returns the label ID.
+ */
+export async function getOrCreateLabel(
+  accessToken: string,
+  labelName: string
+): Promise<string | null> {
+  // List existing labels
+  const listRes = await fetch(`${GMAIL_API}/users/me/labels`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!listRes.ok) return null;
+  const { labels } = await listRes.json();
+  const existing = labels?.find(
+    (l: { name: string; id: string }) => l.name === labelName
+  );
+  if (existing) return existing.id;
+
+  // Create label
+  const createRes = await fetch(`${GMAIL_API}/users/me/labels`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      name: labelName,
+      labelListVisibility: "labelShow",
+      messageListVisibility: "show",
+    }),
+  });
+  if (!createRes.ok) return null;
+  const created = await createRes.json();
+  return created.id;
+}
+
+/**
+ * Apply a label to a Gmail message.
+ */
+export async function labelMessage(
+  accessToken: string,
+  messageId: string,
+  labelId: string
+): Promise<boolean> {
+  const res = await fetch(
+    `${GMAIL_API}/users/me/messages/${messageId}/modify`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ addLabelIds: [labelId] }),
+    }
+  );
+  return res.ok;
+}
+
+/**
  * SHA-256 fingerprint of an email for deduplication.
  */
 export async function computeEmailFingerprint(

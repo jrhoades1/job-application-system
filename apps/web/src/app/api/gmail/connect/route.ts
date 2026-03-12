@@ -3,7 +3,7 @@ import { getAuthenticatedClient } from "@/lib/supabase";
 
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const SCOPES = [
-  "https://www.googleapis.com/auth/gmail.readonly",
+  "https://www.googleapis.com/auth/gmail.modify",
   "https://www.googleapis.com/auth/userinfo.email",
 ].join(" ");
 
