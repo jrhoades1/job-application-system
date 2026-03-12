@@ -281,8 +281,19 @@ export async function POST() {
     async function scoreLead(
       descriptionText: string,
       role: string = "",
-      company: string = ""
+      company: string = "",
+      { digestEmail = false }: { digestEmail?: boolean } = {}
     ) {
+      // For digest emails (LinkedIn "jobs for you", etc.), the description_text
+      // is the whole email digest, not a real JD. Scoring it produces misleading
+      // red flags like "content is truncated". Use role-title inference instead.
+      if (digestEmail) {
+        const allReqs = requirementsFromRoleTitle(role);
+        const matches = allReqs.map((r) => scoreRequirement(r, achievementsMap));
+        const score = calculateOverallScore(matches);
+        return { score, red_flags: [] as string[] };
+      }
+
       const reqs = extractRequirements(descriptionText);
       let allReqs = [...reqs.hard_requirements, ...reqs.preferred];
       let redFlags = reqs.red_flags;
@@ -406,7 +417,7 @@ export async function POST() {
           if (existingUids.has(leadUid)) continue;
 
           const leadText = body.slice(0, 5000);
-          const leadScore = await scoreLead(leadText, job.role, job.company);
+          const leadScore = await scoreLead(leadText, job.role, job.company, { digestEmail: true });
 
           await supabase.from("pipeline_leads").insert({
             clerk_user_id: userId,

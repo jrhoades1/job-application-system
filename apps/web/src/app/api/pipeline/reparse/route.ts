@@ -102,7 +102,27 @@ export async function POST(req: Request) {
       }
     }
 
+    /** Detect if text is a multi-job digest rather than a single JD */
+    function isDigest(text: string): boolean {
+      const lower = text.toLowerCase();
+      const digestPatterns = [
+        "jobs for you", "job alert", "job opportunities",
+        "new jobs matching", "recommended jobs",
+      ];
+      if (digestPatterns.some((p) => lower.includes(p))) return true;
+      const companyDots = (text.match(/·\s*\w+.*\n/g) || []).length;
+      return companyDots >= 3;
+    }
+
     async function scoreLeadText(text: string, role: string, company: string) {
+      // If this is a digest email, use role-title inference only
+      if (isDigest(text)) {
+        const allReqs = role ? requirementsFromRoleTitle(role) : [];
+        const matches = allReqs.map((r) => scoreRequirement(r, achievementsMap));
+        const score = calculateOverallScore(matches);
+        return { score, red_flags: [] as string[] };
+      }
+
       const reqs = extractRequirements(text);
       let allReqs = [...reqs.hard_requirements, ...reqs.preferred];
       let redFlags = reqs.red_flags;
