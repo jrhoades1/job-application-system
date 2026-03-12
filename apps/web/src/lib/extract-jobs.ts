@@ -26,6 +26,12 @@ export async function extractJobsFromEmail(
           role: "user",
           content: `Extract ALL job listings from this ${platform ?? "job alert"} email. Return a JSON array of objects with "company", "role", and optionally "location" fields.
 
+IMPORTANT RULES:
+- Every job MUST have a real company name. Look for company names in the email body, links, sender info, or any context clues.
+- NEVER use "Unknown", "N/A", "Company", or generic placeholders as the company name.
+- If you truly cannot determine the company name for a job, SKIP that job entirely — do not include it in the array.
+- For forwarded emails, the company name is often in the original email body, not the subject.
+
 Subject: ${subject}
 
 Email body:
@@ -34,7 +40,7 @@ ${truncatedBody}
 Return ONLY a JSON array, no other text. Example:
 [{"company": "Acme Corp", "role": "Software Engineer", "location": "Remote"}]
 
-If you cannot extract any jobs, return an empty array: []`,
+If you cannot extract any jobs with real company names, return an empty array: []`,
         },
       ],
     },
@@ -50,10 +56,12 @@ If you cannot extract any jobs, return an empty array: []`,
   try {
     const parsed = JSON.parse(jsonMatch[0]);
     if (!Array.isArray(parsed)) return [];
+    const BAD_NAMES = /^(unknown|n\/a|company|none|not specified|-)$/i;
     return parsed.filter(
       (j: Record<string, unknown>) =>
         typeof j.company === "string" &&
         j.company.length > 0 &&
+        !BAD_NAMES.test(j.company.trim()) &&
         typeof j.role === "string" &&
         j.role.length > 0
     );
