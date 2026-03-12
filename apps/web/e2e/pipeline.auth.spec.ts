@@ -6,83 +6,23 @@ test.beforeEach(async ({ page }) => {
   await refreshClerkSession(page);
 });
 
-test.describe("Pipeline page", () => {
-  test("renders heading and status filter", async ({ page }) => {
+test.describe("Pipeline redirect", () => {
+  test("/dashboard/pipeline redirects to /dashboard/jobs?tab=leads", async ({ page }) => {
+    test.setTimeout(60000);
     await page.goto("/dashboard/pipeline");
+    await expect(page).toHaveURL(/\/dashboard\/jobs\?tab=leads/, { timeout: 10000 });
     await expect(
-      page.getByRole("heading", { name: "Job Pipeline" })
+      page.getByRole("heading", { name: "Jobs" })
     ).toBeVisible({ timeout: 15000 });
-  });
-
-  test("shows leads or empty state", async ({ page }) => {
-    await page.goto("/dashboard/pipeline");
-    await expect(
-      page.getByRole("heading", { name: "Job Pipeline" })
-    ).toBeVisible({ timeout: 15000 });
-
-    const hasLeads = (await page.locator("[class*='card']").count()) > 0;
-    const hasEmpty =
-      (await page.getByText(/no leads/i).count()) > 0 ||
-      (await page.getByText(/no filtered/i).count()) > 0;
-    const hasLoading = (await page.getByText("Loading...").count()) > 0;
-
-    expect(hasLeads || hasEmpty || hasLoading).toBe(true);
   });
 });
 
 test.describe("Insights page", () => {
-
   test("renders heading", async ({ page }) => {
+    test.setTimeout(60000);
     await page.goto("/dashboard/insights");
     await expect(
       page.getByRole("heading", { name: "Insights" })
-    ).toBeVisible({ timeout: 15000 });
-  });
-});
-
-test.describe("Cost Admin page", () => {
-
-  test("renders heading and spend cards", async ({ page }) => {
-    await page.goto("/dashboard/admin");
-    await expect(
-      page.getByText("AI Spend This Month")
-    ).toBeVisible({ timeout: 15000 });
-  });
-});
-
-test.describe("Settings page", () => {
-
-  test("renders heading and email pipeline card", async ({ page }) => {
-    await page.goto("/dashboard/settings");
-    // Settings may redirect to Clerk sign-in if session isn't valid
-    await page.waitForTimeout(3000);
-    const url = page.url();
-    if (url.includes("accounts.dev") || url.includes("sign-in")) {
-      test.skip(true, "Session not valid for settings page — auth redirect");
-      return;
-    }
-
-    await expect(
-      page.getByRole("heading", { name: "Settings" })
-    ).toBeVisible({ timeout: 15000 });
-    await expect(page.getByText("Email Pipeline")).toBeVisible();
-  });
-
-  test("shows gmail connection status", async ({ page }) => {
-    await page.goto("/dashboard/settings");
-    await page.waitForTimeout(3000);
-    const url = page.url();
-    if (url.includes("accounts.dev") || url.includes("sign-in")) {
-      test.skip(true, "Session not valid for settings page — auth redirect");
-      return;
-    }
-
-    const connected = page.getByText("Connected", { exact: true });
-    const notConnected = page.getByText("Not Connected");
-    const loading = page.getByText("Loading...");
-
-    await expect(
-      connected.or(notConnected).or(loading)
     ).toBeVisible({ timeout: 15000 });
   });
 });

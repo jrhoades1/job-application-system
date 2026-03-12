@@ -1,22 +1,58 @@
 "use client";
 
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: "📊" },
-  { name: "Profile", href: "/dashboard/profile", icon: "👤" },
-  { name: "Analyze Job", href: "/dashboard/analyze", icon: "🔍" },
-  { name: "Tracker", href: "/dashboard/tracker", icon: "📋" },
-  { name: "Pipeline", href: "/dashboard/pipeline", icon: "📬" },
-  { name: "Insights", href: "/dashboard/insights", icon: "💡" },
-  { name: "Cost Admin", href: "/dashboard/admin", icon: "💰" },
-  { name: "Settings", href: "/dashboard/settings", icon: "⚙️" },
+  { name: "Today", href: "/dashboard", icon: "🎯", countKey: "today" as const },
+  { name: "Jobs", href: "/dashboard/jobs", icon: "💼", countKey: "jobs" as const },
+  { name: "Insights", href: "/dashboard/insights", icon: "💡", countKey: null },
+  { name: "Settings", href: "/dashboard/settings", icon: "⚙️", countKey: null },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [counts, setCounts] = useState<{ today: number; jobs: number }>({
+    today: 0,
+    jobs: 0,
+  });
+
+  const fetchCounts = useCallback(async () => {
+    try {
+      const [todayRes, leadsRes] = await Promise.all([
+        fetch("/api/today-actions"),
+        fetch("/api/pipeline/leads?status=pending_review&count_only=true"),
+      ]);
+
+      let todayCount = 0;
+      let jobsCount = 0;
+
+      if (todayRes.ok) {
+        const data = await todayRes.json();
+        const urgent = data.actions?.filter(
+          (a: { priority: string }) => a.priority === "urgent"
+        );
+        todayCount = urgent?.length ?? 0;
+      }
+
+      if (leadsRes.ok) {
+        const data = await leadsRes.json();
+        jobsCount = Array.isArray(data) ? data.length : 0;
+      }
+
+      setCounts({ today: todayCount, jobs: jobsCount });
+    } catch {
+      // silent
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCounts();
+    const interval = setInterval(fetchCounts, 60000);
+    return () => clearInterval(interval);
+  }, [fetchCounts]);
 
   return (
     <nav className="flex flex-col w-64 border-r bg-white p-4 gap-1">
@@ -26,8 +62,10 @@ export function Sidebar() {
       </div>
       {navigation.map((item) => {
         const isActive =
-          pathname === item.href ||
-          (item.href !== "/dashboard" && pathname.startsWith(item.href));
+          item.href === "/dashboard"
+            ? pathname === "/dashboard"
+            : pathname.startsWith(item.href);
+        const count = item.countKey ? counts[item.countKey] : 0;
         return (
           <Link
             key={item.href}
@@ -40,7 +78,12 @@ export function Sidebar() {
             )}
           >
             <span>{item.icon}</span>
-            {item.name}
+            <span className="flex-1">{item.name}</span>
+            {count > 0 && (
+              <span className="inline-flex items-center justify-center rounded-full bg-red-100 text-red-700 text-xs font-semibold min-w-[20px] h-5 px-1.5">
+                {count}
+              </span>
+            )}
           </Link>
         );
       })}

@@ -6,39 +6,26 @@ test.beforeEach(async ({ page }) => {
   await refreshClerkSession(page);
 });
 
-test.describe("Dashboard page", () => {
-  test("renders heading and stat cards", async ({ page }) => {
+test.describe("Dashboard (Today view)", () => {
+  test("/dashboard shows Today page with stats", async ({ page }) => {
+    test.setTimeout(60000);
     await page.goto("/dashboard");
     await expect(
-      page.getByRole("heading", { name: "Dashboard" })
+      page.getByRole("heading", { name: "Today" })
     ).toBeVisible({ timeout: 15000 });
 
-    // Stat cards should be visible
-    await expect(page.getByText("Total Applications")).toBeVisible();
+    // Stats bar should be visible
+    await expect(page.getByText("Total")).toBeVisible();
     await expect(page.getByText("Active")).toBeVisible();
-    await expect(page.getByText("Interviews")).toBeVisible();
     await expect(page.getByText("Offers")).toBeVisible();
   });
 
-  test("recent activity section renders", async ({ page }) => {
-    await page.goto("/dashboard");
+  test("/dashboard/today redirects to /dashboard", async ({ page }) => {
+    test.setTimeout(60000);
+    await page.goto("/dashboard/today");
+    await expect(page).toHaveURL(/\/dashboard$/, { timeout: 10000 });
     await expect(
-      page.getByRole("heading", { name: "Dashboard" })
+      page.getByRole("heading", { name: "Today" })
     ).toBeVisible({ timeout: 15000 });
-
-    await expect(page.getByText("Recent Activity")).toBeVisible();
-  });
-
-  test("stat cards link to tracker with correct filters", async ({ page }) => {
-    await page.goto("/dashboard");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" })
-    ).toBeVisible({ timeout: 15000 });
-
-    // Total Applications card should link to tracker
-    const totalCard = page
-      .getByRole("link")
-      .filter({ hasText: "Total Applications" });
-    await expect(totalCard).toHaveAttribute("href", "/dashboard/tracker");
   });
 });

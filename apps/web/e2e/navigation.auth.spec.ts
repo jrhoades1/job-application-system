@@ -7,19 +7,17 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.describe("Sidebar navigation", () => {
-  test("all nav items are visible", async ({ page }) => {
+  test("all 4 nav items are visible", async ({ page }) => {
     test.setTimeout(60000);
     await page.goto("/dashboard");
-    await page.getByRole("heading", { name: "Dashboard" }).waitFor({ timeout: 30000 });
+    await expect(
+      page.getByRole("heading", { name: "Today" })
+    ).toBeVisible({ timeout: 30000 });
 
     const navItems = [
-      { name: "Dashboard", href: "/dashboard" },
-      { name: "Profile", href: "/dashboard/profile" },
-      { name: "Analyze Job", href: "/dashboard/analyze" },
-      { name: "Tracker", href: "/dashboard/tracker" },
-      { name: "Pipeline", href: "/dashboard/pipeline" },
+      { name: "Today", href: "/dashboard" },
+      { name: "Jobs", href: "/dashboard/jobs" },
       { name: "Insights", href: "/dashboard/insights" },
-      { name: "Cost Admin", href: "/dashboard/admin" },
       { name: "Settings", href: "/dashboard/settings" },
     ];
 
@@ -32,7 +30,9 @@ test.describe("Sidebar navigation", () => {
 
   test("sidebar shows app branding", async ({ page }) => {
     await page.goto("/dashboard");
-    await page.getByRole("heading", { name: "Dashboard" }).waitFor({ timeout: 15000 });
+    await expect(
+      page.getByRole("heading", { name: "Today" })
+    ).toBeVisible({ timeout: 15000 });
 
     await expect(page.getByText("Job App Assistant")).toBeVisible();
     await expect(page.getByText("AI-powered job search")).toBeVisible();
@@ -41,21 +41,47 @@ test.describe("Sidebar navigation", () => {
   test("clicking nav items routes correctly", async ({ page }) => {
     test.setTimeout(60000);
     await page.goto("/dashboard");
-    await page.getByRole("heading", { name: "Dashboard" }).waitFor({ timeout: 30000 });
+    await expect(
+      page.getByRole("heading", { name: "Today" })
+    ).toBeVisible({ timeout: 30000 });
 
-    // Navigate to Tracker
-    await page.getByRole("link", { name: "Tracker" }).click();
-    await expect(page.getByRole("heading", { name: "Application Tracker" })).toBeVisible({ timeout: 15000 });
-    await expect(page).toHaveURL(/\/dashboard\/tracker/);
+    // Navigate to Jobs
+    await page.getByRole("link", { name: "Jobs" }).click();
+    await expect(page.getByRole("heading", { name: "Jobs" })).toBeVisible({ timeout: 15000 });
+    await expect(page).toHaveURL(/\/dashboard\/jobs/);
 
-    // Navigate to Analyze Job
-    await page.getByRole("link", { name: "Analyze Job" }).click();
-    await expect(page.getByRole("heading", { name: "Analyze Job" })).toBeVisible({ timeout: 15000 });
-    await expect(page).toHaveURL(/\/dashboard\/analyze/);
+    // Navigate to Settings
+    await page.getByRole("link", { name: "Settings" }).click();
+    await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible({ timeout: 15000 });
+    await expect(page).toHaveURL(/\/dashboard\/settings/);
 
-    // Navigate back to Dashboard
-    await page.getByRole("link", { name: "Dashboard" }).click();
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15000 });
+    // Navigate back to Today
+    await page.getByRole("link", { name: "Today" }).click();
+    await expect(page.getByRole("heading", { name: "Today" })).toBeVisible({ timeout: 15000 });
     await expect(page).toHaveURL(/\/dashboard$/);
+  });
+
+  test("old routes redirect correctly", async ({ page }) => {
+    test.setTimeout(60000);
+    await page.goto("/dashboard");
+    await expect(
+      page.getByRole("heading", { name: "Today" })
+    ).toBeVisible({ timeout: 30000 });
+
+    // /dashboard/pipeline → /dashboard/jobs?tab=leads
+    await page.goto("/dashboard/pipeline");
+    await expect(page).toHaveURL(/\/dashboard\/jobs\?tab=leads/, { timeout: 10000 });
+
+    // /dashboard/analyze → /dashboard/jobs
+    await page.goto("/dashboard/analyze");
+    await expect(page).toHaveURL(/\/dashboard\/jobs/, { timeout: 10000 });
+
+    // /dashboard/profile → /dashboard/settings?tab=profile
+    await page.goto("/dashboard/profile");
+    await expect(page).toHaveURL(/\/dashboard\/settings\?tab=profile/, { timeout: 10000 });
+
+    // /dashboard/admin → /dashboard/settings?tab=costs
+    await page.goto("/dashboard/admin");
+    await expect(page).toHaveURL(/\/dashboard\/settings\?tab=costs/, { timeout: 10000 });
   });
 });
