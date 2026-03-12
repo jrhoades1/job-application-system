@@ -15,24 +15,25 @@ const rescoreSchema = z.object({
   id: z.string().uuid(),
 });
 
-/** Detect if description_text is a multi-job digest rather than a single JD */
-function isDigestText(text: string): boolean {
+/** Known multi-job digest platforms (same list as gmail/sync) */
+const DIGEST_PLATFORMS = new Set([
+  "linkedin", "indeed", "glassdoor", "ziprecruiter", "handshake",
+  "ladders", "built in",
+]);
+
+/** Detect if this lead came from a digest email rather than a single JD */
+function isDigestLead(platform: string | null, text: string): boolean {
+  // Platform-based detection (most reliable)
+  if (platform && DIGEST_PLATFORMS.has(platform.toLowerCase())) return true;
+  // Text-based fallback
   if (!text || text.length < 100) return false;
   const lower = text.toLowerCase();
   const digestPatterns = [
-    "jobs for you",
-    "job alert",
-    "job opportunities",
-    "new jobs matching",
-    "recommended jobs",
-    "jobs that may interest you",
-    "jobs you might like",
-    "your job alert",
+    "jobs for you", "job alert", "job opportunities",
+    "new jobs matching", "recommended jobs",
+    "jobs that may interest you", "jobs you might like",
   ];
   if (digestPatterns.some((p) => lower.includes(p))) return true;
-  // Multiple company·location lines = digest
-  const companyDots = (text.match(/·\s*\w+.*\n/g) || []).length;
-  if (companyDots >= 3) return true;
   return false;
 }
 
@@ -82,7 +83,7 @@ export async function POST(req: Request) {
     // Fetch the lead
     const { data: lead, error } = await supabase
       .from("pipeline_leads")
-      .select("id, company, role, description_text, raw_subject")
+      .select("id, company, role, description_text, raw_subject, source_platform")
       .eq("id", id)
       .eq("clerk_user_id", userId)
       .is("deleted_at", null)
@@ -134,7 +135,7 @@ export async function POST(req: Request) {
       }
     }
 
-    const digest = isDigestText(text);
+    const digest = isDigestLead(lead.source_platform, text);
 
     let allReqs: string[] = [];
     let redFlags: string[] = [];
