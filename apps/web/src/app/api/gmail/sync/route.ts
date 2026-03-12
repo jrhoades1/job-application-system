@@ -292,6 +292,8 @@ export async function POST() {
         existingUids.has(`${msg.id}_0`) ||
         existingUids.has(`${msg.id}_1`)
       ) {
+        // Still label already-processed messages in Gmail (backfill)
+        if (processedLabelId) labelMessage(tokens.access_token, msg.id, processedLabelId).catch(() => {});
         skipped++;
         continue;
       }
