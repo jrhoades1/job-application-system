@@ -1,0 +1,55 @@
+{
+  "company": "Onebrief",
+  "role": "Engineering Manager, Developer Experience",
+  "location": "",
+  "compensation": "$103",
+  "applied_date": null,
+  "source": "Linkedin",
+  "source_url": "https://www.onebrief.com/careers",
+  "status": "pending_review",
+  "follow_up_date": null,
+  "contact": "",
+  "resume_version": null,
+  "cover_letter": null,
+  "former_employer": false,
+  "former_employer_role": null,
+  "notes": "Sourced via email pipeline on 2026-03-12. Email subject: Fw: “software engineering manager”: RemoteHunter - Software Engineering Director",
+  "match_score": {
+    "overall": "long_shot",
+    "requirements_matched": [],
+    "requirements_partial": [],
+    "gaps": [
+      "Onebrief empowers its employees with a high degree of ownership and autonomy, allowing you to take the lead on projects and shape the future of the platform. Your contributions will be recognized and valued, making your work here both impactful and rewarding.",
+      "Onebrief leverages the private sector’s innovation to support and enhance military operations, allowing veterans to continue making a difference outside of uniform. By joining the team, veterans can bridge their military experience with cutting-edge technology to drive impactful change."
+    ],
+    "addressable_gaps": [],
+    "hard_gaps": [],
+    "keywords": [
+      "AI"
+    ]
+  },
+  "tailoring_intensity": null,
+  "interview_date": null,
+  "interview_round": null,
+  "interview_type": null,
+  "interview_notes_file": null,
+  "rejection_date": null,
+  "rejection_reason": null,
+  "rejection_insights": null,
+  "offer": {
+    "salary": null,
+    "equity": null,
+    "signing_bonus": null,
+    "remote": "unknown",
+    "benefits_notes": null,
+    "decision_deadline": null
+  },
+  "offer_accepted": null,
+  "learning_flags": [],
+  "email_uid": "30",
+  "pipeline_batch": "2026-03-12_eb542f",
+  "pipeline_confidence": 0.85,
+  "employment_type": "full_time",
+  "skip_date": null,
+  "skip_reason": null
+}

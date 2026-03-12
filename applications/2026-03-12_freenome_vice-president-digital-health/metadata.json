@@ -1,0 +1,66 @@
+{
+  "company": "Freenome",
+  "role": "Vice President, Digital Health",
+  "location": "",
+  "compensation": null,
+  "applied_date": null,
+  "source": "Linkedin",
+  "source_url": "https://www.freenome.com/careers/",
+  "status": "pending_review",
+  "follow_up_date": null,
+  "contact": "",
+  "resume_version": null,
+  "cover_letter": null,
+  "former_employer": false,
+  "former_employer_role": null,
+  "notes": "Sourced via email pipeline on 2026-03-12. Email subject: Fw: “cio healthcare”: Freenome - Vice President, Digital Health and more",
+  "match_score": {
+    "overall": "long_shot",
+    "requirements_matched": [
+      "Experienced and diverse team"
+    ],
+    "requirements_partial": [
+      "Benefits of working at Freenome",
+      "Benefits of working at Freenome"
+    ],
+    "gaps": [
+      "Committed to quality",
+      "We are dedicated to continuous innovation and improvement in all aspects of our business and accomplish our quality objectives by maintaining an effective quality management system.",
+      "Benefits Overview",
+      "We provide competitive market-based salaries and annual bonus opportunities to reward and recognize high performance.",
+      "We grant equity packages to every U.S. full-time employee, providing a genuine stake in achieving our mission and objectives.",
+      "WHERE YOUR WELLNESS MATTERS",
+      "Your physical and mental health is supported with comprehensive medical plans and wellness programs that work.",
+      "Take time to reset with generous PTO and 12 paid holidays, because rest is essential for doing your best work.",
+      "When you join Freenome, you will have the opportunity to tackle challenging problems and collaborate with similarly driven colleagues.",
+      "View Job Openings"
+    ],
+    "addressable_gaps": [],
+    "hard_gaps": [],
+    "keywords": []
+  },
+  "tailoring_intensity": null,
+  "interview_date": null,
+  "interview_round": null,
+  "interview_type": null,
+  "interview_notes_file": null,
+  "rejection_date": null,
+  "rejection_reason": null,
+  "rejection_insights": null,
+  "offer": {
+    "salary": null,
+    "equity": null,
+    "signing_bonus": null,
+    "remote": "unknown",
+    "benefits_notes": null,
+    "decision_deadline": null
+  },
+  "offer_accepted": null,
+  "learning_flags": [],
+  "email_uid": "46",
+  "pipeline_batch": "2026-03-12_eb542f",
+  "pipeline_confidence": 0.85,
+  "employment_type": "full_time",
+  "skip_date": null,
+  "skip_reason": null
+}

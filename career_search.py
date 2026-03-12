@@ -813,7 +813,7 @@ def process_parsed_leads(config, limit=None, retry_unresolved=False):
     for i, lead in enumerate(leads_to_process):
         company = lead.get("company", "Unknown")
         role = lead.get("role", "Unknown")
-        print(f"\n    [{i+1}/{len(leads_to_process)}] {company} — {role}")
+        print(f"\n    [{i+1}/{len(leads_to_process)}] {company.encode('ascii', 'replace').decode()} — {role.encode('ascii', 'replace').decode()}")
 
         # Find career page
         career_result = find_career_page(company, role, config)
