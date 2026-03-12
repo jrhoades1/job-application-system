@@ -134,6 +134,13 @@ export async function POST() {
   try {
     const { supabase, userId } = await getAuthenticatedClient();
 
+    // Get connected email for debug
+    const { data: connData } = await supabase
+      .from("email_connections")
+      .select("email_address")
+      .eq("clerk_user_id", userId)
+      .single();
+
     const tokens = await getGmailTokens(supabase, userId);
     if (!tokens) {
       return NextResponse.json(
@@ -150,7 +157,10 @@ export async function POST() {
     );
 
     if (messages.length === 0) {
-      return NextResponse.json({ found: 0, inserted: 0, skipped: 0 });
+      return NextResponse.json({
+        found: 0, inserted: 0, skipped: 0,
+        _debug: { connected_email: connData?.email_address, messages_fetched: 0 },
+      });
     }
 
     // Load existing leads — also select status so we can clear auto_skipped for re-evaluation
@@ -387,6 +397,12 @@ export async function POST() {
       found: messages.length,
       inserted,
       skipped: messages.length - inserted,
+      _debug: {
+        connected_email: connData?.email_address,
+        existing_leads_count: existingLeads?.length ?? 0,
+        auto_skipped_cleared: autoSkippedUids.length,
+        messages_fetched: messages.length,
+      },
     });
   } catch (err) {
     console.error("Gmail sync error:", err);

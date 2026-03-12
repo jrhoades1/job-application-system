@@ -185,8 +185,12 @@ export async function listGmailMessages(
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
 
-  if (!res.ok) return [];
+  if (!res.ok) {
+    console.error("[gmail] listMessages failed:", res.status, await res.text().catch(() => ""));
+    return [];
+  }
   const data = await res.json();
+  console.log("[gmail] listMessages:", data.resultSizeEstimate ?? 0, "results for query:", query);
   return data.messages ?? [];
 }
 
