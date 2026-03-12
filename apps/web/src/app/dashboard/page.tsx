@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { STATUS_CONFIG } from "@/lib/constants";
+import { STATUS_CONFIG, SCORE_CONFIG } from "@/lib/constants";
+import type { ScoreTier } from "@/lib/constants";
 
 interface DebriefNeeded {
   id: string;
@@ -32,6 +33,15 @@ interface DashboardStats {
   stalled: number;
   followups_due: number;
   debriefs_needed: DebriefNeeded[];
+  pipeline_leads: {
+    id: string;
+    company: string;
+    role: string;
+    platform: string | null;
+    match_score: number | null;
+    match_tier: string | null;
+    created_at: string;
+  }[];
 }
 
 export default function DashboardPage() {
@@ -108,6 +118,7 @@ export default function DashboardPage() {
     stalled: 0,
     followups_due: 0,
     debriefs_needed: [],
+    pipeline_leads: [],
   };
 
   return (
@@ -230,6 +241,48 @@ export default function DashboardPage() {
           </Card>
         </Link>
       </div>
+
+      {s.pipeline_leads.length > 0 && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>New Pipeline Leads</CardTitle>
+            <Link href="/dashboard/pipeline">
+              <Button variant="outline" size="sm">View All</Button>
+            </Link>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {s.pipeline_leads.map((lead) => {
+                const scoreCfg = lead.match_tier
+                  ? SCORE_CONFIG[lead.match_tier as ScoreTier]
+                  : null;
+                return (
+                  <Link
+                    key={lead.id}
+                    href="/dashboard/pipeline"
+                    className="flex items-center justify-between py-2 border-b last:border-0 hover:bg-muted/50 -mx-2 px-2 rounded"
+                  >
+                    <div>
+                      <span className="font-medium">{lead.company}</span>
+                      <span className="text-muted-foreground ml-2 text-sm">{lead.role}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {scoreCfg && (
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${scoreCfg.color}`}>
+                          {scoreCfg.label} {lead.match_score != null && `${lead.match_score}%`}
+                        </span>
+                      )}
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(lead.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

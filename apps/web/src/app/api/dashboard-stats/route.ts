@@ -5,7 +5,7 @@ export async function GET() {
   try {
     const { supabase, userId } = await getAuthenticatedClient();
 
-    const [totalRes, activeRes, interviewingRes, offeredRes, stalledRes, followupsRes, recentRes, debriefRes] =
+    const [totalRes, activeRes, interviewingRes, offeredRes, stalledRes, followupsRes, recentRes, debriefRes, pipelineRes] =
       await Promise.all([
         // Total count
         supabase
@@ -72,6 +72,16 @@ export async function GET() {
           .eq("clerk_user_id", userId)
           .is("deleted_at", null)
           .not("interviews", "eq", "[]"),
+
+        // Pipeline leads pending review (top 5 by score)
+        supabase
+          .from("pipeline_leads")
+          .select("id, company, role, platform, match_score, match_tier, created_at")
+          .eq("clerk_user_id", userId)
+          .eq("status", "pending_review")
+          .is("deleted_at", null)
+          .order("match_score", { ascending: false })
+          .limit(5),
       ]);
 
     // Filter interviews needing debrief (scheduled + date in past)
@@ -108,6 +118,7 @@ export async function GET() {
       followups_due: followupsRes.count ?? 0,
       recent: recentRes.data ?? [],
       debriefs_needed,
+      pipeline_leads: pipelineRes.data ?? [],
     });
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

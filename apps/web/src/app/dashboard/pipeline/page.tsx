@@ -83,13 +83,14 @@ export default function PipelinePage() {
   const [leads, setLeads] = useState<PipelineLeadRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("pending_review");
+  const [sortBy, setSortBy] = useState<"score" | "newest">("newest");
   const [reparsingId, setReparsingId] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [gmailConnected, setGmailConnected] = useState<boolean | null>(null);
 
   useEffect(() => {
     fetchLeads();
-  }, [statusFilter]);
+  }, [statusFilter, sortBy]);
 
   useEffect(() => {
     fetch("/api/gmail/status")
@@ -102,6 +103,7 @@ export default function PipelinePage() {
     setLoading(true);
     const params = new URLSearchParams();
     if (statusFilter !== "all") params.set("status", statusFilter);
+    if (sortBy === "newest") params.set("sort", "newest");
     const res = await fetch(`/api/pipeline/leads?${params}`);
     const data = await res.json();
     setLeads(Array.isArray(data) ? data : []);
@@ -175,18 +177,27 @@ export default function PipelinePage() {
               <a href="/dashboard/settings">Connect Gmail</a>
             </Button>
           ) : null}
+          <Select value={sortBy} onValueChange={(v) => setSortBy(v as "score" | "newest")}>
+            <SelectTrigger className="w-[130px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest">Newest</SelectItem>
+              <SelectItem value="score">Best Match</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="pending_review">Pending Review</SelectItem>
-            <SelectItem value="promoted">Promoted</SelectItem>
-            <SelectItem value="skipped">Skipped</SelectItem>
-            <SelectItem value="filtered">Filtered Out</SelectItem>
-            <SelectItem value="all">All</SelectItem>
-          </SelectContent>
-        </Select>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="pending_review">Pending Review</SelectItem>
+              <SelectItem value="promoted">Promoted</SelectItem>
+              <SelectItem value="skipped">Skipped</SelectItem>
+              <SelectItem value="filtered">Filtered Out</SelectItem>
+              <SelectItem value="all">All</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -258,6 +269,9 @@ export default function PipelinePage() {
                           <span>{lead.source_platform}</span>
                         )}
                         {lead.location && <span>| {lead.location}</span>}
+                        {lead.created_at && (
+                          <span>| {new Date(lead.created_at).toLocaleDateString()}</span>
+                        )}
                       </div>
                       {lead.red_flags?.length > 0 && (
                         <div className="flex gap-1 mt-2 flex-wrap">

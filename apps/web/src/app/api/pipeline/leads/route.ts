@@ -14,14 +14,21 @@ export async function GET(req: Request) {
     const { supabase, userId } = await getAuthenticatedClient();
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
+    const sort = searchParams.get("sort");
 
     let query = supabase
       .from("pipeline_leads")
       .select("*")
       .eq("clerk_user_id", userId)
-      .is("deleted_at", null)
-      .order("rank", { ascending: true, nullsFirst: false })
-      .order("created_at", { ascending: false });
+      .is("deleted_at", null);
+
+    if (sort === "newest") {
+      query = query.order("created_at", { ascending: false });
+    } else {
+      query = query
+        .order("rank", { ascending: true, nullsFirst: false })
+        .order("created_at", { ascending: false });
+    }
 
     if (status) {
       query = query.eq("status", status);
