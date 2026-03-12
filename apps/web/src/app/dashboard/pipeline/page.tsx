@@ -86,7 +86,7 @@ export default function PipelinePage() {
   const [sortBy, setSortBy] = useState<"score" | "newest">("newest");
   const [reparsingId, setReparsingId] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
-  const [rescoring, setRescoring] = useState(false);
+  const [rescoringId, setRescoringId] = useState<string | null>(null);
   const [gmailConnected, setGmailConnected] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -164,44 +164,6 @@ export default function PipelinePage() {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Job Pipeline</h2>
         <div className="flex items-center gap-2">
-          {leads.some(
-            (l) =>
-              l.score_match_percentage === 0 ||
-              l.score_match_percentage == null
-          ) && (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={rescoring}
-              onClick={async () => {
-                setRescoring(true);
-                try {
-                  const res = await fetch("/api/pipeline/rescore", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(
-                      statusFilter !== "all"
-                        ? { status: statusFilter }
-                        : {}
-                    ),
-                  });
-                  const data = await res.json();
-                  if (res.ok) {
-                    toast.success(data.message);
-                    if (data.rescored > 0) fetchLeads();
-                  } else {
-                    toast.error(data.error ?? "Rescore failed");
-                  }
-                } catch {
-                  toast.error("Rescore failed");
-                } finally {
-                  setRescoring(false);
-                }
-              }}
-            >
-              {rescoring ? "Rescoring..." : "Rescore"}
-            </Button>
-          )}
           {gmailConnected ? (
             <Button
               variant="outline"
@@ -328,6 +290,42 @@ export default function PipelinePage() {
                     </div>
                     {lead.status === "pending_review" && (
                       <div className="flex gap-2 shrink-0">
+                        {lead.description_text &&
+                          (lead.score_match_percentage === 0 ||
+                            lead.score_match_percentage == null) && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={rescoringId === lead.id}
+                            onClick={async () => {
+                              setRescoringId(lead.id);
+                              try {
+                                const res = await fetch("/api/pipeline/rescore", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ id: lead.id }),
+                                });
+                                const data = await res.json();
+                                if (res.ok && data.rescored) {
+                                  toast.success(
+                                    `${data.score.overall} — ${data.score.match_percentage}% match`
+                                  );
+                                  fetchLeads();
+                                } else if (res.ok) {
+                                  toast.info(data.message);
+                                } else {
+                                  toast.error(data.error ?? "Score failed");
+                                }
+                              } catch {
+                                toast.error("Score failed");
+                              } finally {
+                                setRescoringId(null);
+                              }
+                            }}
+                          >
+                            {rescoringId === lead.id ? "Scoring..." : "Score"}
+                          </Button>
+                        )}
                         {lead.description_text && (
                           <Button
                             size="sm"
