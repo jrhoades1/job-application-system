@@ -87,6 +87,7 @@ interface LeadCardProps {
   onReparse: (id: string) => void;
   onPromote: (id: string) => void;
   onSkip: (id: string) => void;
+  onClick?: (lead: PipelineLeadRow) => void;
 }
 
 export function LeadCard({
@@ -97,13 +98,17 @@ export function LeadCard({
   onReparse,
   onPromote,
   onSkip,
+  onClick,
 }: LeadCardProps) {
   const scoreCfg = lead.score_overall
     ? SCORE_CONFIG[lead.score_overall as keyof typeof SCORE_CONFIG]
     : null;
 
   return (
-    <Card>
+    <Card
+      className="cursor-pointer transition-colors hover:bg-muted/50"
+      onClick={() => onClick?.(lead)}
+    >
       <CardContent className="py-4">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
@@ -163,7 +168,7 @@ export function LeadCard({
             )}
           </div>
           {lead.status === "pending_review" && (
-            <div className="flex gap-2 shrink-0">
+            <div className="flex gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
               {(lead.score_match_percentage === 0 ||
                 lead.score_match_percentage == null ||
                 (lead.red_flags?.length > 0)) && (

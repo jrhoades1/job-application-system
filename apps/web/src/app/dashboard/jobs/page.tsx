@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { useGmailSync } from "@/hooks/use-gmail-sync";
 import { APPLICATION_STATUSES, STATUS_CONFIG } from "@/lib/constants";
 import { LeadCard } from "@/components/jobs/lead-card";
+import { LeadDetailSheet } from "@/components/jobs/lead-detail-sheet";
 import {
   ApplicationTable,
   type SortColumn,
@@ -82,6 +83,7 @@ export default function JobsPage() {
   const [leadSort, setLeadSort] = useState<"newest" | "score">("newest");
   const [reparsingId, setReparsingId] = useState<string | null>(null);
   const [rescoringId, setRescoringId] = useState<string | null>(null);
+  const [selectedLead, setSelectedLead] = useState<PipelineLeadRow | null>(null);
 
   // Applications state
   const [applications, setApplications] = useState<ApplicationWithScores[]>([]);
@@ -430,6 +432,7 @@ export default function JobsPage() {
                     onSkip={(id) =>
                       handleLeadAction(id, "skip", "Not interested")
                     }
+                    onClick={setSelectedLead}
                   />
                 ))
               )}
@@ -520,6 +523,27 @@ export default function JobsPage() {
           </TabsContent>
         ))}
       </Tabs>
+
+      {/* Lead detail slide-out */}
+      <LeadDetailSheet
+        lead={selectedLead}
+        open={selectedLead !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedLead(null);
+        }}
+        rescoringId={rescoringId}
+        reparsingId={reparsingId}
+        onRescore={handleRescore}
+        onReparse={handleReparse}
+        onPromote={(id) => {
+          handleLeadAction(id, "promote");
+          setSelectedLead(null);
+        }}
+        onSkip={(id) => {
+          handleLeadAction(id, "skip", "Not interested");
+          setSelectedLead(null);
+        }}
+      />
     </div>
   );
 }
