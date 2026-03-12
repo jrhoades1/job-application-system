@@ -156,10 +156,10 @@ export async function POST() {
       );
     }
 
-    // Fetch messages from last 7 days
+    // Fetch messages from last 30 days
     const messages = await listGmailMessages(
       tokens.access_token,
-      "newer_than:7d",
+      "newer_than:30d",
       150
     );
 
