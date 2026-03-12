@@ -131,5 +131,6 @@ export interface PipelineLeadRow {
   location: string | null;
   red_flags: string[];
   rank: number | null;
+  email_date: string | null;
   created_at: string;
 }
