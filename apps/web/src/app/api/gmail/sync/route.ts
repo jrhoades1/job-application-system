@@ -86,14 +86,17 @@ function isJobEmail(from: string, subject: string, body: string): boolean {
   return false;
 }
 
-function detectPlatform(from: string): string | null {
+function detectPlatform(from: string, subject = "", body = ""): string | null {
+  const text = `${from} ${subject} ${body.slice(0, 2000)}`;
   for (const [name, regex] of Object.entries(MULTI_JOB_PLATFORMS)) {
-    if (regex.test(from)) return name;
+    if (regex.test(text)) return name;
   }
   if (/swooped/i.test(from)) return "Swooped";
   if (/lever\.co/i.test(from)) return "Lever";
   if (/greenhouse/i.test(from)) return "Greenhouse";
   if (/workday/i.test(from)) return "Workday";
+  if (/ladders/i.test(text)) return "Ladders";
+  if (/built\s*in/i.test(text)) return "Built In";
   return null;
 }
 
@@ -103,8 +106,11 @@ function detectPlatform(from: string): string | null {
 // "Acme Corp - Director of Engineering"
 // "Your application to VP Engineering at TechCo"
 function extractCompanyRole(
-  subject: string
+  rawSubject: string
 ): { company: string; role: string } | null {
+  // Strip Fw:/Fwd:/Re: prefixes
+  const subject = rawSubject.replace(/^(fw|fwd|re)\s*:\s*/i, "").trim();
+
   // "Role at Company"
   const atMatch = subject.match(/^(.+?)\s+at\s+(.+?)(?:\s*[-|]|$)/i);
   if (atMatch) {
@@ -126,8 +132,16 @@ function extractCompanyRole(
   return null;
 }
 
-function isMultiJobPlatform(from: string): boolean {
-  return Object.values(MULTI_JOB_PLATFORMS).some((regex) => regex.test(from));
+function isMultiJobPlatform(from: string, subject = "", body = ""): boolean {
+  const text = `${from} ${subject} ${body.slice(0, 2000)}`;
+  // Check for known digest platforms
+  if (Object.values(MULTI_JOB_PLATFORMS).some((regex) => regex.test(text))) return true;
+  // Also catch Ladders, Built In digests
+  if (/ladders/i.test(text)) return true;
+  if (/built\s*in/i.test(text)) return true;
+  // "job alert" in subject is always a digest
+  if (/job alert/i.test(subject)) return true;
+  return false;
 }
 
 export async function POST() {
@@ -265,10 +279,10 @@ export async function POST() {
         continue;
       }
 
-      const platform = detectPlatform(from);
+      const platform = detectPlatform(from, subject, body);
 
       // Multi-job digest emails: extract all jobs via AI
-      if (isMultiJobPlatform(from)) {
+      if (isMultiJobPlatform(from, subject, body)) {
         let jobs: ExtractedJob[] = [];
         try {
           jobs = await extractJobsFromEmail(body, subject, platform);
