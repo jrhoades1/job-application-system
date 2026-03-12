@@ -86,6 +86,7 @@ export default function PipelinePage() {
   const [sortBy, setSortBy] = useState<"score" | "newest">("newest");
   const [reparsingId, setReparsingId] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [rescoring, setRescoring] = useState(false);
   const [gmailConnected, setGmailConnected] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -163,6 +164,44 @@ export default function PipelinePage() {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Job Pipeline</h2>
         <div className="flex items-center gap-2">
+          {leads.some(
+            (l) =>
+              l.score_match_percentage === 0 ||
+              l.score_match_percentage == null
+          ) && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={rescoring}
+              onClick={async () => {
+                setRescoring(true);
+                try {
+                  const res = await fetch("/api/pipeline/rescore", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(
+                      statusFilter !== "all"
+                        ? { status: statusFilter }
+                        : {}
+                    ),
+                  });
+                  const data = await res.json();
+                  if (res.ok) {
+                    toast.success(data.message);
+                    if (data.rescored > 0) fetchLeads();
+                  } else {
+                    toast.error(data.error ?? "Rescore failed");
+                  }
+                } catch {
+                  toast.error("Rescore failed");
+                } finally {
+                  setRescoring(false);
+                }
+              }}
+            >
+              {rescoring ? "Rescoring..." : "Rescore"}
+            </Button>
+          )}
           {gmailConnected ? (
             <Button
               variant="outline"

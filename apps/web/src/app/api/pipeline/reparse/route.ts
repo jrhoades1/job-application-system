@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedClient } from "@/lib/supabase";
 import { extractJobsFromEmail } from "@/lib/extract-jobs";
+import { extractRequirementsWithAI } from "@/lib/extract-requirements-ai";
+import {
+  extractRequirements,
+  scoreRequirement,
+  calculateOverallScore,
+} from "@/scoring";
 
 /**
  * POST /api/pipeline/reparse
@@ -76,6 +82,43 @@ export async function POST(req: Request) {
       (allLeads ?? []).map((l) => l.email_uid)
     );
 
+    // Load profile achievements for scoring
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("achievements")
+      .eq("clerk_user_id", userId)
+      .single();
+
+    const achievementsMap: Record<string, string[]> = {};
+    const achievements = profile?.achievements ?? [];
+    if (Array.isArray(achievements)) {
+      for (const cat of achievements as { category: string; items: { text: string }[] }[]) {
+        if (cat.category && Array.isArray(cat.items)) {
+          achievementsMap[cat.category] = cat.items.map((i) => i.text);
+        }
+      }
+    }
+
+    async function scoreLeadText(text: string, role: string, company: string) {
+      const reqs = extractRequirements(text);
+      let allReqs = [...reqs.hard_requirements, ...reqs.preferred];
+      let redFlags = reqs.red_flags;
+
+      if (allReqs.length === 0 && text.length > 50) {
+        try {
+          const aiReqs = await extractRequirementsWithAI(text, role, company);
+          allReqs = [...aiReqs.hard_requirements, ...aiReqs.preferred];
+          redFlags = [...redFlags, ...aiReqs.red_flags];
+        } catch (err) {
+          console.error("AI requirement extraction failed during reparse:", err);
+        }
+      }
+
+      const matches = allReqs.map((r) => scoreRequirement(r, achievementsMap));
+      const score = calculateOverallScore(matches);
+      return { score, red_flags: redFlags };
+    }
+
     let newLeads = 0;
 
     for (let i = 0; i < jobs.length; i++) {
@@ -95,6 +138,9 @@ export async function POST(req: Request) {
 
       if (dupe && dupe.length > 0) continue;
 
+      const leadText = lead.description_text ?? "";
+      const leadScore = await scoreLeadText(leadText, job.role, job.company);
+
       await supabase.from("pipeline_leads").insert({
         clerk_user_id: userId,
         company: job.company,
@@ -106,7 +152,14 @@ export async function POST(req: Request) {
         raw_subject: lead.raw_subject,
         description_text: lead.description_text,
         status: "pending_review",
-        red_flags: [],
+        score_overall: leadScore.score.overall,
+        score_match_percentage: leadScore.score.match_percentage,
+        score_details: {
+          strong_count: leadScore.score.strong_count,
+          partial_count: leadScore.score.partial_count,
+          gap_count: leadScore.score.gap_count,
+        },
+        red_flags: leadScore.red_flags,
         created_at: new Date().toISOString(),
       });
 

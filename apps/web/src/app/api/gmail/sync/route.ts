@@ -14,6 +14,7 @@ import {
   scoreRequirement,
   calculateOverallScore,
 } from "@/scoring";
+import { extractRequirementsWithAI } from "@/lib/extract-requirements-ai";
 
 // Non-job email signals (ported from email_parse.py)
 const NON_JOB_PATTERNS = [
@@ -61,8 +62,25 @@ const MULTI_JOB_PLATFORMS: Record<string, RegExp> = {
   Handshake: /joinhandshake\.com/i,
 };
 
+// Rejection / status update patterns — these are NOT new job leads
+const REJECTION_PATTERNS = [
+  /thank you for (participating|applying|your (interest|application))/i,
+  /we('ve| have) (decided|chosen) (to|not to)/i,
+  /unfortunately/i,
+  /not (moving|proceeding) forward/i,
+  /position has been filled/i,
+  /application (update|status)/i,
+  /after careful (review|consideration)/i,
+];
+
 function isJobEmail(from: string, subject: string, body: string): boolean {
-  // Always accept forwarded emails — user explicitly forwarded it, so they want it tracked
+  // Check for rejection/status emails first — even if forwarded, these aren't new leads
+  const subjectClean = subject.replace(/^(fw|fwd|re)\s*:\s*/gi, "").trim();
+  for (const pattern of REJECTION_PATTERNS) {
+    if (pattern.test(subjectClean)) return false;
+  }
+
+  // Accept forwarded emails — user explicitly forwarded it, so they want it tracked
   if (/^(fw|fwd)\s*:/i.test(subject.trim())) return true;
 
   // Accept known job platforms — check from AND subject for forwarded emails
@@ -228,12 +246,33 @@ export async function POST() {
       }
     }
 
-    function scoreLead(descriptionText: string) {
+    async function scoreLead(
+      descriptionText: string,
+      role: string = "",
+      company: string = ""
+    ) {
       const reqs = extractRequirements(descriptionText);
-      const allReqs = [...reqs.hard_requirements, ...reqs.preferred];
+      let allReqs = [...reqs.hard_requirements, ...reqs.preferred];
+      let redFlags = reqs.red_flags;
+
+      // AI fallback: if regex extraction found nothing, use Haiku to parse
+      if (allReqs.length === 0 && descriptionText.length > 50) {
+        try {
+          const aiReqs = await extractRequirementsWithAI(
+            descriptionText,
+            role,
+            company
+          );
+          allReqs = [...aiReqs.hard_requirements, ...aiReqs.preferred];
+          redFlags = [...redFlags, ...aiReqs.red_flags];
+        } catch (err) {
+          console.error("AI requirement extraction failed:", err);
+        }
+      }
+
       const matches = allReqs.map((r) => scoreRequirement(r, achievementsMap));
       const score = calculateOverallScore(matches);
-      return { score, red_flags: reqs.red_flags };
+      return { score, red_flags: redFlags };
     }
 
     let inserted = 0;
@@ -323,7 +362,7 @@ export async function POST() {
           if (existingUids.has(leadUid)) continue;
 
           const leadText = body.slice(0, 5000);
-          const leadScore = scoreLead(leadText);
+          const leadScore = await scoreLead(leadText, job.role, job.company);
 
           await supabase.from("pipeline_leads").insert({
             clerk_user_id: userId,
@@ -359,7 +398,11 @@ export async function POST() {
       // Single-job email: extract from subject and auto-promote
       const extracted = extractCompanyRole(subject);
       const singleText = body.slice(0, 5000);
-      const singleScore = scoreLead(singleText);
+      const singleScore = await scoreLead(
+        singleText,
+        extracted?.role ?? subject,
+        extracted?.company ?? ""
+      );
 
       await supabase.from("pipeline_leads").insert({
         clerk_user_id: userId,
