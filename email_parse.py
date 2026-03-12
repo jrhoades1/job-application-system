@@ -152,11 +152,15 @@ def _enrich_forwarded_email(email_dict):
 def classify_email(email_dict, sender_templates):
     """Classify the email type.
 
-    Returns: 'single_job', 'multi_job', 'recruiter_generic', 'not_job', 'unknown'
+    Returns: 'single_job', 'multi_job', 'recruiter_generic', 'rejection', 'not_job', 'unknown'
     """
     from_addr = email_dict.get("from", "")
     subject = email_dict.get("subject", "")
     body_text = email_dict.get("body_text", "") or html_to_text(email_dict.get("body_html", ""))
+
+    # Check for rejection emails before non-job filter (rejections can contain "unsubscribe" etc.)
+    if detect_rejection_email(email_dict):
+        return "rejection"
 
     # Detect non-job emails
     if detect_non_job_email(email_dict):
@@ -229,6 +233,152 @@ def detect_non_job_email(email_dict):
             return True
 
     return False
+
+
+def detect_rejection_email(email_dict):
+    """Detect rejection/decline emails from companies.
+
+    These are emails saying "we decided not to move forward", "position has been filled",
+    "we will not be pursuing your candidacy", etc.
+    """
+    subject = email_dict.get("subject", "").lower()
+    body = (email_dict.get("body_text", "") or html_to_text(email_dict.get("body_html", "")))[:3000].lower()
+    combined = f"{subject} {body}"
+
+    # Strong rejection signals — need at least one
+    rejection_patterns = [
+        r"(?:we|i).{0,30}(?:decided|chosen|elected)\s+(?:to\s+)?(?:not\s+to\s+)?(?:move|proceed|go)\s+(?:forward|ahead)\s+with\s+other",
+        r"(?:we|i).{0,30}(?:will not|won'?t|cannot|can'?t)\s+be\s+(?:moving|proceeding|going)\s+forward\s+with\s+(?:your|you)",
+        r"(?:we|i).{0,30}(?:decided|chosen)\s+not\s+to\s+(?:move|proceed)\s+forward",
+        r"(?:unfortunately|regret).{0,60}(?:not\s+(?:be\s+)?(?:moving|proceeding|advancing)|(?:will\s+not|won'?t)\s+be\s+(?:moving|able))",
+        r"position\s+has\s+been\s+filled",
+        r"role\s+has\s+been\s+filled",
+        r"(?:we|i).{0,20}(?:regret(?:fully)?|sorry)\s+to\s+(?:inform|let|advise)\s+you",
+        r"not\s+(?:be\s+)?(?:moving|proceeding|advancing)\s+(?:forward\s+)?with\s+your\s+(?:application|candidacy|candidature)",
+        r"(?:your\s+)?application.{0,40}(?:has\s+been|was)\s+(?:unsuccessful|declined|rejected|not\s+selected)",
+        r"(?:we|i).{0,20}(?:pursued|pursuing)\s+(?:other|different)\s+candidates",
+        r"(?:will not|won'?t)\s+be\s+pursuing\s+your\s+(?:candidacy|application)",
+        r"after\s+careful\s+(?:consideration|review).{0,60}(?:not|other\s+candidates)",
+        r"(?:this\s+)?(?:role|position)\s+(?:is\s+)?no\s+longer\s+(?:available|open)",
+        r"we.{0,20}(?:have\s+)?(?:filled|closed)\s+(?:the|this)\s+(?:position|role|opening)",
+    ]
+
+    match_count = sum(1 for p in rejection_patterns if re.search(p, combined))
+    if match_count >= 1:
+        return True
+
+    # Subject-only strong signals
+    subject_rejection = [
+        r"(?:your\s+)?application\s+(?:status|update)",
+        r"regarding\s+your\s+(?:application|candidacy)",
+        r"update\s+(?:on|from)\s+(?:your\s+)?(?:application|interview)",
+    ]
+    if any(re.search(p, subject) for p in subject_rejection):
+        # Only if body also has negative sentiment
+        negative_body = [
+            r"unfortunately", r"regret", r"not\s+(?:selected|chosen|moving)",
+            r"other\s+candidates", r"at\s+this\s+time", r"will\s+not",
+        ]
+        if any(re.search(p, body) for p in negative_body):
+            return True
+
+    return False
+
+
+def parse_rejection_email(email_dict, alias_map):
+    """Extract company name and role from a rejection email.
+
+    Returns dict with company, role (if found), rejection_date, and raw text snippet.
+    """
+    from_addr = email_dict.get("from", "")
+    subject = email_dict.get("subject", "")
+    body_text = email_dict.get("body_text", "") or html_to_text(email_dict.get("body_html", ""))
+
+    # Use original sender if forwarded
+    effective_from = email_dict.get("_original_from", from_addr)
+    domain = get_sender_domain(effective_from)
+
+    company = None
+    role = None
+
+    # Strategy 1: Extract company from sender domain (most reliable for rejections)
+    # e.g., noreply@company.com, recruiting@company.com, careers@company.com
+    if domain and domain not in ("gmail.com", "outlook.com", "hotmail.com", "yahoo.com",
+                                  "icloud.com", "aol.com", "protonmail.com"):
+        # Use the domain name minus TLD as company hint
+        company_from_domain = domain.split(".")[0]
+        # Some known ATS domains to skip
+        ats_domains = [
+            "greenhouse", "lever", "workday", "icims", "ashby", "jobvite",
+            "smartrecruiters", "myworkdayjobs", "ultipro", "breezy",
+            "applytojob", "recruiterbox", "jazz", "bamboohr", "paylocity",
+            "paycom", "hirebridge", "clearcompany", "jazzhr", "recruitee",
+        ]
+        if company_from_domain.lower() not in ats_domains:
+            company = company_from_domain.title()
+
+    # Strategy 2: Extract company from sender display name
+    # e.g., "Acme Corp Recruiting <noreply@acme.com>"
+    name_match = re.match(r'^"?([^"<]+)"?\s*<', effective_from)
+    if name_match:
+        sender_name = name_match.group(1).strip()
+        # Remove common suffixes
+        sender_name = re.sub(
+            r'\s*(?:Recruiting|Careers|Talent|HR|Human Resources|Hiring|Jobs|Team|No.?Reply)\s*$',
+            '', sender_name, flags=re.IGNORECASE
+        ).strip()
+        # Skip generic sender names
+        skip_names = ["noreply", "no-reply", "no reply", "donotreply", "do not reply",
+                      "careers", "jobs", "hiring", "talent", "hr", "recruiting"]
+        if sender_name and sender_name.lower() not in skip_names and len(sender_name) > 1 and len(sender_name) < 50:
+            company = sender_name
+
+    # Strategy 3: Look for company name in subject
+    # "Your application to Acme Corp" or "Acme Corp - Application Update"
+    # Override display-name company if subject has a more specific (longer) name
+    subj_patterns = [
+        r'(?:your\s+)?application\s+(?:to|at|with|for)\s+(?P<company>[A-Z][^\-–|,]{2,40})',
+        r'(?:update|status)\s+(?:from|on|regarding)\s+(?P<company>[A-Z][^\-–|,]{2,40})',
+        r'(?:from|at)\s+(?P<company>[A-Z][^\-–|,]{2,40})',
+        r'^(?P<company>[A-Z][^\-–|:]{2,40})\s*[-–|:]\s*(?:application|your|update|regarding)',
+    ]
+    for pattern in subj_patterns:
+        match = re.search(pattern, subject, re.IGNORECASE)
+        if match:
+            candidate = match.group("company").strip()
+            if _is_likely_company(candidate):
+                # Use subject company if we have nothing, or if it's more specific
+                if not company or len(candidate) > len(company):
+                    company = candidate
+                break
+
+    # Strategy 4: Look for role in subject or body
+    role_patterns = [
+        r'(?:for\s+the\s+|for\s+our\s+|the\s+)(?P<role>(?:Senior|Sr|Director|VP|Vice President|'
+        r'Head|Manager|Lead|Chief|Engineer|Architect|Principal|Staff)[^.\n,]{0,60}?)(?:\s+(?:position|role|opening))?'
+        r'(?:\s+at\s+|\s*[-–]\s*|\.\s*|,\s*)',
+        r'(?:position|role)\s*(?:of|:)\s*(?P<role>[^\n.]{5,60})',
+    ]
+    combined = f"{subject} {body_text[:1000]}"
+    for pattern in role_patterns:
+        match = re.search(pattern, combined, re.IGNORECASE)
+        if match:
+            candidate = match.group("role").strip()
+            if _is_likely_role(candidate):
+                role = normalize_role_title(candidate)
+                break
+
+    # Normalize company
+    if company:
+        company = resolve_company_name(company, alias_map)
+
+    return {
+        "company": company,
+        "role": role,
+        "sender_domain": domain,
+        "sender": effective_from,
+        "confidence": 0.8 if company else 0.3,
+    }
 
 
 def _looks_like_recruiter(from_addr, subject, body):
@@ -749,7 +899,8 @@ def process_raw_emails(reparse=False):
     print(f"  Processing {len(raw_files)} raw email files...")
 
     stats = {"total": len(raw_files), "parsed": 0, "not_job": 0, "unresolved": 0,
-             "leads_found": 0, "multi_job": 0, "single_job": 0, "recruiter": 0}
+             "leads_found": 0, "multi_job": 0, "single_job": 0, "recruiter": 0,
+             "rejection": 0}
 
     for filename in sorted(raw_files):
         filepath = os.path.join(STAGING_RAW, filename)
@@ -766,7 +917,22 @@ def process_raw_emails(reparse=False):
 
         results = []
 
-        if email_type == "not_job":
+        if email_type == "rejection":
+            stats["rejection"] += 1
+            rejection_info = parse_rejection_email(email_dict, alias_map)
+            results = [{
+                "type": "rejection",
+                "company": rejection_info.get("company"),
+                "role": rejection_info.get("role"),
+                "sender_domain": rejection_info.get("sender_domain"),
+                "sender": rejection_info.get("sender"),
+                "confidence": rejection_info.get("confidence", 0.5),
+                "email_uid": uid,
+                "email_date": email_dict.get("date", ""),
+                "raw_subject": email_dict.get("subject", ""),
+            }]
+
+        elif email_type == "not_job":
             stats["not_job"] += 1
             results = [{
                 "type": "not_job",
@@ -875,6 +1041,170 @@ def process_raw_emails(reparse=False):
     return stats
 
 
+def process_rejections():
+    """Scan parsed results for rejections and update matching application metadata.
+
+    Matches rejection emails to existing applications by company name (fuzzy),
+    then sets status='rejected', rejection_date, and clears follow_up_date.
+
+    Returns list of dicts describing what was updated.
+    """
+    applications_dir = os.path.join(SCRIPT_DIR, "applications")
+    if not os.path.exists(applications_dir) or not os.path.exists(STAGING_PARSED):
+        return []
+
+    # Build index of applications by normalized company name
+    app_index = {}  # lowercase company -> list of (folder_path, metadata)
+    for folder in os.listdir(applications_dir):
+        meta_path = os.path.join(applications_dir, folder, "metadata.json")
+        if not os.path.exists(meta_path):
+            continue
+        with open(meta_path, encoding="utf-8") as f:
+            try:
+                meta = json.load(f)
+            except (json.JSONDecodeError, ValueError):
+                continue
+        company = (meta.get("company") or "").lower().strip()
+        if company:
+            app_index.setdefault(company, []).append((folder, meta_path, meta))
+
+    # Scan parsed files for rejections
+    updates = []
+    parsed_files = [f for f in os.listdir(STAGING_PARSED) if f.endswith(".json")]
+
+    for filename in parsed_files:
+        parsed_path = os.path.join(STAGING_PARSED, filename)
+        with open(parsed_path, encoding="utf-8") as f:
+            try:
+                records = json.load(f)
+            except (json.JSONDecodeError, ValueError):
+                continue
+
+        if not isinstance(records, list):
+            records = [records]
+
+        for record in records:
+            if record.get("type") != "rejection":
+                continue
+
+            rejection_company = (record.get("company") or "").strip()
+            if not rejection_company:
+                updates.append({
+                    "status": "unmatched",
+                    "reason": "No company extracted from rejection email",
+                    "email_subject": record.get("raw_subject", ""),
+                })
+                continue
+
+            # Find matching application(s)
+            matched = _match_rejection_to_app(rejection_company, record, app_index)
+            if matched:
+                for folder, meta_path, meta in matched:
+                    # Only update if not already rejected
+                    if meta.get("status") == "rejected":
+                        updates.append({
+                            "status": "already_rejected",
+                            "company": rejection_company,
+                            "folder": folder,
+                        })
+                        continue
+
+                    # Update metadata
+                    old_status = meta.get("status", "unknown")
+                    meta["status"] = "rejected"
+                    meta["rejection_date"] = _parse_email_date(record.get("email_date", ""))
+                    meta["follow_up_date"] = None
+
+                    with open(meta_path, "w", encoding="utf-8") as f:
+                        json.dump(meta, f, indent=2, ensure_ascii=False)
+
+                    updates.append({
+                        "status": "updated",
+                        "company": rejection_company,
+                        "folder": folder,
+                        "old_status": old_status,
+                        "email_subject": record.get("raw_subject", ""),
+                    })
+            else:
+                updates.append({
+                    "status": "unmatched",
+                    "reason": f"No application found for '{rejection_company}'",
+                    "email_subject": record.get("raw_subject", ""),
+                })
+
+    return updates
+
+
+def _match_rejection_to_app(rejection_company, record, app_index):
+    """Match a rejection to application(s) by company name.
+
+    Uses exact match first, then fuzzy substring matching.
+    Returns list of (folder, meta_path, meta) tuples.
+    """
+    rc_lower = rejection_company.lower().strip()
+    # Remove common suffixes for matching
+    rc_clean = re.sub(r'\s*(?:inc\.?|llc|ltd\.?|corp\.?|corporation|co\.?|group)\s*$',
+                      '', rc_lower, flags=re.IGNORECASE).strip()
+
+    # Exact match
+    matches = app_index.get(rc_clean, [])
+
+    # Try fuzzy matching if no exact match
+    if not matches:
+        for company_key, entries in app_index.items():
+            # Clean the stored company name the same way
+            ck_clean = re.sub(r'\s*(?:inc\.?|llc|ltd\.?|corp\.?|corporation|co\.?|group)\s*$',
+                              '', company_key, flags=re.IGNORECASE).strip()
+
+            # Exact after cleaning
+            if rc_clean == ck_clean:
+                matches.extend(entries)
+                continue
+
+            # Substring: "acme" matches "acme corp" or vice versa
+            if rc_clean in ck_clean or ck_clean in rc_clean:
+                matches.extend(entries)
+                continue
+
+            # Slug match: check if company appears in folder name
+            rc_slug = re.sub(r'[^a-z0-9]+', '-', rc_clean).strip('-')
+            for folder, meta_path, meta in entries:
+                if rc_slug and rc_slug in folder.lower():
+                    matches.append((folder, meta_path, meta))
+
+    # If rejection includes a role, prefer matches with the same role
+    rejection_role = record.get("role")
+    if rejection_role and len(matches) > 1:
+        role_lower = rejection_role.lower()
+        role_matches = [
+            (f, mp, m) for f, mp, m in matches
+            if role_lower in (m.get("role") or "").lower()
+            or (m.get("role") or "").lower() in role_lower
+        ]
+        if role_matches:
+            return role_matches
+
+    return matches
+
+
+def _parse_email_date(date_str):
+    """Extract a YYYY-MM-DD date from an email Date header."""
+    if not date_str:
+        return None
+    # Try RFC 2822 format: "Thu, 26 Feb 2026 19:55:19 +0000"
+    from email.utils import parsedate_to_datetime
+    try:
+        dt = parsedate_to_datetime(date_str)
+        return dt.strftime("%Y-%m-%d")
+    except (ValueError, TypeError):
+        pass
+    # Try ISO format
+    match = re.search(r'(\d{4}-\d{2}-\d{2})', date_str)
+    if match:
+        return match.group(1)
+    return None
+
+
 def main():
     import argparse
 
@@ -893,12 +1223,32 @@ def main():
     print(f"    Single-job emails: {stats.get('single_job', 0)}")
     print(f"    Multi-job emails:  {stats.get('multi_job', 0)}")
     print(f"    Recruiter emails:  {stats.get('recruiter', 0)}")
+    print(f"    Rejections:        {stats.get('rejection', 0)}")
     print(f"    Not-job emails:    {stats['not_job']}")
     print(f"    Unresolved:        {stats['unresolved']}")
     print(f"    Total leads found: {stats.get('leads_found', 0)}")
 
+    # Process rejections — match to applications and update metadata
+    if stats.get("rejection", 0) > 0:
+        print("\n  Processing rejections...")
+        rejection_updates = process_rejections()
+        updated = [u for u in rejection_updates if u["status"] == "updated"]
+        unmatched = [u for u in rejection_updates if u["status"] == "unmatched"]
+        already = [u for u in rejection_updates if u["status"] == "already_rejected"]
+
+        for u in updated:
+            print(f"    REJECTED: {u['company']} ({u['folder']}) — was '{u['old_status']}'")
+        for u in unmatched:
+            print(f"    UNMATCHED: {u.get('reason', '')} — {u.get('email_subject', '')}")
+        for u in already:
+            print(f"    SKIPPED: {u['company']} — already rejected")
+
+        print(f"\n    Rejections applied: {len(updated)}, Unmatched: {len(unmatched)}, Already rejected: {len(already)}")
+
     print(f"\n{'=' * 60}")
     print(f"  PARSE COMPLETE — {stats.get('leads_found', 0)} leads ready for career search")
+    if stats.get("rejection", 0) > 0:
+        print(f"  REJECTIONS — {stats.get('rejection', 0)} rejection emails processed")
     print(f"{'=' * 60}")
 
 
