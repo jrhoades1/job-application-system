@@ -404,8 +404,21 @@ export async function POST() {
         continue;
       }
 
-      // Single-job email: extract from subject and auto-promote
-      const extracted = extractCompanyRole(subject);
+      // Single-job email: try subject parsing first, then AI fallback
+      let extracted = extractCompanyRole(subject);
+
+      // If subject parsing failed or returned a bad company, use AI extraction
+      if (!extracted || BAD_COMPANY.test(extracted.company.trim())) {
+        try {
+          const aiJobs = await extractJobsFromEmail(body, subject, platform);
+          if (aiJobs.length > 0) {
+            extracted = { company: aiJobs[0].company, role: aiJobs[0].role };
+          }
+        } catch (err) {
+          console.error("AI extraction fallback failed for single email:", err);
+        }
+      }
+
       const singleText = body.slice(0, 5000);
       const singleScore = await scoreLead(
         singleText,
@@ -413,10 +426,14 @@ export async function POST() {
         extracted?.company ?? ""
       );
 
+      // Use subject as fallback so leads are identifiable even without AI extraction
+      const finalCompany = extracted?.company || from.replace(/<.*>/, "").trim() || "Unknown";
+      const finalRole = extracted?.role || subject.replace(/^(fw|fwd|re)\s*:\s*/gi, "").trim() || subject;
+
       await supabase.from("pipeline_leads").insert({
         clerk_user_id: userId,
-        company: extracted?.company ?? "",
-        role: extracted?.role ?? "",
+        company: finalCompany,
+        role: finalRole,
         source_platform: platform,
         email_uid: msg.id,
         email_date: emailDate,
@@ -437,8 +454,8 @@ export async function POST() {
       // Auto-promote: create application immediately
       const { data: newApp } = await supabase.from("applications").insert({
         clerk_user_id: userId,
-        company: extracted?.company || subject,
-        role: extracted?.role || subject,
+        company: finalCompany,
+        role: finalRole,
         source: platform ?? "Email Pipeline",
         job_description: singleText,
         status: "pending_review",
