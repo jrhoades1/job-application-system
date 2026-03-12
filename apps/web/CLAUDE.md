@@ -25,15 +25,19 @@ Browser → Clerk (auth) → Next.js API Routes → Supabase (PostgreSQL, servic
 
 ### File organization
 - `src/app/` — Next.js App Router pages and API routes
-- `src/app/api/` — Server-side API routes (analyze-job, tailor-resume, generate-cover-letter, applications, profile, pipeline, insights, admin/usage, webhooks/clerk)
-- `src/components/layout/` — Sidebar and header
+- `src/app/api/` — Server-side API routes (today-actions, applications, profile, analyze-job, tailor-resume, generate-cover-letter, pipeline, insights, admin/usage, scrape-job, gmail, webhooks/clerk)
+- `src/components/layout/` — Sidebar (4-item nav with badge counts) and header
 - `src/components/ui/` — shadcn/ui primitives (auto-generated, 17 components)
+- `src/components/jobs/` — Job page components (lead-card, application-table, add-application-dialog, quick-score-dialog)
+- `src/components/settings/` — Settings tab components (profile-form, cost-usage)
+- `src/hooks/` — Shared hooks (use-gmail-sync)
 - `src/lib/` — Utilities and clients (supabase.ts, anthropic.ts, constants.ts)
 - `src/scoring/` — TypeScript scoring engine (6 modules ported from job_score.py)
 - `src/ai/` — AI prompt templates (analyze-job.ts, tailor-resume.ts, generate-cover-letter.ts)
 - `src/schemas/` — Zod validation schemas (application, profile, match-score)
 - `src/types/` — TypeScript interfaces (ApplicationRow, ProfileRow, MatchScoreRow, PipelineLeadRow, ApplicationWithScores)
 - `tests/scoring/` — Vitest scoring engine tests (21 tests)
+- `e2e/` — Playwright E2E tests (11 spec files)
 - `supabase/migrations/` — Database migration SQL
 
 ### Import patterns
@@ -47,9 +51,10 @@ Browser → Clerk (auth) → Next.js API Routes → Supabase (PostgreSQL, servic
 
 ```bash
 npm run dev          # Start dev server (http://localhost:3000)
-npm run build        # Production build (22 routes)
+npm run build        # Production build
 npm run lint         # ESLint
-npx vitest run       # Run tests (21 scoring tests)
+npx vitest run       # Run unit tests (60 tests)
+npx playwright test  # Run E2E tests (requires CLERK_TESTING_TOKEN)
 ```
 
 ## Constraints
@@ -67,35 +72,57 @@ npx vitest run       # Run tests (21 scoring tests)
 - Supabase and Anthropic clients are lazy-initialized (not at module load) to avoid build-time errors
 - Root layout uses `force-dynamic` to prevent Clerk issues during static generation
 
-## Routes (22 total)
+## Navigation (4 views)
 
-### Pages
+| Nav Item | Route | Description |
+|---|---|---|
+| **Today** | `/dashboard` | Action engine — prioritized urgent/today/week tasks, compact stats bar |
+| **Jobs** | `/dashboard/jobs` | Unified job management — 6 stage tabs (New Leads, Evaluating, Applied, Interviewing, Offers, Closed) |
+| **Insights** | `/dashboard/insights` | Analytics — conversion funnel, score distribution, rejection patterns |
+| **Settings** | `/dashboard/settings` | Tabbed settings (Profile, Gmail, Cost & Usage) |
+
+### Other Pages
 | Route | Description |
 |---|---|
 | `/` | Landing page with sign-in CTA |
 | `/sign-in`, `/sign-up` | Clerk auth components |
-| `/dashboard` | Overview — live stats, stalled/follow-up alerts, recent activity |
-| `/dashboard/profile` | Profile editor — name, contact, career narrative |
-| `/dashboard/analyze` | Paste job description → algorithmic score + AI analysis |
-| `/dashboard/tracker` | Application table — filterable, sortable, add dialog |
 | `/dashboard/tracker/[id]` | Application detail — edit, interview/rejection panels, AI tools |
-| `/dashboard/pipeline` | Pipeline leads — ranked cards, promote/skip actions |
-| `/dashboard/insights` | Analytics — conversion funnel, score distribution, rejection patterns |
-| `/dashboard/admin` | Cost admin — live spend, usage breakdown, recent AI calls |
+| `/dashboard/jobs/[id]` | Alias → redirects to `/dashboard/tracker/[id]` |
+
+### Redirects (old routes)
+| Old Route | Redirects To |
+|---|---|
+| `/dashboard/tracker` | `/dashboard/jobs?tab=evaluating` |
+| `/dashboard/pipeline` | `/dashboard/jobs?tab=leads` |
+| `/dashboard/profile` | `/dashboard/settings?tab=profile` |
+| `/dashboard/admin` | `/dashboard/settings?tab=costs` |
+| `/dashboard/analyze` | `/dashboard/jobs` |
+| `/dashboard/today` | `/dashboard` |
 
 ### API Routes
 | Route | Methods | Description |
 |---|---|---|
+| `/api/today-actions` | GET | Prioritized action queue (urgent/today/week) + stats |
 | `/api/applications` | GET, POST | List (filtered) / create applications |
 | `/api/applications/[id]` | GET, PUT, DELETE | Single application CRUD |
+| `/api/applications/[id]/score` | POST | Score an application |
+| `/api/applications/bulk-status` | PATCH | Bulk status update |
+| `/api/applications/bulk-import` | POST | Bulk import from URLs |
 | `/api/profile` | GET, PUT | User profile |
 | `/api/analyze-job` | POST | Algorithmic scoring + AI-enhanced analysis |
 | `/api/tailor-resume` | POST | AI resume tailoring (by application_id) |
 | `/api/generate-cover-letter` | POST | AI cover letter generation (by application_id) |
 | `/api/pipeline/leads` | GET, PATCH | Pipeline leads list / promote or skip |
+| `/api/pipeline/rescore` | POST | Re-score a pipeline lead |
+| `/api/pipeline/reparse` | POST | Re-parse a pipeline lead email |
 | `/api/insights` | GET | Analytics aggregation |
 | `/api/admin/usage` | GET | Cost tracking data |
 | `/api/scrape-job` | POST | Scrape job listing URL for company/role/description |
+| `/api/gmail/connect` | GET | OAuth redirect to connect Gmail |
+| `/api/gmail/status` | GET | Gmail connection status |
+| `/api/gmail/sync` | POST | Sync emails into pipeline |
+| `/api/gmail/disconnect` | DELETE | Disconnect Gmail |
+| `/api/dashboard-stats` | GET | Dashboard overview stats |
 | `/api/webhooks/clerk` | POST | User sync on signup (creates profile + cost_config) |
 
 ## Scoring Engine (`src/scoring/`)
@@ -126,7 +153,7 @@ Three AI features:
 
 ## Cost Tracking (DSF Skill Integration)
 
-Uses the `cost-tracking` skill from `dark-software-factory/.claude/skills/cost-tracking/`. Tables: `ai_generations`, `expense_alerts`, `cost_config`. Admin dashboard at `/dashboard/admin`.
+Uses the `cost-tracking` skill from `dark-software-factory/.claude/skills/cost-tracking/`. Tables: `ai_generations`, `expense_alerts`, `cost_config`. Accessible via Settings → Cost & Usage tab.
 
 ## Environment Variables
 
