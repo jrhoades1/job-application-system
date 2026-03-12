@@ -80,8 +80,17 @@ export default function SettingsPage() {
                 <Badge variant="secondary" className="bg-green-100 text-green-800">
                   Connected
                 </Badge>
-                <span className="text-sm font-medium">{connection.email_address}</span>
+                <span className="text-sm font-medium">
+                  {connection.email_address || (
+                    <span className="text-muted-foreground italic">Unknown account</span>
+                  )}
+                </span>
               </div>
+              {!connection.email_address && (
+                <p className="text-xs text-yellow-600">
+                  Email address not captured. Disconnect and reconnect to fix.
+                </p>
+              )}
               {connection.last_fetch_at && (
                 <p className="text-xs text-muted-foreground">
                   Last synced:{" "}
