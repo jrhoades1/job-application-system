@@ -269,8 +269,8 @@ export default function PipelinePage() {
                           <span>{lead.source_platform}</span>
                         )}
                         {lead.location && <span>| {lead.location}</span>}
-                        {lead.created_at && (
-                          <span>| {new Date(lead.created_at).toLocaleDateString()}</span>
+                        {(lead.email_date || lead.created_at) && (
+                          <span>| {new Date(lead.email_date ?? lead.created_at).toLocaleDateString()}</span>
                         )}
                       </div>
                       {lead.red_flags?.length > 0 && (

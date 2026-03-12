@@ -23,7 +23,7 @@ export async function GET(req: Request) {
       .is("deleted_at", null);
 
     if (sort === "newest") {
-      query = query.order("created_at", { ascending: false });
+      query = query.order("email_date", { ascending: false, nullsFirst: false });
     } else {
       query = query
         .order("rank", { ascending: true, nullsFirst: false })

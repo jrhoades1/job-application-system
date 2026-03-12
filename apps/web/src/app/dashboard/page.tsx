@@ -41,6 +41,7 @@ interface DashboardStats {
     match_score: number | null;
     match_tier: string | null;
     created_at: string;
+    email_date: string | null;
   }[];
 }
 
@@ -273,7 +274,7 @@ export default function DashboardPage() {
                         </span>
                       )}
                       <span className="text-xs text-muted-foreground">
-                        {new Date(lead.created_at).toLocaleDateString()}
+                        {new Date(lead.email_date ?? lead.created_at).toLocaleDateString()}
                       </span>
                     </div>
                   </Link>
