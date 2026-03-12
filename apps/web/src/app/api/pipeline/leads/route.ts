@@ -19,6 +19,7 @@ export async function GET(req: Request) {
       .from("pipeline_leads")
       .select("*")
       .eq("clerk_user_id", userId)
+      .is("deleted_at", null)
       .order("rank", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: false });
 

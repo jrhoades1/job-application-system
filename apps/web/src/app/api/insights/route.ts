@@ -9,7 +9,8 @@ export async function GET() {
     const { data: apps } = await supabase
       .from("applications")
       .select("status, source, applied_date, rejection_date, rejection_reason, created_at, match_scores(overall, match_percentage)")
-      .eq("clerk_user_id", userId);
+      .eq("clerk_user_id", userId)
+      .is("deleted_at", null);
 
     if (!apps || apps.length === 0) {
       return NextResponse.json({

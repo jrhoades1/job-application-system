@@ -69,7 +69,8 @@ export async function POST(req: Request) {
     const { data: allLeads } = await supabase
       .from("pipeline_leads")
       .select("email_uid")
-      .eq("clerk_user_id", userId);
+      .eq("clerk_user_id", userId)
+      .is("deleted_at", null);
 
     const existingUids = new Set(
       (allLeads ?? []).map((l) => l.email_uid)

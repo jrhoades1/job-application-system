@@ -168,10 +168,12 @@ export async function POST() {
     }
 
     // Load existing leads — select status + company so we can clear re-processable records
+    // Only consider non-deleted leads for dedup
     const { data: existingLeads } = await supabase
       .from("pipeline_leads")
       .select("email_uid, status, company")
-      .eq("clerk_user_id", userId);
+      .eq("clerk_user_id", userId)
+      .is("deleted_at", null);
 
     const existingUids = new Set((existingLeads ?? []).map((l) => l.email_uid));
 
@@ -184,18 +186,22 @@ export async function POST() {
       .map((l) => l.email_uid);
 
     if (reprocessUids.length > 0) {
-      // Delete bad pipeline_leads
+      const now = new Date().toISOString();
+
+      // Soft delete bad pipeline_leads
       await supabase
         .from("pipeline_leads")
-        .delete()
+        .update({ deleted_at: now })
         .eq("clerk_user_id", userId)
+        .is("deleted_at", null)
         .in("email_uid", reprocessUids);
 
-      // Also delete any auto-promoted applications from bad parses
+      // Soft delete any auto-promoted applications from bad parses
       await supabase
         .from("applications")
-        .delete()
+        .update({ deleted_at: now })
         .eq("clerk_user_id", userId)
+        .is("deleted_at", null)
         .in("email_uid", reprocessUids);
 
       for (const uid of reprocessUids) {
@@ -284,6 +290,7 @@ export async function POST() {
         .eq("clerk_user_id", userId)
         .eq("raw_subject", subject)
         .eq("email_date", emailDate)
+        .is("deleted_at", null)
         .maybeSingle();
 
       if (fpExists) {

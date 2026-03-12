@@ -11,13 +11,15 @@ export async function GET() {
         supabase
           .from("applications")
           .select("*", { count: "exact", head: true })
-          .eq("clerk_user_id", userId),
+          .eq("clerk_user_id", userId)
+          .is("deleted_at", null),
 
         // Active: applied, interviewing
         supabase
           .from("applications")
           .select("*", { count: "exact", head: true })
           .eq("clerk_user_id", userId)
+          .is("deleted_at", null)
           .in("status", ["applied", "interviewing"]),
 
         // Interviewing
@@ -25,6 +27,7 @@ export async function GET() {
           .from("applications")
           .select("*", { count: "exact", head: true })
           .eq("clerk_user_id", userId)
+          .is("deleted_at", null)
           .eq("status", "interviewing"),
 
         // Offered + accepted
@@ -32,6 +35,7 @@ export async function GET() {
           .from("applications")
           .select("*", { count: "exact", head: true })
           .eq("clerk_user_id", userId)
+          .is("deleted_at", null)
           .in("status", ["offered", "accepted"]),
 
         // Stalled: applied > 21 days ago
@@ -39,6 +43,7 @@ export async function GET() {
           .from("applications")
           .select("*", { count: "exact", head: true })
           .eq("clerk_user_id", userId)
+          .is("deleted_at", null)
           .eq("status", "applied")
           .lt("applied_date", new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString()),
 
@@ -47,6 +52,7 @@ export async function GET() {
           .from("applications")
           .select("*", { count: "exact", head: true })
           .eq("clerk_user_id", userId)
+          .is("deleted_at", null)
           .not("follow_up_date", "is", null)
           .lte("follow_up_date", new Date().toISOString()),
 
@@ -55,6 +61,7 @@ export async function GET() {
           .from("applications")
           .select("id, company, role, status, updated_at")
           .eq("clerk_user_id", userId)
+          .is("deleted_at", null)
           .order("updated_at", { ascending: false })
           .limit(5),
 
@@ -63,6 +70,7 @@ export async function GET() {
           .from("applications")
           .select("id, company, role, interviews")
           .eq("clerk_user_id", userId)
+          .is("deleted_at", null)
           .not("interviews", "eq", "[]"),
       ]);
 

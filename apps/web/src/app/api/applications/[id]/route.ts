@@ -15,6 +15,7 @@ export async function GET(
       .select("*, match_scores(*)")
       .eq("id", id)
       .eq("clerk_user_id", userId)
+      .is("deleted_at", null)
       .single();
 
     if (error) {
@@ -72,9 +73,10 @@ export async function DELETE(
 
     const { error } = await supabase
       .from("applications")
-      .delete()
+      .update({ deleted_at: new Date().toISOString() })
       .eq("id", id)
-      .eq("clerk_user_id", userId);
+      .eq("clerk_user_id", userId)
+      .is("deleted_at", null);
 
     if (error) {
       return NextResponse.json({ error: "Database error" }, { status: 500 });
