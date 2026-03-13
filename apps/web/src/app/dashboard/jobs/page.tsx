@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useGmailSync } from "@/hooks/use-gmail-sync";
-import { APPLICATION_STATUSES, STATUS_CONFIG } from "@/lib/constants";
+import { APPLICATION_STATUSES, STATUS_CONFIG, type ApplicationStatus } from "@/lib/constants";
 import { LeadCard } from "@/components/jobs/lead-card";
 import { LeadDetailSheet } from "@/components/jobs/lead-detail-sheet";
 import {
@@ -99,6 +99,49 @@ export default function JobsPage() {
 
   // Tab counts
   const [tabCounts, setTabCounts] = useState<Record<string, number>>({});
+
+  // Global search state
+  const [globalSearch, setGlobalSearch] = useState("");
+  const [globalResults, setGlobalResults] = useState<ApplicationWithScores[]>([]);
+  const [globalSearching, setGlobalSearching] = useState(false);
+  const [showGlobalResults, setShowGlobalResults] = useState(false);
+  const globalSearchRef = useRef<HTMLDivElement>(null);
+
+  // Close global results on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (globalSearchRef.current && !globalSearchRef.current.contains(e.target as Node)) {
+        setShowGlobalResults(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Global search — query all statuses
+  useEffect(() => {
+    if (!globalSearch.trim()) {
+      setGlobalResults([]);
+      setShowGlobalResults(false);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setGlobalSearching(true);
+      try {
+        const params = new URLSearchParams();
+        params.set("search", globalSearch.trim());
+        params.set("limit", "15");
+        const res = await fetch(`/api/applications?${params}`);
+        const json = await res.json();
+        setGlobalResults(json.data ?? []);
+        setShowGlobalResults(true);
+      } catch {
+        setGlobalResults([]);
+      }
+      setGlobalSearching(false);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [globalSearch]);
 
   // Debounce search
   useEffect(() => {
@@ -364,6 +407,48 @@ export default function JobsPage() {
             </Button>
           )}
         </div>
+      </div>
+
+      {/* Global search */}
+      <div ref={globalSearchRef} className="relative">
+        <Input
+          placeholder="Find any job across all stages..."
+          value={globalSearch}
+          onChange={(e) => setGlobalSearch(e.target.value)}
+          onFocus={() => {
+            if (globalResults.length > 0) setShowGlobalResults(true);
+          }}
+          className="w-full max-w-md"
+        />
+        {showGlobalResults && (globalResults.length > 0 || globalSearching) && (
+          <div className="absolute top-full left-0 z-50 mt-1 w-full max-w-md rounded-md border bg-popover shadow-lg">
+            {globalSearching && globalResults.length === 0 && (
+              <p className="p-3 text-sm text-muted-foreground">Searching...</p>
+            )}
+            {globalResults.length === 0 && !globalSearching && (
+              <p className="p-3 text-sm text-muted-foreground">No results found.</p>
+            )}
+            {globalResults.map((app) => {
+              const statusInfo = STATUS_CONFIG[app.status as ApplicationStatus];
+              return (
+                <a
+                  key={app.id}
+                  href={`/dashboard/tracker/${app.id}`}
+                  className="flex items-center justify-between gap-2 px-3 py-2 hover:bg-accent cursor-pointer text-sm"
+                  onClick={() => setShowGlobalResults(false)}
+                >
+                  <div className="min-w-0">
+                    <span className="font-medium">{app.company}</span>
+                    <span className="text-muted-foreground"> — {app.role}</span>
+                  </div>
+                  <Badge variant={statusInfo?.variant ?? "outline"} className="shrink-0">
+                    {statusInfo?.label ?? app.status}
+                  </Badge>
+                </a>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Tabs */}

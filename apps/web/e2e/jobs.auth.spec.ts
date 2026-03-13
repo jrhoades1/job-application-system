@@ -89,6 +89,24 @@ test.describe("Jobs page", () => {
     await expect(page.getByText("Paste JD")).toBeVisible();
   });
 
+  test("global search input is visible and functional", async ({ page }) => {
+    test.setTimeout(60000);
+    await page.goto("/dashboard/jobs");
+    await expect(
+      page.getByRole("heading", { name: "Jobs" })
+    ).toBeVisible({ timeout: 15000 });
+
+    // Global search should be visible on any tab
+    const searchInput = page.getByPlaceholder("Find any job across all stages...");
+    await expect(searchInput).toBeVisible();
+
+    // Type a query — should show dropdown (results or "No results found")
+    await searchInput.fill("test");
+    await expect(
+      page.getByText("Searching...").or(page.getByText("No results found")).or(page.locator("[href^='/dashboard/tracker/']"))
+    ).toBeVisible({ timeout: 10000 });
+  });
+
   test("Quick Score dialog opens", async ({ page }) => {
     test.setTimeout(60000);
     await page.goto("/dashboard/jobs");
