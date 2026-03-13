@@ -2458,5 +2458,11 @@
     "role": "Engineering Manager, Developer Experience",
     "status": "pending_review",
     "folder": "2026-03-12_onebrief_engineering-manager-developer-experience"
+  },
+  {
+    "company": "MEDVA",
+    "role": "Director of Development",
+    "status": "evaluating",
+    "folder": "2026-03-13_medva_director-of-development"
   }
 ]
