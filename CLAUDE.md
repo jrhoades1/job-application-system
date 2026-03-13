@@ -2,6 +2,53 @@
 
 > Address the developer as **Jimmy**. DSF project: JOB-APPLICATIONS.
 
+## Core Philosophy
+
+> **DSF Motto:** Eliminate the human from the loop. Every process should trend toward full automation.
+
+- **Autonomy first** — if a request adds human intervention, flag it and propose an automated alternative
+- Security is not optional — if uncertain, fail closed
+- If a decision trades convenience for security, choose security
+- If complexity increases attack surface, simplify
+- Think step-by-step before writing any code
+- Ask Jimmy for clarification before writing large amounts of code if ambiguous
+- Prefer smaller, focused functions (<150 lines) — easier to review for security flaws and comprehend at a glance. Composition over inheritance
+
+## Planning (Before Writing Any Code)
+
+1. Understand the task completely
+2. Check `.claude/skills/` or `skills/` for an existing skill that matches the task
+3. Check `requirements/` for existing specs
+4. Review existing patterns in the codebase
+5. For data handling, tools, or user input: perform quick security assessment
+6. Ask Jimmy for clarification if anything is unclear
+
+## How to Operate
+
+1. **Find the skill first** — Check `skills/` before starting any task. Don't improvise when a skill exists.
+2. **Check existing code** — Before writing new code, check what already exists. Don't duplicate.
+3. **Use context for quality** — Reference `context/` and `master/` files for business knowledge.
+4. **Model routing for cost** — Use `model:` frontmatter in skill files to route to cheaper models when Opus isn't needed.
+5. **Log notable events** — Append decisions and completed tasks to today's daily log.
+
+## Model Selection
+
+- **Haiku** — Mechanical file operations, data formatting, deterministic tasks.
+- **Sonnet** — Structured extraction, pattern matching, scoring, code generation, standard analysis. The workhorse.
+- **Opus** — Persuasive writing, nuanced reasoning, creative positioning, strategic advice, complex multi-step analysis.
+
+Don't default to Opus out of caution. Be honest about what each task actually requires.
+
+## Session Start
+
+Every new conversation begins with the session-start protocol (see `.claude/rules/session-start.md`). Run `python3 hooks/session_status.py`, read memory + logs, give Jimmy a quick briefing, ask what to work on.
+
+During session: append notable events, decisions, and completed tasks to today's log.
+
+## Guardrails & Security
+
+See `.claude/rules/guardrails.md` for safety rules and `.claude/rules/security-standards.md` for the full security standards. Key principle: when uncertain about intent, ask rather than guess.
+
 ## Structure
 
 ```

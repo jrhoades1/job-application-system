@@ -105,10 +105,20 @@ export async function POST(req: Request) {
       const content =
         response.content[0].type === "text" ? response.content[0].text : "";
 
-      // Parse JSON from response
+      // Parse and validate JSON from response
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        aiAnalysis = JSON.parse(jsonMatch[0]);
+        const rawAi = JSON.parse(jsonMatch[0]);
+        const aiSchema = z.object({
+          summary: z.string().default(""),
+          addressable_gaps: z.array(z.string()).default([]),
+          hard_gaps: z.array(z.string()).default([]),
+          strategic_notes: z.string().default(""),
+          recommended_action: z.enum(["apply", "consider", "skip"]).default("consider"),
+          tailoring_intensity: z.enum(["light", "moderate", "heavy"]).default("moderate"),
+        });
+        const validated = aiSchema.safeParse(rawAi);
+        aiAnalysis = validated.success ? validated.data : null;
       }
     } catch (err) {
       if (err instanceof SpendCapExceededError) {

@@ -122,14 +122,23 @@ export function isPrivateUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
     const host = parsed.hostname.toLowerCase();
+
+    // Check 172.16.0.0 - 172.31.255.255 (RFC 1918)
+    let isPrivate172 = false;
+    if (host.startsWith("172.")) {
+      const secondOctet = parseInt(host.split(".")[1], 10);
+      isPrivate172 = secondOctet >= 16 && secondOctet <= 31;
+    }
+
     return (
       host === "localhost" ||
       host === "127.0.0.1" ||
       host === "0.0.0.0" ||
       host.startsWith("10.") ||
       host.startsWith("192.168.") ||
-      host.startsWith("172.") ||
+      isPrivate172 ||
       host === "[::1]" ||
+      host === "169.254.169.254" ||
       parsed.protocol === "file:"
     );
   } catch {

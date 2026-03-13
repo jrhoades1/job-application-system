@@ -1,7 +1,30 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { getAuthenticatedClient } from "@/lib/supabase";
 import { createTrackedMessage, SpendCapExceededError } from "@/lib/anthropic";
 import { buildParseResumePrompt } from "@/ai/parse-resume";
+
+const resumeResponseSchema = z.object({
+  full_name: z.string().nullable().default(null),
+  email: z.string().nullable().default(null),
+  phone: z.string().nullable().default(null),
+  location: z.string().nullable().default(null),
+  linkedin_url: z.string().nullable().default(null),
+  narrative: z.string().default(""),
+  work_history: z.array(z.object({
+    company: z.string(),
+    title: z.string(),
+    start_date: z.string(),
+    end_date: z.string().nullable().default(null),
+    current: z.boolean().default(false),
+  })).default([]),
+  achievements: z.array(z.object({
+    category: z.string(),
+    items: z.array(z.object({
+      text: z.string(),
+    })),
+  })).default([]),
+});
 
 const MAX_FILE_SIZE = 500 * 1024; // 500 KB
 const ACCEPTED_TYPES = [
@@ -96,13 +119,22 @@ export async function POST(req: Request) {
       );
     }
 
-    const parsed = JSON.parse(jsonMatch[0]);
+    const rawParsed = JSON.parse(jsonMatch[0]);
+    const validated = resumeResponseSchema.safeParse(rawParsed);
+    if (!validated.success) {
+      return NextResponse.json(
+        { error: "AI returned an unexpected response format" },
+        { status: 500 }
+      );
+    }
+
+    const resumeData = validated.data;
 
     // Ensure narrative is populated — if Claude omitted it, synthesize from achievements
-    if (!parsed.narrative || parsed.narrative.trim().length === 0) {
-      const name = parsed.full_name || "This candidate";
-      const categories = (parsed.achievements ?? [])
-        .map((a: { category: string }) => a.category)
+    if (!resumeData.narrative || resumeData.narrative.trim().length === 0) {
+      const name = resumeData.full_name || "This candidate";
+      const categories = resumeData.achievements
+        .map((a) => a.category)
         .slice(0, 4);
       if (categories.length > 0) {
         const fallbackPrompt = `Based on a resume for "${name}" with expertise in: ${categories.join(", ")} — write a 2-3 sentence career positioning statement in first person. Return ONLY the narrative text, no JSON, no quotes.`;
@@ -119,12 +151,12 @@ export async function POST(req: Request) {
             ? fallbackResp.content[0].text.trim()
             : "";
         if (narrativeText.length > 20) {
-          parsed.narrative = narrativeText;
+          resumeData.narrative = narrativeText;
         }
       }
     }
 
-    return NextResponse.json(parsed);
+    return NextResponse.json(resumeData);
   } catch (err) {
     if (err instanceof SpendCapExceededError) {
       return NextResponse.json(
