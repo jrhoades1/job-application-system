@@ -1,0 +1,6 @@
+/* Content script styles — badge and overlay styles are inline for isolation */
+#jaa-badge,
+#jaa-confirm-overlay {
+  all: initial;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}

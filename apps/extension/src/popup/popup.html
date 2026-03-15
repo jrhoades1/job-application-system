@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Job App Assistant</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 340px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #fafafa;
+      color: #1a1a2e;
+      font-size: 13px;
+    }
+    .header {
+      background: #1a1a2e;
+      color: white;
+      padding: 14px 16px;
+    }
+    .header h1 { font-size: 15px; font-weight: 600; }
+    .header p { font-size: 11px; color: #999; margin-top: 2px; }
+    .section {
+      padding: 14px 16px;
+      border-bottom: 1px solid #eee;
+    }
+    .section h2 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #888;
+      margin-bottom: 8px;
+    }
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    .dot.green { background: #22c55e; }
+    .dot.red { background: #ef4444; }
+    .dot.yellow { background: #eab308; }
+    .profile-field {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+    }
+    .profile-field .label { color: #888; }
+    .profile-field .value { font-weight: 500; }
+    input[type="text"], input[type="url"] {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+    input:focus { outline: none; border-color: #3b82f6; }
+    .btn {
+      display: inline-block;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .btn-primary { background: #3b82f6; color: white; }
+    .btn-primary:hover { background: #2563eb; }
+    .btn-outline { background: transparent; border: 1px solid #ddd; color: #666; }
+    .btn-outline:hover { background: #f5f5f5; }
+    .btn-fill { background: #22c55e; color: white; width: 100%; }
+    .btn-fill:hover { background: #16a34a; }
+    .actions { padding: 14px 16px; }
+    .match-card {
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+    }
+    .match-card .company { font-weight: 600; }
+    .match-card .role { color: #666; font-size: 12px; }
+    .hidden { display: none; }
+    .error { color: #ef4444; font-size: 12px; margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Job App Assistant</h1>
+    <p>Auto-fill &amp; track applications</p>
+  </div>
+
+  <!-- Setup section — shown when not configured -->
+  <div id="setup-section" class="section">
+    <h2>Setup</h2>
+    <label>
+      <span class="label">App URL</span>
+      <input type="url" id="api-url" placeholder="https://your-app.vercel.app" />
+    </label>
+    <label>
+      <span class="label">API Token</span>
+      <input type="text" id="api-token" placeholder="Paste token from Settings" />
+    </label>
+    <button class="btn btn-primary" id="save-config">Connect</button>
+    <div id="setup-error" class="error hidden"></div>
+  </div>
+
+  <!-- Connected section -->
+  <div id="connected-section" class="hidden">
+    <div class="section">
+      <h2>Connection</h2>
+      <div class="status-row">
+        <span class="dot green" id="status-dot"></span>
+        <span id="status-text">Connected</span>
+      </div>
+    </div>
+
+    <div class="section" id="profile-section">
+      <h2>Profile</h2>
+      <div class="profile-field">
+        <span class="label">Name</span>
+        <span class="value" id="profile-name">—</span>
+      </div>
+      <div class="profile-field">
+        <span class="label">Email</span>
+        <span class="value" id="profile-email">—</span>
+      </div>
+      <div class="profile-field">
+        <span class="label">Phone</span>
+        <span class="value" id="profile-phone">—</span>
+      </div>
+    </div>
+
+    <div class="section" id="match-section" class="hidden">
+      <h2>Current Page</h2>
+      <div id="match-content">
+        <p id="no-match" style="color: #888;">Not on a tracked application page.</p>
+        <div id="match-card" class="match-card hidden">
+          <div class="company" id="match-company"></div>
+          <div class="role" id="match-role"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-fill" id="fill-btn">Auto-Fill Application</button>
+      <div style="margin-top: 8px; text-align: center;">
+        <button class="btn btn-outline" id="disconnect-btn">Disconnect</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

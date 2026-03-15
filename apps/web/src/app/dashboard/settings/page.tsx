@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   Tabs,
   TabsContent,
@@ -23,6 +25,7 @@ interface EmailConnection {
 
 export default function SettingsPage() {
   const searchParams = useSearchParams();
+  const { user } = useUser();
   const initialTab = searchParams.get("tab") ?? "profile";
   const [activeTab, setActiveTab] = useState(initialTab);
 
@@ -80,6 +83,7 @@ export default function SettingsPage() {
         <TabsList>
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="gmail">Gmail</TabsTrigger>
+          <TabsTrigger value="extension">Extension</TabsTrigger>
           <TabsTrigger value="costs">Cost & Usage</TabsTrigger>
         </TabsList>
 
@@ -147,6 +151,57 @@ export default function SettingsPage() {
                     </p>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="extension">
+          <div className="max-w-2xl">
+            <Card>
+              <CardHeader>
+                <CardTitle>Browser Extension</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Connect the Chrome extension to auto-fill job applications and track submissions.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium">App URL</label>
+                  <Input readOnly value={typeof window !== "undefined" ? window.location.origin : ""} />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Copy this into the extension&apos;s &quot;App URL&quot; field.
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">API Token</label>
+                  <div className="flex gap-2">
+                    <Input readOnly value={user ? `jaa_${user.id}` : "Loading..."} />
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        if (user) {
+                          navigator.clipboard.writeText(`jaa_${user.id}`);
+                          toast.success("Token copied to clipboard");
+                        }
+                      }}
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Paste this into the extension&apos;s &quot;API Token&quot; field.
+                  </p>
+                </div>
+                <div className="pt-2 border-t">
+                  <h4 className="text-sm font-medium mb-2">Setup Instructions</h4>
+                  <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+                    <li>Open Chrome and go to <code>chrome://extensions</code></li>
+                    <li>Enable &quot;Developer mode&quot; (top right)</li>
+                    <li>Click &quot;Load unpacked&quot; and select the <code>apps/extension/dist</code> folder</li>
+                    <li>Click the extension icon and paste the App URL and API Token above</li>
+                  </ol>
+                </div>
               </CardContent>
             </Card>
           </div>
