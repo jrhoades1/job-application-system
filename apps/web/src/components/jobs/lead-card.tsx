@@ -153,11 +153,6 @@ export function LeadCard({
           <div className="flex-1 min-w-0">
             {/* Row 1: Company + Score Badge */}
             <div className="flex items-center gap-2 mb-1">
-              {lead.rank && (
-                <span className="text-sm font-mono text-muted-foreground">
-                  #{lead.rank}
-                </span>
-              )}
               <h3 className="font-semibold truncate">{lead.company}</h3>
               {scoreCfg && (
                 <Tooltip>
