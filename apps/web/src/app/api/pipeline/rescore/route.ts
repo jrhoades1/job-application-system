@@ -179,6 +179,17 @@ export async function POST(req: Request) {
     );
     const score = calculateOverallScore(matches);
 
+    // Build rich score_details with per-requirement breakdown
+    const strengths = matches
+      .filter((m) => m.match_type === "strong")
+      .map((m) => m.requirement);
+    const partials = matches
+      .filter((m) => m.match_type === "partial")
+      .map((m) => m.requirement);
+    const gaps = matches
+      .filter((m) => m.match_type === "gap")
+      .map((m) => m.requirement);
+
     await supabase
       .from("pipeline_leads")
       .update({
@@ -188,6 +199,9 @@ export async function POST(req: Request) {
           strong_count: score.strong_count,
           partial_count: score.partial_count,
           gap_count: score.gap_count,
+          strengths,
+          partials,
+          gaps,
         },
         red_flags: redFlags,
       })

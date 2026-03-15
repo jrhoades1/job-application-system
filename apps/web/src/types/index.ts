@@ -129,6 +129,8 @@ export interface PipelineLeadRow {
   status: string;
   skip_reason: string | null;
   location: string | null;
+  remote_status: string | null;
+  compensation: string | null;
   red_flags: string[];
   rank: number | null;
   email_date: string | null;

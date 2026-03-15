@@ -13,6 +13,31 @@ import { SCORE_CONFIG } from "@/lib/constants";
 import type { PipelineLeadRow } from "@/types";
 import { ExternalLink } from "lucide-react";
 
+/** Parse score_details safely */
+function parseScoreDetails(raw: Record<string, unknown> | null) {
+  const parsed =
+    typeof raw === "string"
+      ? (() => {
+          try {
+            return JSON.parse(raw);
+          } catch {
+            return null;
+          }
+        })()
+      : raw;
+
+  if (!parsed || typeof parsed !== "object") return null;
+
+  return {
+    strong_count: (parsed.strong_count as number) ?? 0,
+    partial_count: (parsed.partial_count as number) ?? 0,
+    gap_count: (parsed.gap_count as number) ?? 0,
+    strengths: (parsed.strengths as string[]) ?? [],
+    partials: (parsed.partials as string[]) ?? [],
+    gaps: (parsed.gaps as string[]) ?? [],
+  };
+}
+
 interface LeadDetailSheetProps {
   lead: PipelineLeadRow | null;
   open: boolean;
@@ -42,23 +67,7 @@ export function LeadDetailSheet({
     ? SCORE_CONFIG[lead.score_overall as keyof typeof SCORE_CONFIG]
     : null;
 
-  const scoreDetails =
-    typeof lead.score_details === "string"
-      ? (() => {
-          try {
-            return JSON.parse(lead.score_details);
-          } catch {
-            return null;
-          }
-        })()
-      : lead.score_details;
-
-  const detailEntries =
-    scoreDetails && typeof scoreDetails === "object"
-      ? Object.entries(scoreDetails).filter(
-          ([, v]) => v !== null && v !== undefined && v !== ""
-        )
-      : [];
+  const details = parseScoreDetails(lead.score_details);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -86,6 +95,12 @@ export function LeadDetailSheet({
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
             {lead.source_platform && <span>{lead.source_platform}</span>}
             {lead.location && <span>{lead.location}</span>}
+            {lead.remote_status && (
+              <span className="text-blue-600 font-medium">{lead.remote_status}</span>
+            )}
+            {lead.compensation && (
+              <span className="text-green-700 font-medium">{lead.compensation}</span>
+            )}
             {(lead.email_date || lead.created_at) && (
               <span>
                 {new Date(
@@ -122,28 +137,95 @@ export function LeadDetailSheet({
             </div>
           )}
 
-          {/* Score breakdown */}
-          {detailEntries.length > 0 && (
+          {/* Score breakdown — rich version */}
+          {details && (details.strengths.length > 0 || details.partials.length > 0 || details.gaps.length > 0) ? (
+            <div className="space-y-4">
+              <h4 className="text-sm font-medium">Score Breakdown</h4>
+
+              {/* Summary bar */}
+              <div className="flex gap-4 text-sm">
+                <span className="text-green-700 font-medium">
+                  {details.strong_count} strong
+                </span>
+                <span className="text-yellow-700 font-medium">
+                  {details.partial_count} partial
+                </span>
+                <span className="text-red-600 font-medium">
+                  {details.gap_count} gap{details.gap_count !== 1 ? "s" : ""}
+                </span>
+              </div>
+
+              {/* Strong matches */}
+              {details.strengths.length > 0 && (
+                <div className="rounded-lg border border-green-200 bg-green-50/50 p-3">
+                  <div className="text-xs font-medium text-green-800 mb-1.5">
+                    Strong Matches
+                  </div>
+                  <ul className="space-y-1">
+                    {details.strengths.map((s, i) => (
+                      <li key={i} className="text-sm text-green-900 flex items-start gap-1.5">
+                        <span className="text-green-600 mt-0.5 shrink-0">&#10003;</span>
+                        {s}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Partial matches */}
+              {details.partials.length > 0 && (
+                <div className="rounded-lg border border-yellow-200 bg-yellow-50/50 p-3">
+                  <div className="text-xs font-medium text-yellow-800 mb-1.5">
+                    Partial Matches
+                  </div>
+                  <ul className="space-y-1">
+                    {details.partials.map((s, i) => (
+                      <li key={i} className="text-sm text-yellow-900 flex items-start gap-1.5">
+                        <span className="text-yellow-600 mt-0.5 shrink-0">~</span>
+                        {s}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Gaps */}
+              {details.gaps.length > 0 && (
+                <div className="rounded-lg border border-red-200 bg-red-50/50 p-3">
+                  <div className="text-xs font-medium text-red-800 mb-1.5">
+                    Gaps — You Don&apos;t Have This
+                  </div>
+                  <ul className="space-y-1">
+                    {details.gaps.map((s, i) => (
+                      <li key={i} className="text-sm text-red-900 flex items-start gap-1.5">
+                        <span className="text-red-500 mt-0.5 shrink-0">&#10007;</span>
+                        {s}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ) : details ? (
+            /* Fallback: counts only (legacy data without requirement names) */
             <div>
               <h4 className="text-sm font-medium mb-2">Score Breakdown</h4>
               <div className="rounded-lg border p-3 space-y-1.5">
-                {detailEntries.map(([key, value]) => {
-                  const isNumeric = typeof value === "number";
-                  return (
-                    <div
-                      key={key}
-                      className={`flex gap-3 text-sm ${isNumeric ? "justify-between" : "flex-col"}`}
-                    >
-                      <span className="text-muted-foreground capitalize">
-                        {key.replace(/_/g, " ")}
-                      </span>
-                      <span className="font-medium">{String(value)}</span>
-                    </div>
-                  );
-                })}
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Strong matches</span>
+                  <span className="font-medium text-green-700">{details.strong_count}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Partial matches</span>
+                  <span className="font-medium text-yellow-700">{details.partial_count}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Gaps</span>
+                  <span className="font-medium text-red-600">{details.gap_count}</span>
+                </div>
               </div>
             </div>
-          )}
+          ) : null}
 
           {/* Job description */}
           {lead.description_text ? (

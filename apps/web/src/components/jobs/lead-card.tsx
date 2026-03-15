@@ -11,58 +11,91 @@ import {
 import { SCORE_CONFIG } from "@/lib/constants";
 import type { PipelineLeadRow } from "@/types";
 
-function ScoreTooltipBody({
-  redFlags,
-  scoreDetails,
-}: {
-  redFlags: string[];
-  scoreDetails: Record<string, unknown> | null;
-}) {
-  const hasFlags = redFlags?.length > 0;
+/** Parse score_details safely, handling both string and object forms */
+function parseScoreDetails(raw: Record<string, unknown> | null) {
   const parsed =
-    typeof scoreDetails === "string"
+    typeof raw === "string"
       ? (() => {
           try {
-            return JSON.parse(scoreDetails);
+            return JSON.parse(raw);
           } catch {
             return null;
           }
         })()
-      : scoreDetails;
-  const detailEntries =
-    parsed && typeof parsed === "object"
-      ? Object.entries(parsed).filter(
-          ([, v]) => v !== null && v !== undefined && v !== ""
-        )
-      : [];
-  const hasDetails = detailEntries.length > 0;
+      : raw;
 
-  if (!hasFlags && !hasDetails) {
+  if (!parsed || typeof parsed !== "object") return null;
+
+  return {
+    strong_count: (parsed.strong_count as number) ?? 0,
+    partial_count: (parsed.partial_count as number) ?? 0,
+    gap_count: (parsed.gap_count as number) ?? 0,
+    strengths: (parsed.strengths as string[]) ?? [],
+    partials: (parsed.partials as string[]) ?? [],
+    gaps: (parsed.gaps as string[]) ?? [],
+  };
+}
+
+/** Truncate a requirement string to a short label */
+function shortLabel(req: string, maxLen = 40): string {
+  // Strip common prefixes like "5+ years of experience in"
+  const cleaned = req
+    .replace(/^\d+\+?\s*years?\s*(of\s*)?(experience\s*)?(in\s*|with\s*)?/i, "")
+    .replace(/^(proven|demonstrated|strong|deep|extensive|solid)\s+(experience|knowledge|understanding|ability|track record)\s*(in\s*|of\s*|with\s*)?/i, "")
+    .trim();
+  const label = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+  return label.length > maxLen ? label.slice(0, maxLen - 1) + "…" : label;
+}
+
+function ScoreTooltipBody({
+  redFlags,
+  details,
+}: {
+  redFlags: string[];
+  details: ReturnType<typeof parseScoreDetails>;
+}) {
+  const hasFlags = redFlags?.length > 0;
+
+  if (!details && !hasFlags) {
     return <span>No scoring details available</span>;
   }
 
   return (
-    <div className="space-y-2 py-1">
-      {hasDetails && (
+    <div className="space-y-2 py-1 text-xs">
+      {details && details.strengths.length > 0 && (
         <div>
-          {detailEntries.map(([key, value]) => {
-            const isNumeric = typeof value === "number";
-            return (
-              <div
-                key={key}
-                className={`flex gap-3 ${isNumeric ? "justify-between whitespace-nowrap" : "flex-col"}`}
-              >
-                <span className="text-muted-foreground capitalize shrink-0">
-                  {key.replace(/_/g, " ")}:
-                </span>
-                <span
-                  className={`font-medium ${isNumeric ? "" : "break-words"}`}
-                >
-                  {String(value)}
-                </span>
-              </div>
-            );
-          })}
+          <div className="font-medium text-green-700 mb-0.5">
+            Strong matches ({details.strong_count})
+          </div>
+          <ul className="list-disc pl-3.5 space-y-0.5">
+            {details.strengths.map((s, i) => (
+              <li key={i}>{s}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {details && details.partials.length > 0 && (
+        <div>
+          <div className="font-medium text-yellow-700 mb-0.5">
+            Partial matches ({details.partial_count})
+          </div>
+          <ul className="list-disc pl-3.5 space-y-0.5">
+            {details.partials.map((s, i) => (
+              <li key={i}>{s}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {details && details.gaps.length > 0 && (
+        <div>
+          <div className="font-medium text-red-600 mb-0.5">
+            Gaps ({details.gap_count})
+          </div>
+          <ul className="list-disc pl-3.5 space-y-0.5">
+            {details.gaps.map((s, i) => (
+              <li key={i}>{s}</li>
+            ))}
+          </ul>
         </div>
       )}
       {hasFlags && (
@@ -104,6 +137,12 @@ export function LeadCard({
     ? SCORE_CONFIG[lead.score_overall as keyof typeof SCORE_CONFIG]
     : null;
 
+  const details = parseScoreDetails(lead.score_details);
+
+  // Pick top strengths and gaps to show inline
+  const topStrengths = details?.strengths.slice(0, 3).map((s) => shortLabel(s)) ?? [];
+  const topGaps = details?.gaps.slice(0, 2).map((s) => shortLabel(s)) ?? [];
+
   return (
     <Card
       className="cursor-pointer transition-colors hover:bg-muted/50"
@@ -112,6 +151,7 @@ export function LeadCard({
       <CardContent className="py-4">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
+            {/* Row 1: Company + Score Badge */}
             <div className="flex items-center gap-2 mb-1">
               {lead.rank && (
                 <span className="text-sm font-mono text-muted-foreground">
@@ -123,7 +163,7 @@ export function LeadCard({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span
-                      className={`inline-flex cursor-help rounded-full px-2 py-0.5 text-xs font-medium ${scoreCfg.color}`}
+                      className={`inline-flex cursor-help rounded-full px-2 py-0.5 text-xs font-medium shrink-0 ${scoreCfg.color}`}
                     >
                       {scoreCfg.label}
                       {lead.score_match_percentage != null &&
@@ -131,23 +171,39 @@ export function LeadCard({
                     </span>
                   </TooltipTrigger>
                   <TooltipContent
-                    className="min-w-[200px] max-w-sm text-left"
+                    className="min-w-[220px] max-w-md text-left"
                     side="bottom"
                   >
                     <ScoreTooltipBody
                       redFlags={lead.red_flags}
-                      scoreDetails={lead.score_details}
+                      details={details}
                     />
                   </TooltipContent>
                 </Tooltip>
               )}
             </div>
+
+            {/* Row 2: Role */}
             <p className="text-sm text-muted-foreground truncate">
               {lead.role}
             </p>
-            <div className="flex gap-2 mt-1 text-xs text-muted-foreground">
+
+            {/* Row 3: Metadata — source, location, remote, compensation, date */}
+            <div className="flex gap-2 mt-1 text-xs text-muted-foreground flex-wrap">
               {lead.source_platform && <span>{lead.source_platform}</span>}
-              {lead.location && <span>| {lead.location}</span>}
+              {lead.location && (
+                <span>{lead.source_platform ? `| ${lead.location}` : lead.location}</span>
+              )}
+              {lead.remote_status && (
+                <span className="text-blue-600 font-medium">
+                  | {lead.remote_status}
+                </span>
+              )}
+              {lead.compensation && (
+                <span className="text-green-700 font-medium">
+                  | {lead.compensation}
+                </span>
+              )}
               {(lead.email_date || lead.created_at) && (
                 <span>
                   |{" "}
@@ -157,6 +213,32 @@ export function LeadCard({
                 </span>
               )}
             </div>
+
+            {/* Row 4: Strengths + Gaps (the decision-making info) */}
+            {(topStrengths.length > 0 || topGaps.length > 0) && (
+              <div className="flex gap-1.5 mt-2 flex-wrap">
+                {topStrengths.map((s, i) => (
+                  <Badge
+                    key={`s-${i}`}
+                    variant="outline"
+                    className="text-xs bg-green-50 text-green-700 border-green-200"
+                  >
+                    {s}
+                  </Badge>
+                ))}
+                {topGaps.map((g, i) => (
+                  <Badge
+                    key={`g-${i}`}
+                    variant="outline"
+                    className="text-xs bg-red-50 text-red-600 border-red-200"
+                  >
+                    Gap: {g}
+                  </Badge>
+                ))}
+              </div>
+            )}
+
+            {/* Row 5: Red flags */}
             {lead.red_flags?.length > 0 && (
               <div className="flex gap-1 mt-2 flex-wrap">
                 {lead.red_flags.map((f, i) => (
