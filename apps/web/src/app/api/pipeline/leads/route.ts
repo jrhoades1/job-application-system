@@ -25,8 +25,9 @@ export async function GET(req: Request) {
     if (sort === "newest") {
       query = query.order("email_date", { ascending: false, nullsFirst: false });
     } else {
+      // Best Match: sort by match percentage descending (highest first)
       query = query
-        .order("rank", { ascending: true, nullsFirst: false })
+        .order("score_match_percentage", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false });
     }
 
