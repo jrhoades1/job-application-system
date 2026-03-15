@@ -11,8 +11,9 @@ import {
 } from "@/components/ui/sheet";
 import { SCORE_CONFIG } from "@/lib/constants";
 import type { PipelineLeadRow } from "@/types";
-import { ExternalLink } from "lucide-react";
-import { useMemo } from "react";
+import { ExternalLink, Plus } from "lucide-react";
+import { useMemo, useState, useCallback } from "react";
+import { toast } from "sonner";
 
 /** Parse score_details safely */
 function parseScoreDetails(raw: Record<string, unknown> | null) {
@@ -113,6 +114,49 @@ export function LeadDetailSheet({
     () => (lead.description_text ? cleanDescription(lead.description_text) : null),
     [lead.description_text]
   );
+
+  const [addingGap, setAddingGap] = useState<string | null>(null);
+  const [addedGaps, setAddedGaps] = useState<Set<string>>(new Set());
+
+  const handleAddToProfile = useCallback(async (gapText: string) => {
+    setAddingGap(gapText);
+    try {
+      // Fetch current profile
+      const profileRes = await fetch("/api/profile");
+      if (!profileRes.ok) throw new Error("Failed to load profile");
+      const profile = await profileRes.json();
+
+      const achievements = profile.achievements ?? [];
+
+      // Add to "General" category, or create it
+      const generalIdx = achievements.findIndex(
+        (c: { category: string }) => c.category === "General"
+      );
+      const item = { text: gapText };
+
+      if (generalIdx >= 0) {
+        achievements[generalIdx].items.push(item);
+      } else {
+        achievements.push({ category: "General", items: [item] });
+      }
+
+      // Save
+      const saveRes = await fetch("/api/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ achievements }),
+      });
+
+      if (!saveRes.ok) throw new Error("Failed to save profile");
+
+      setAddedGaps((prev) => new Set(prev).add(gapText));
+      toast.success("Added to profile — rescore to update match");
+    } catch {
+      toast.error("Failed to add to profile");
+    } finally {
+      setAddingGap(null);
+    }
+  }, []);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -240,11 +284,25 @@ export function LeadDetailSheet({
                   <div className="text-xs font-medium text-red-800 mb-1.5">
                     Gaps — You Don&apos;t Have This
                   </div>
-                  <ul className="space-y-1">
+                  <ul className="space-y-1.5">
                     {details.gaps.map((s, i) => (
-                      <li key={i} className="text-sm text-red-900 flex items-start gap-1.5">
-                        <span className="text-red-500 mt-0.5 shrink-0">&#10007;</span>
-                        {s}
+                      <li key={i} className="text-sm text-red-900 flex items-start justify-between gap-2">
+                        <div className="flex items-start gap-1.5">
+                          <span className="text-red-500 mt-0.5 shrink-0">&#10007;</span>
+                          {s}
+                        </div>
+                        {addedGaps.has(s) ? (
+                          <span className="text-xs text-green-600 shrink-0 mt-0.5">Added</span>
+                        ) : (
+                          <button
+                            onClick={() => handleAddToProfile(s)}
+                            disabled={addingGap === s}
+                            className="text-xs text-blue-600 hover:text-blue-800 hover:underline shrink-0 mt-0.5 flex items-center gap-0.5 disabled:opacity-50"
+                          >
+                            <Plus className="h-3 w-3" />
+                            {addingGap === s ? "Adding..." : "I have this"}
+                          </button>
+                        )}
                       </li>
                     ))}
                   </ul>

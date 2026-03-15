@@ -31,36 +31,45 @@ function isDigestLead(platform: string | null, text: string): boolean {
 /**
  * POST /api/pipeline/rescore-all
  *
- * One-time bulk rescore: re-scores all leads that have old count-only
- * score_details (missing the strengths/gaps arrays). Safe to run multiple
- * times — skips leads that already have rich details.
+ * Bulk rescore: re-scores pipeline leads. By default only upgrades leads
+ * with old count-only score_details. Pass ?force=true to rescore ALL leads
+ * (e.g. after updating profile achievements).
  */
-export async function POST() {
+export async function POST(req: Request) {
   try {
     const { supabase, userId } = await getAuthenticatedClient();
+    const { searchParams } = new URL(req.url);
+    const force = searchParams.get("force") === "true";
 
-    // Fetch all scored leads (non-deleted) for this user
-    const { data: leads, error } = await supabase
+    // Fetch scored leads (non-deleted) for this user
+    let query = supabase
       .from("pipeline_leads")
       .select("id, company, role, description_text, raw_subject, source_platform, score_details, score_overall")
       .eq("clerk_user_id", userId)
-      .is("deleted_at", null)
-      .not("score_overall", "is", null);
+      .is("deleted_at", null);
+
+    if (!force) {
+      query = query.not("score_overall", "is", null);
+    }
+
+    const { data: leads, error } = await query;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     if (!leads || leads.length === 0) {
-      return NextResponse.json({ message: "No scored leads found", rescored: 0 });
+      return NextResponse.json({ message: "No leads found", rescored: 0 });
     }
 
-    // Filter to leads that need upgrading (no strengths array in score_details)
-    const needsUpgrade = leads.filter((lead) => {
-      const details = lead.score_details as Record<string, unknown> | null;
-      if (!details) return true;
-      return !Array.isArray(details.strengths);
-    });
+    // Unless force, filter to leads that need upgrading
+    const needsUpgrade = force
+      ? leads
+      : leads.filter((lead) => {
+          const details = lead.score_details as Record<string, unknown> | null;
+          if (!details) return true;
+          return !Array.isArray(details.strengths);
+        });
 
     if (needsUpgrade.length === 0) {
       return NextResponse.json({ message: "All leads already have rich details", rescored: 0 });
