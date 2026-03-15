@@ -115,6 +115,16 @@ export interface ApplicationWithScores extends ApplicationRow {
   match_scores: MatchScoreRow | MatchScoreRow[] | null;
 }
 
+export interface StatusHistoryRow {
+  id: string;
+  application_id: string;
+  clerk_user_id: string;
+  from_status: string | null;
+  to_status: string;
+  changed_at: string;
+  source: string;
+}
+
 export interface PipelineLeadRow {
   id: string;
   clerk_user_id: string;

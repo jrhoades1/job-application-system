@@ -45,9 +45,35 @@ export async function PUT(
       );
     }
 
+    const updateData = { ...parsed.data };
+
+    // Auto-compute dates when status changes to "applied"
+    if (updateData.status === "applied") {
+      if (!updateData.applied_date) {
+        updateData.applied_date = new Date().toISOString().split("T")[0];
+      }
+      if (!updateData.follow_up_date) {
+        const followUp = new Date(updateData.applied_date);
+        followUp.setDate(followUp.getDate() + 7);
+        updateData.follow_up_date = followUp.toISOString().split("T")[0];
+      }
+    }
+
+    // Fetch current status for history tracking
+    let previousStatus: string | null = null;
+    if (updateData.status) {
+      const { data: current } = await supabase
+        .from("applications")
+        .select("status")
+        .eq("id", id)
+        .eq("clerk_user_id", userId)
+        .single();
+      previousStatus = current?.status ?? null;
+    }
+
     const { data, error } = await supabase
       .from("applications")
-      .update(parsed.data)
+      .update(updateData)
       .eq("id", id)
       .eq("clerk_user_id", userId)
       .select()
@@ -55,6 +81,17 @@ export async function PUT(
 
     if (error) {
       return NextResponse.json({ error: "Database error" }, { status: 500 });
+    }
+
+    // Record status change in history
+    if (updateData.status && updateData.status !== previousStatus) {
+      await supabase.from("application_status_history").insert({
+        application_id: id,
+        clerk_user_id: userId,
+        from_status: previousStatus,
+        to_status: updateData.status,
+        source: "manual",
+      });
     }
 
     return NextResponse.json(data);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +23,9 @@ import {
 import { toast } from "sonner";
 import { STATUS_CONFIG, SCORE_CONFIG, APPLICATION_STATUSES } from "@/lib/constants";
 import { downloadMarkdown, downloadDocx, downloadPdf } from "@/lib/document-export";
-import type { ApplicationWithScores, MatchScoreRow, InterviewRound } from "@/types";
+import type { ApplicationWithScores, MatchScoreRow, InterviewRound, StatusHistoryRow } from "@/types";
+import { ReadyToApplyBanner } from "@/components/jobs/ready-to-apply-banner";
+import { StatusTimeline } from "@/components/jobs/status-timeline";
 
 const INTERVIEW_TYPES = [
   "recruiter_screen",
@@ -346,15 +348,19 @@ function InterviewTimeline({
 export default function ApplicationDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const promoted = searchParams.get("promoted") === "true";
   const [app, setApp] = useState<ApplicationWithScores | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [applying, setApplying] = useState(false);
   const [tailoring, setTailoring] = useState(false);
   const [generatingCL, setGeneratingCL] = useState(false);
   const [scoring, setScoring] = useState(false);
   const [tailoredResume, setTailoredResume] = useState<string | null>(null);
   const [tailorMatchPct, setTailorMatchPct] = useState<number | null>(null);
   const [coverLetter, setCoverLetter] = useState<string | null>(null);
+  const [statusHistory, setStatusHistory] = useState<StatusHistoryRow[]>([]);
 
   useEffect(() => {
     fetch(`/api/applications/${params.id}`)
@@ -364,6 +370,12 @@ export default function ApplicationDetailPage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
+    fetch(`/api/applications/${params.id}/history`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) setStatusHistory(data);
+      })
+      .catch(() => {});
   }, [params.id]);
 
   async function handleSave() {
@@ -474,6 +486,28 @@ export default function ApplicationDetailPage() {
     setScoring(false);
   }
 
+  async function handleMarkApplied() {
+    if (!app) return;
+    setApplying(true);
+    try {
+      const res = await fetch(`/api/applications/${params.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "applied" }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setApp({ ...app, ...updated });
+        toast.success("Marked as Applied — follow-up set for 7 days");
+      } else {
+        toast.error("Failed to update");
+      }
+    } catch {
+      toast.error("Something went wrong");
+    }
+    setApplying(false);
+  }
+
   if (loading) return <div className="text-muted-foreground">Loading...</div>;
   if (!app) return <div className="text-muted-foreground">Not found.</div>;
 
@@ -528,6 +562,22 @@ export default function ApplicationDetailPage() {
           </Badge>
         </div>
       </div>
+
+      {/* Ready to Apply banner — shown for pre-apply statuses or fresh promotion */}
+      {(promoted || ["pending_review", "evaluating", "ready_to_apply"].includes(app.status)) && (
+        <ReadyToApplyBanner
+          app={app}
+          score={score ?? null}
+          onTailorResume={handleTailorResume}
+          onGenerateCoverLetter={handleGenerateCoverLetter}
+          onScore={handleScore}
+          onMarkApplied={handleMarkApplied}
+          tailoring={tailoring}
+          generatingCL={generatingCL}
+          scoring={scoring}
+          applying={applying}
+        />
+      )}
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
@@ -613,6 +663,17 @@ export default function ApplicationDetailPage() {
               />
             </CardContent>
           </Card>
+
+          {statusHistory.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Timeline</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <StatusTimeline history={statusHistory} />
+              </CardContent>
+            </Card>
+          )}
 
           <Card id="rejection-card">
             <CardHeader>

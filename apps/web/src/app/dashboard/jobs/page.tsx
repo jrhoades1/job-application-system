@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,6 +32,7 @@ import {
 import { AddApplicationDialog } from "@/components/jobs/add-application-dialog";
 import { QuickScoreDialog } from "@/components/jobs/quick-score-dialog";
 import type { ApplicationWithScores, PipelineLeadRow } from "@/types";
+import { KanbanBoard } from "@/components/jobs/kanban-board";
 
 // Tab definitions with status mappings
 const TABS = [
@@ -74,6 +75,7 @@ const TABS = [
 
 export default function JobsPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const initialTab = searchParams.get("tab") ?? "leads";
   const [activeTab, setActiveTab] = useState(initialTab);
 
@@ -96,6 +98,9 @@ export default function JobsPage() {
   const [bulkStatus, setBulkStatus] = useState("");
   const [bulkUpdating, setBulkUpdating] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // View mode
+  const [viewMode, setViewMode] = useState<"list" | "board">("list");
 
   // Tab counts
   const [tabCounts, setTabCounts] = useState<Record<string, number>>({});
@@ -308,9 +313,15 @@ export default function JobsPage() {
       body: JSON.stringify({ id, action, skip_reason: skipReason }),
     });
     if (res.ok) {
-      toast.success(
-        action === "promote" ? "Promoted to tracker" : "Lead skipped"
-      );
+      const data = await res.json();
+      if (action === "promote" && data.application_id) {
+        toast.success("Promoted — preparing your application");
+        router.push(`/dashboard/tracker/${data.application_id}?promoted=true`);
+      } else {
+        toast.success(
+          action === "promote" ? "Promoted to tracker" : "Lead skipped"
+        );
+      }
       fetchLeads();
       setRefreshKey((k) => k + 1);
     } else {
@@ -389,6 +400,24 @@ export default function JobsPage() {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Jobs</h2>
         <div className="flex items-center gap-2">
+          <div className="flex rounded-md border">
+            <Button
+              variant={viewMode === "list" ? "secondary" : "ghost"}
+              size="sm"
+              className="rounded-r-none"
+              onClick={() => setViewMode("list")}
+            >
+              List
+            </Button>
+            <Button
+              variant={viewMode === "board" ? "secondary" : "ghost"}
+              size="sm"
+              className="rounded-l-none"
+              onClick={() => setViewMode("board")}
+            >
+              Board
+            </Button>
+          </div>
           <QuickScoreDialog onSaved={handleRefresh} />
           <AddApplicationDialog onCreated={handleRefresh} />
           {gmailConnected && activeTab === "leads" && (
@@ -451,8 +480,11 @@ export default function JobsPage() {
         )}
       </div>
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      {/* Board view */}
+      {viewMode === "board" && <KanbanBoard />}
+
+      {/* List view — Tabs */}
+      {viewMode === "list" && <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full justify-start">
           {TABS.map((tab) => (
             <TabsTrigger
@@ -607,7 +639,7 @@ export default function JobsPage() {
             )}
           </TabsContent>
         ))}
-      </Tabs>
+      </Tabs>}
 
       {/* Lead detail slide-out */}
       <LeadDetailSheet

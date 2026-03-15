@@ -106,7 +106,7 @@ export async function PATCH(req: Request) {
         source: lead.source_platform ?? "Email Pipeline",
         source_url: lead.career_page_url,
         job_description: lead.description_text,
-        status: "pending_review",
+        status: lead.score_overall ? "ready_to_apply" : "evaluating",
       })
       .select()
       .single();
@@ -129,6 +129,15 @@ export async function PATCH(req: Request) {
         red_flags: lead.red_flags ?? [],
       });
     }
+
+    // Seed status history
+    await supabase.from("application_status_history").insert({
+      application_id: app.id,
+      clerk_user_id: userId,
+      from_status: null,
+      to_status: app.status,
+      source: "promotion",
+    });
 
     // Update lead status
     await supabase
