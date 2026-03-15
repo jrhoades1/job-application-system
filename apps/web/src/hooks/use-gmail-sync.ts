@@ -20,8 +20,13 @@ export function useGmailSync(options?: { onSynced?: () => void }) {
       const res = await fetch("/api/gmail/sync", { method: "POST" });
       if (res.ok) {
         const d = await res.json();
+        const parts = [];
+        if (d.inserted > 0) parts.push(`${d.inserted} new lead${d.inserted !== 1 ? "s" : ""}`);
+        if (d.confirmed > 0) parts.push(`${d.confirmed} application${d.confirmed !== 1 ? "s" : ""} confirmed`);
         toast.success(
-          `Sync complete — ${d.inserted} new lead${d.inserted !== 1 ? "s" : ""} found`
+          parts.length > 0
+            ? `Sync complete — ${parts.join(", ")}`
+            : "Sync complete — no new updates"
         );
         options?.onSynced?.();
       } else {

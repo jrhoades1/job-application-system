@@ -91,6 +91,92 @@ const REJECTION_BODY_PATTERNS = [
   /unfortunately.{0,40}(not able to|will not|won't|cannot).{0,40}(offer|move forward|proceed)/i,
 ];
 
+// Application confirmation patterns — these confirm an application was RECEIVED (not rejected)
+const CONFIRMATION_SUBJECT_PATTERNS = [
+  /application (received|confirmed|submitted)/i,
+  /we('ve| have) received your application/i,
+  /thank you for applying/i,
+  /thanks for (your )?application/i,
+  /your application (to|for|has been)/i,
+  /application (acknowledgement|confirmation)/i,
+];
+
+const CONFIRMATION_BODY_PATTERNS = [
+  /we('ve| have) received your application/i,
+  /your application (for|to) .{1,80}(has been |was )?(received|submitted|recorded)/i,
+  /thank you for (your interest|applying|submitting)/i,
+  /thanks for applying/i,
+  /application.{0,30}(successfully|has been) (submitted|received)/i,
+  /we('ll| will) (review|carefully review) your (application|qualifications|resume)/i,
+  /your (resume|application) (is|has been) (now )?in our system/i,
+];
+
+// Company aliases for fuzzy matching (mirrors pipeline_config.json)
+const COMPANY_ALIASES: Record<string, string[]> = {
+  meta: ["facebook", "meta platforms", "meta platforms inc"],
+  alphabet: ["google", "google llc", "google inc"],
+  amazon: ["amazon.com", "amazon.com inc", "amazon web services", "aws"],
+  microsoft: ["msft", "microsoft corporation", "microsoft corp"],
+  cognizant: ["cognizant technology solutions", "cognizant softvision"],
+  "unitedhealth group": ["uhg", "optum", "unitedhealthcare"],
+  "cvs health": ["cvs", "aetna", "cvs caremark"],
+  "elevance health": ["anthem", "anthem inc"],
+};
+
+function isConfirmationEmail(subject: string, body: string): boolean {
+  const subjectClean = subject.replace(/^(fw|fwd|re)\s*:\s*/gi, "").trim();
+
+  for (const pattern of CONFIRMATION_SUBJECT_PATTERNS) {
+    if (pattern.test(subjectClean)) return true;
+  }
+
+  const bodySnippet = body.slice(0, 3000);
+  for (const pattern of CONFIRMATION_BODY_PATTERNS) {
+    if (pattern.test(bodySnippet)) return true;
+  }
+
+  return false;
+}
+
+/** Extract company name from a confirmation email sender/subject/body */
+function extractConfirmationCompany(from: string, subject: string, body: string): string | null {
+  // Try "from" field first — most confirmation emails come from the company
+  // Format: "Company Name <noreply@company.com>" or "noreply@company.com"
+  const senderName = from.replace(/<.*>/, "").replace(/"/g, "").trim();
+  if (senderName && !/^(no-?reply|notifications?|careers?|jobs?|talent|recruiting|hr)$/i.test(senderName)) {
+    return senderName;
+  }
+
+  // Try domain from email address
+  const domainMatch = from.match(/@([a-zA-Z0-9.-]+)/);
+  if (domainMatch) {
+    const domain = domainMatch[1].replace(/\.(com|org|io|co|net)$/i, "").split(".").pop();
+    if (domain && domain.length > 2 && !/^(gmail|outlook|yahoo|hotmail|noreply|mail)$/i.test(domain)) {
+      return domain.charAt(0).toUpperCase() + domain.slice(1);
+    }
+  }
+
+  // Try subject: "Your application to [Company]" or "at [Company]"
+  const atMatch = subject.match(/(?:at|to|for|with)\s+([A-Z][A-Za-z0-9 &.,'-]+)/);
+  if (atMatch) return atMatch[1].trim();
+
+  return null;
+}
+
+/** Normalize company name for matching */
+function normalizeCompany(name: string): string {
+  let lower = name.toLowerCase().trim();
+  // Strip common suffixes
+  lower = lower.replace(/\s*(inc\.?|llc|ltd\.?|corp\.?|corporation|co\.?|group|plc)\s*$/i, "").trim();
+  // Check aliases
+  for (const [canonical, aliases] of Object.entries(COMPANY_ALIASES)) {
+    if (lower === canonical || aliases.some((a) => a === lower)) {
+      return canonical;
+    }
+  }
+  return lower;
+}
+
 function isRejectionEmail(subject: string, body: string): boolean {
   const subjectClean = subject.replace(/^(fw|fwd|re)\s*:\s*/gi, "").trim();
 
@@ -323,8 +409,17 @@ export async function POST() {
       return { score, red_flags: redFlags };
     }
 
+    // Load open applications for confirmation matching
+    const { data: openApps } = await supabase
+      .from("applications")
+      .select("id, company, role, status")
+      .eq("clerk_user_id", userId)
+      .is("deleted_at", null)
+      .in("status", ["evaluating", "pending_review", "ready_to_apply"]);
+
     let inserted = 0;
     let skipped = 0;
+    let confirmed = 0;
 
     // Resolve Gmail labels for tagging processed messages
     const processedLabelId = await getOrCreateLabel(tokens.access_token, "pipeline/processed");
@@ -353,6 +448,57 @@ export async function POST() {
       const body = extractEmailText(full);
 
       const emailDate = date ? new Date(date).toISOString() : new Date().toISOString();
+
+      // Check for application confirmation emails BEFORE job/rejection filtering
+      if (isConfirmationEmail(subject, body)) {
+        const confirmCompany = extractConfirmationCompany(from, subject, body);
+        if (confirmCompany && openApps && openApps.length > 0) {
+          const normalized = normalizeCompany(confirmCompany);
+          // Find matching application by company name
+          const match = openApps.find((a) => {
+            const appNorm = normalizeCompany(a.company);
+            return appNorm === normalized || appNorm.includes(normalized) || normalized.includes(appNorm);
+          });
+
+          if (match) {
+            const today = new Date().toISOString().split("T")[0];
+            const followUp = new Date();
+            followUp.setDate(followUp.getDate() + 7);
+
+            await supabase
+              .from("applications")
+              .update({
+                status: "applied",
+                applied_date: today,
+                follow_up_date: followUp.toISOString().split("T")[0],
+              })
+              .eq("id", match.id)
+              .eq("clerk_user_id", userId);
+
+            await supabase.from("application_status_history").insert({
+              application_id: match.id,
+              clerk_user_id: userId,
+              from_status: match.status,
+              to_status: "applied",
+              source: "email_detection",
+            });
+
+            // Remove from open apps so we don't double-match
+            const idx = openApps.findIndex((a) => a.id === match.id);
+            if (idx !== -1) openApps.splice(idx, 1);
+
+            confirmed++;
+            existingUids.add(msg.id);
+            if (processedLabelId) labelMessage(tokens.access_token, msg.id, processedLabelId).catch(() => {});
+            continue;
+          }
+        }
+        // If no match found, fall through to normal processing
+        existingUids.add(msg.id);
+        skipped++;
+        if (processedLabelId) labelMessage(tokens.access_token, msg.id, processedLabelId).catch(() => {});
+        continue;
+      }
 
       if (!isJobEmail(from, subject, body)) {
         // Store as auto_skipped so user can see what was caught — not silently dropped
@@ -548,7 +694,8 @@ export async function POST() {
     return NextResponse.json({
       found: messages.length,
       inserted,
-      skipped: messages.length - inserted,
+      confirmed,
+      skipped: messages.length - inserted - confirmed,
     });
   } catch (err) {
     console.error("Gmail sync error:", err);
