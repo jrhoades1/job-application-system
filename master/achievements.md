@@ -20,6 +20,9 @@
 - Managed managers with direct-line reporting at MedQuest (first time) and Cognizant [learned: 2026-03-04]
 - Mentored engineers on agile best practices, increasing team velocity by 15% within 6 months
 - Cultivated high-performing culture delivering 4 product launches annually
+- Presented technology strategy and roadmap to the board of directors (ilumed) [learned: 2026-03-15]
+- Regular C-suite reporting on engineering KPIs and technical progress (ilumed) [learned: 2026-03-15]
+- Advised board on technical due diligence for partnerships and acquisitions (ilumed) [learned: 2026-03-15]
 
 ## AI / ML Integration
 
