@@ -12,6 +12,7 @@ import {
 import { SCORE_CONFIG } from "@/lib/constants";
 import type { PipelineLeadRow } from "@/types";
 import { ExternalLink } from "lucide-react";
+import { useMemo } from "react";
 
 /** Parse score_details safely */
 function parseScoreDetails(raw: Record<string, unknown> | null) {
@@ -36,6 +37,46 @@ function parseScoreDetails(raw: Record<string, unknown> | null) {
     partials: (parsed.partials as string[]) ?? [],
     gaps: (parsed.gaps as string[]) ?? [],
   };
+}
+
+/** Clean raw email/HTML content into readable plain text */
+function cleanDescription(raw: string): string {
+  let text = raw;
+
+  // Decode URL-encoded content (e.g. %20, %3C)
+  try {
+    if (/%[0-9A-Fa-f]{2}/.test(text)) {
+      text = decodeURIComponent(text.replace(/\+/g, " "));
+    }
+  } catch {
+    // partial encoding — ignore
+  }
+
+  // Decode HTML entities
+  text = text
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&#\d+;/g, "");
+
+  // Strip HTML tags but preserve block-level breaks
+  text = text
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/?(p|div|h[1-6]|li|tr)[^>]*>/gi, "\n")
+    .replace(/<[^>]+>/g, "");
+
+  // Remove long URLs (tracking links, etc.)
+  text = text.replace(/https?:\/\/\S{80,}/g, "[link]");
+
+  // Collapse excessive whitespace
+  text = text.replace(/[ \t]+/g, " ");
+  text = text.replace(/\n{3,}/g, "\n\n");
+  text = text.trim();
+
+  return text;
 }
 
 interface LeadDetailSheetProps {
@@ -68,6 +109,10 @@ export function LeadDetailSheet({
     : null;
 
   const details = parseScoreDetails(lead.score_details);
+  const cleanedDescription = useMemo(
+    () => (lead.description_text ? cleanDescription(lead.description_text) : null),
+    [lead.description_text]
+  );
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -228,11 +273,11 @@ export function LeadDetailSheet({
           ) : null}
 
           {/* Job description */}
-          {lead.description_text ? (
+          {cleanedDescription ? (
             <div>
               <h4 className="text-sm font-medium mb-2">Job Description</h4>
               <div className="rounded-lg border p-4 text-sm whitespace-pre-wrap leading-relaxed max-h-[50vh] overflow-y-auto">
-                {lead.description_text}
+                {cleanedDescription}
               </div>
             </div>
           ) : (
