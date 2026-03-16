@@ -13,8 +13,8 @@ const JD_EXTRACTORS: {
   companySelectors: string[];
 }[] = [
   {
-    // LinkedIn job pages
-    pattern: /linkedin\.com\/(jobs\/view|jobs\/collections)/i,
+    // LinkedIn job pages (view, search results with panel, collections)
+    pattern: /linkedin\.com\/jobs\//i,
     selectors: [
       ".show-more-less-html__markup",
       ".description__text",
@@ -201,6 +201,21 @@ export function attemptJDCapture(): void {
     // Extension not configured or API error — fail silently
   });
 }
+
+/**
+ * Watch for SPA navigation (LinkedIn, Indeed, etc. change URLs without
+ * full page reloads). Re-attempt capture when URL changes.
+ */
+let lastUrl = window.location.href;
+const urlObserver = new MutationObserver(() => {
+  const currentUrl = window.location.href;
+  if (currentUrl !== lastUrl) {
+    lastUrl = currentUrl;
+    // Wait for new content to render
+    setTimeout(() => attemptJDCapture(), 2000);
+  }
+});
+urlObserver.observe(document.body, { childList: true, subtree: true });
 
 function showCaptureToast(message: string, type: "success" | "info"): void {
   const colors = { success: "#22c55e", info: "#3b82f6" };
