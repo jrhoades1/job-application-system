@@ -16,7 +16,7 @@ export { scoreRequirement } from "./score-requirement";
 export type { Achievement, RequirementMatch } from "./score-requirement";
 
 export { calculateOverallScore } from "./calculate-score";
-export type { OverallScore } from "./calculate-score";
+export type { OverallScore, ScoreSource } from "./calculate-score";
 
 export { rankJobs } from "./rank-jobs";
 export type { ScoredLead } from "./rank-jobs";

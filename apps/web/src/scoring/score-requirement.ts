@@ -91,14 +91,14 @@ export function scoreRequirement(
     }
   }
 
-  if (bestScore >= 0.35) {
+  if (bestScore >= 0.5) {
     return {
       requirement,
       match_type: "strong",
       evidence: bestMatch!.evidence,
       category: bestMatch!.category,
     };
-  } else if (bestScore >= 0.2) {
+  } else if (bestScore >= 0.25) {
     return {
       requirement,
       match_type: "partial",

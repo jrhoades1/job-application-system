@@ -379,13 +379,14 @@ export async function POST() {
       if (digestEmail) {
         const allReqs = requirementsFromRoleTitle(role);
         const matches = allReqs.map((r) => scoreRequirement(r, achievementsMap));
-        const score = calculateOverallScore(matches);
+        const score = calculateOverallScore(matches, "estimated");
         return { score, red_flags: [] as string[] };
       }
 
       const reqs = extractRequirements(descriptionText);
       let allReqs = [...reqs.hard_requirements, ...reqs.preferred];
       let redFlags = reqs.red_flags;
+      let scoreSource: "scored" | "estimated" = "scored";
 
       // AI fallback: if regex extraction found nothing, use Haiku to parse
       if (allReqs.length === 0 && descriptionText.length > 50) {
@@ -402,13 +403,14 @@ export async function POST() {
         }
       }
 
-      // Last resort: infer requirements from role title
+      // Last resort: infer requirements from role title — mark as estimated
       if (allReqs.length === 0 && role) {
         allReqs = requirementsFromRoleTitle(role);
+        scoreSource = "estimated";
       }
 
       const matches = allReqs.map((r) => scoreRequirement(r, achievementsMap));
-      const score = calculateOverallScore(matches);
+      const score = calculateOverallScore(matches, scoreSource);
       return { score, red_flags: redFlags };
     }
 
@@ -598,6 +600,7 @@ export async function POST() {
               strong_count: leadScore.score.strong_count,
               partial_count: leadScore.score.partial_count,
               gap_count: leadScore.score.gap_count,
+              score_source: leadScore.score.score_source,
             },
             red_flags: leadScore.red_flags,
             created_at: new Date().toISOString(),
@@ -664,6 +667,7 @@ export async function POST() {
           strong_count: singleScore.score.strong_count,
           partial_count: singleScore.score.partial_count,
           gap_count: singleScore.score.gap_count,
+          score_source: singleScore.score.score_source,
         },
         red_flags: singleScore.red_flags,
         created_at: new Date().toISOString(),

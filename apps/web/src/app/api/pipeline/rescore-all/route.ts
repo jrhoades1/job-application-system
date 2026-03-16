@@ -107,11 +107,13 @@ export async function POST(req: Request) {
         const digest = isDigestLead(lead.source_platform, text);
 
         let allReqs: string[] = [];
+        let scoreSource: "scored" | "estimated" = "scored";
 
         if (digest) {
           if (lead.role) {
             allReqs = requirementsFromRoleTitle(lead.role);
           }
+          scoreSource = "estimated";
         } else {
           const reqs = extractRequirements(text);
           allReqs = [...reqs.hard_requirements, ...reqs.preferred];
@@ -127,6 +129,7 @@ export async function POST(req: Request) {
 
           if (allReqs.length === 0 && lead.role) {
             allReqs = requirementsFromRoleTitle(lead.role);
+            scoreSource = "estimated";
           }
         }
 
@@ -138,7 +141,7 @@ export async function POST(req: Request) {
         const matches = allReqs.map((r) =>
           scoreRequirement(r, achievementsMap)
         );
-        const score = calculateOverallScore(matches);
+        const score = calculateOverallScore(matches, scoreSource);
 
         const strengths = matches
           .filter((m) => m.match_type === "strong")
@@ -159,6 +162,7 @@ export async function POST(req: Request) {
               strong_count: score.strong_count,
               partial_count: score.partial_count,
               gap_count: score.gap_count,
+              score_source: score.score_source,
               strengths,
               partials,
               gaps,

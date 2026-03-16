@@ -37,6 +37,7 @@ function parseScoreDetails(raw: Record<string, unknown> | null) {
     strengths: (parsed.strengths as string[]) ?? [],
     partials: (parsed.partials as string[]) ?? [],
     gaps: (parsed.gaps as string[]) ?? [],
+    score_source: (parsed.score_source as "scored" | "estimated") ?? "scored",
   };
 }
 
@@ -169,8 +170,11 @@ export function LeadDetailSheet({
                 className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${scoreCfg.color}`}
               >
                 {scoreCfg.label}
-                {lead.score_match_percentage != null &&
-                  ` ${lead.score_match_percentage}%`}
+                {details?.score_source === "estimated"
+                  ? " ~"
+                  : lead.score_match_percentage != null
+                    ? ` ${lead.score_match_percentage}%`
+                    : ""}
               </span>
             )}
           </div>
@@ -230,6 +234,11 @@ export function LeadDetailSheet({
           {details && (details.strengths.length > 0 || details.partials.length > 0 || details.gaps.length > 0) ? (
             <div className="space-y-4">
               <h4 className="text-sm font-medium">Score Breakdown</h4>
+              {details.score_source === "estimated" && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50/50 px-3 py-2 text-xs text-amber-800">
+                  Estimated from role title — capture the full JD for an accurate score.
+                </div>
+              )}
 
               {/* Summary bar */}
               <div className="flex gap-4 text-sm">

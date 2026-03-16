@@ -33,6 +33,7 @@ function parseScoreDetails(raw: Record<string, unknown> | null) {
     strengths: (parsed.strengths as string[]) ?? [],
     partials: (parsed.partials as string[]) ?? [],
     gaps: (parsed.gaps as string[]) ?? [],
+    score_source: (parsed.score_source as "scored" | "estimated") ?? "scored",
   };
 }
 
@@ -62,6 +63,11 @@ function ScoreTooltipBody({
 
   return (
     <div className="space-y-2 py-1 text-xs">
+      {details?.score_source === "estimated" && (
+        <div className="text-muted-foreground italic">
+          Estimated from role title — no full JD available
+        </div>
+      )}
       {details && details.strengths.length > 0 && (
         <div>
           <div className="font-medium text-green-700 mb-0.5">
@@ -161,8 +167,11 @@ export function LeadCard({
                       className={`inline-flex cursor-help rounded-full px-2 py-0.5 text-xs font-medium shrink-0 ${scoreCfg.color}`}
                     >
                       {scoreCfg.label}
-                      {lead.score_match_percentage != null &&
-                        ` ${lead.score_match_percentage}%`}
+                      {details?.score_source === "estimated"
+                        ? " ~"
+                        : lead.score_match_percentage != null
+                          ? ` ${lead.score_match_percentage}%`
+                          : ""}
                     </span>
                   </TooltipTrigger>
                   <TooltipContent

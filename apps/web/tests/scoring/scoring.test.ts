@@ -34,12 +34,12 @@ const SAMPLE_ACHIEVEMENTS = {
 };
 
 describe("scoreRequirement", () => {
-  it("strong match — team building", () => {
+  it("partial match — team building (generic overlap)", () => {
     const result = scoreRequirement(
       "Experience building and managing engineering teams from scratch",
       SAMPLE_ACHIEVEMENTS
     );
-    expect(result.match_type).toBe("strong");
+    expect(result.match_type).toBe("partial");
     expect(result.evidence).toBeTruthy();
   });
 

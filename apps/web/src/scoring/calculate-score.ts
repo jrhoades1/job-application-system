@@ -6,12 +6,15 @@
 
 import type { RequirementMatch } from "./score-requirement";
 
+export type ScoreSource = "scored" | "estimated";
+
 export interface OverallScore {
   overall: "strong" | "good" | "stretch" | "long_shot";
   match_percentage: number;
   strong_count: number;
   partial_count: number;
   gap_count: number;
+  score_source: ScoreSource;
 }
 
 /**
@@ -22,7 +25,8 @@ export interface OverallScore {
  * - Long shot: below 40%, multiple gaps
  */
 export function calculateOverallScore(
-  matches: RequirementMatch[]
+  matches: RequirementMatch[],
+  source: ScoreSource = "scored"
 ): OverallScore {
   if (matches.length === 0) {
     return {
@@ -31,6 +35,7 @@ export function calculateOverallScore(
       strong_count: 0,
       partial_count: 0,
       gap_count: 0,
+      score_source: source,
     };
   }
 
@@ -53,11 +58,18 @@ export function calculateOverallScore(
     overall = "long_shot";
   }
 
+  // Estimated scores (from role-title inference without a real JD) are capped
+  // at "good" — we don't have enough signal to claim "strong" match.
+  if (source === "estimated" && overall === "strong") {
+    overall = "good";
+  }
+
   return {
     overall,
     match_percentage: Math.round(matchPct * 1000) / 10,
     strong_count: strong.length,
     partial_count: partial.length,
     gap_count: gaps.length,
+    score_source: source,
   };
 }

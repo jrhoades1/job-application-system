@@ -139,12 +139,14 @@ export async function POST(req: Request) {
 
     let allReqs: string[] = [];
     let redFlags: string[] = [];
+    let scoreSource: "scored" | "estimated" = "scored";
 
     if (digest) {
       // Digest emails: use role-title inference only (no AI on digest text)
       if (lead.role) {
         allReqs = requirementsFromRoleTitle(lead.role);
       }
+      scoreSource = "estimated";
     } else {
       // Single JD: try regex first, fall back to AI
       const reqs = extractRequirements(text);
@@ -164,6 +166,7 @@ export async function POST(req: Request) {
       // Last resort: infer requirements from role title (free, no AI call)
       if (allReqs.length === 0 && lead.role) {
         allReqs = requirementsFromRoleTitle(lead.role);
+        scoreSource = "estimated";
       }
     }
 
@@ -177,7 +180,7 @@ export async function POST(req: Request) {
     const matches = allReqs.map((r) =>
       scoreRequirement(r, achievementsMap)
     );
-    const score = calculateOverallScore(matches);
+    const score = calculateOverallScore(matches, scoreSource);
 
     // Build rich score_details with per-requirement breakdown
     const strengths = matches
@@ -199,6 +202,7 @@ export async function POST(req: Request) {
           strong_count: score.strong_count,
           partial_count: score.partial_count,
           gap_count: score.gap_count,
+          score_source: score.score_source,
           strengths,
           partials,
           gaps,
