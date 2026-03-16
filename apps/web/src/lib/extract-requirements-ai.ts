@@ -9,6 +9,15 @@ interface AIExtractedRequirements {
 // Role-title keyword → implied requirements (last-resort fallback when
 // email text has no actual job description content)
 const ROLE_REQUIREMENT_MAP: [RegExp, string[]][] = [
+  [/\b(?:chief|c[a-z]o|cto|cio|ciso|cdo|cao)\b/i, [
+    "15+ years experience in relevant domain",
+    "Executive leadership and organizational strategy",
+    "P&L or budget ownership at scale",
+    "Board and investor communication",
+    "Cross-functional team leadership across multiple departments",
+    "Vendor and partner relationship management",
+    "Technology vision and roadmap at enterprise scale",
+  ]],
   [/\b(?:vp|vice president|svp|evp)\b/i, [
     "10+ years experience in relevant domain",
     "Executive leadership and strategic planning",

@@ -64,6 +64,16 @@ export function calculateOverallScore(
     overall = "good";
   }
 
+  // With fewer than 3 requirements the score is statistically meaningless —
+  // cap at "stretch" for estimated, "good" for scored.
+  if (total < 3) {
+    if (source === "estimated" && (overall === "strong" || overall === "good")) {
+      overall = "stretch";
+    } else if (overall === "strong") {
+      overall = "good";
+    }
+  }
+
   return {
     overall,
     match_percentage: Math.round(matchPct * 1000) / 10,
