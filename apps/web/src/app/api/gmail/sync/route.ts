@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedClient } from "@/lib/supabase";
 import { extractJobsFromEmail, type ExtractedJob } from "@/lib/extract-jobs";
+import { scrapeJobDescription } from "@/lib/scrape-job-url";
 import {
   getGmailTokens,
   listGmailMessages,
@@ -564,8 +565,28 @@ export async function POST() {
           if (existingUids.has(leadUid)) continue;
           if (URL_LIKE_COMPANY.test(job.company.trim())) continue;
 
-          const leadText = job.description || `${job.role} at ${job.company}${job.location ? ` — ${job.location}` : ""}`;
-          const leadScore = await scoreLead(leadText, job.role, job.company, { digestEmail: true });
+          // Try to scrape the actual job posting for a full description
+          let leadText = job.description || "";
+          let careerPageUrl = job.url ?? null;
+          let compensation = job.salary ?? null;
+
+          if (job.url && !leadText) {
+            try {
+              const scraped = await scrapeJobDescription(job.url);
+              if (scraped?.description) {
+                leadText = scraped.description;
+              }
+            } catch {
+              // Scraping failed — fall back to email snippet
+            }
+          }
+
+          if (!leadText) {
+            leadText = `${job.role} at ${job.company}${job.location ? ` — ${job.location}` : ""}${compensation ? ` | ${compensation}` : ""}`;
+          }
+
+          const isDigest = !leadText || leadText.length < 100;
+          const leadScore = await scoreLead(leadText, job.role, job.company, { digestEmail: isDigest });
 
           await supabase.from("pipeline_leads").insert({
             clerk_user_id: userId,
@@ -577,6 +598,8 @@ export async function POST() {
             email_date: emailDate,
             raw_subject: subject,
             description_text: leadText,
+            career_page_url: careerPageUrl,
+            compensation,
             status: "pending_review",
             score_overall: leadScore.score.overall,
             score_match_percentage: leadScore.score.match_percentage,

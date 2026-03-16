@@ -5,6 +5,8 @@ export interface ExtractedJob {
   role: string;
   location?: string;
   description?: string;
+  url?: string;
+  salary?: string;
 }
 
 /**
@@ -25,7 +27,13 @@ export async function extractJobsFromEmail(
       messages: [
         {
           role: "user",
-          content: `Extract ALL job listings from this ${platform ?? "job alert"} email. Return a JSON array of objects with "company", "role", and optionally "location" and "description" fields.
+          content: `Extract ALL job listings from this ${platform ?? "job alert"} email. Return a JSON array of objects with these fields:
+- "company" (required): the company name
+- "role" (required): the job title
+- "location" (optional): city/state or "Remote"
+- "salary" (optional): compensation if mentioned
+- "description" (optional): ALL available details about the job from the email
+- "url" (optional): the direct link to view or apply for this specific job
 
 IMPORTANT RULES:
 - Every job MUST have a real company name. Look for company names in the email body, links, sender info, or any context clues.
@@ -33,7 +41,8 @@ IMPORTANT RULES:
 - NEVER extract URL protocols (https, http, www) or URL fragments as company names. If you only see a URL with no company context, SKIP that job.
 - If you truly cannot determine the company name for a job, SKIP that job entirely — do not include it in the array.
 - For forwarded emails, the company name is often in the original email body, not the subject.
-- For the "description" field: extract ALL available details about the job from the email — title, salary/compensation, requirements, qualifications, responsibilities, skills, benefits, employment type, etc. Include everything relevant to the specific job posting. If the email only has a title and company, omit the description field.
+- For "url": extract the "View Details", "Apply", or job-specific link for each listing. These are usually href attributes in the HTML. Include the full URL even if it's a tracking redirect.
+- For "description": extract ALL available details (salary, requirements, skills, etc.). If the email only has title/company/link, omit it.
 
 Subject: ${subject}
 
@@ -41,7 +50,7 @@ Email body:
 ${truncatedBody}
 
 Return ONLY a JSON array, no other text. Example:
-[{"company": "Acme Corp", "role": "Software Engineer", "location": "Remote", "description": "Software Engineer role requiring 5+ years experience with Python and AWS. $120K-$150K. Full-time, remote. Must have CS degree."}]
+[{"company": "Acme Corp", "role": "Software Engineer", "location": "Remote", "salary": "$120K-$150K", "url": "https://example.com/job/123", "description": "Requires 5+ years Python and AWS..."}]
 
 If you cannot extract any jobs with real company names, return an empty array: []`,
         },
