@@ -91,6 +91,26 @@ export async function markApplied(applicationId: string): Promise<boolean> {
   }
 }
 
+export interface LeadNeedingJD {
+  id: string;
+  company: string;
+  role: string;
+  location: string | null;
+  career_page_url: string | null;
+  search_url: string;
+}
+
+export async function fetchLeadsNeedingJD(): Promise<LeadNeedingJD[]> {
+  try {
+    const res = await apiFetch("/api/extension/leads-needing-jd");
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.leads ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export interface CaptureJDResult {
   matched: boolean;
   lead_id?: string;

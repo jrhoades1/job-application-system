@@ -1,6 +1,6 @@
 /** Background service worker — handles messaging between popup/content scripts and API */
 
-import { matchUrl, markApplied, captureJobDescription } from "@/lib/api-client";
+import { matchUrl, markApplied, captureJobDescription, fetchLeadsNeedingJD } from "@/lib/api-client";
 import { getProfile } from "@/lib/profile-store";
 
 // Message types
@@ -9,7 +9,124 @@ export type Message =
   | { type: "MATCH_URL"; url: string }
   | { type: "MARK_APPLIED"; applicationId: string }
   | { type: "FILL_FORM" }
-  | { type: "CAPTURE_JD"; url: string; description: string; title?: string; company?: string };
+  | { type: "CAPTURE_JD" }
+  | { type: "BULK_CAPTURE_START" }
+  | { type: "BULK_CAPTURE_STATUS" }
+  | { type: "BULK_CAPTURE_STOP" };
+
+// Bulk capture state
+let bulkCapture = {
+  running: false,
+  total: 0,
+  processed: 0,
+  captured: 0,
+  failed: 0,
+  currentLead: "" as string,
+};
+
+/** Wait ms milliseconds */
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+/** Wait for a tab to finish loading */
+function waitForTab(tabId: number, timeoutMs = 15000): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      chrome.tabs.onUpdated.removeListener(listener);
+      reject(new Error("Tab load timeout"));
+    }, timeoutMs);
+
+    function listener(id: number, info: chrome.tabs.TabChangeInfo) {
+      if (id === tabId && info.status === "complete") {
+        clearTimeout(timer);
+        chrome.tabs.onUpdated.removeListener(listener);
+        resolve();
+      }
+    }
+    chrome.tabs.onUpdated.addListener(listener);
+  });
+}
+
+/** Run the bulk capture process */
+async function runBulkCapture() {
+  bulkCapture = { running: true, total: 0, processed: 0, captured: 0, failed: 0, currentLead: "Fetching leads..." };
+
+  const leads = await fetchLeadsNeedingJD();
+  if (leads.length === 0) {
+    bulkCapture = { ...bulkCapture, running: false, currentLead: "No leads need JDs" };
+    return;
+  }
+
+  bulkCapture.total = leads.length;
+
+  // Create a background tab for crawling
+  const tab = await chrome.tabs.create({ url: "about:blank", active: false });
+  if (!tab.id) {
+    bulkCapture = { ...bulkCapture, running: false, currentLead: "Failed to create tab" };
+    return;
+  }
+  const tabId = tab.id;
+
+  for (const lead of leads) {
+    if (!bulkCapture.running) break;
+
+    bulkCapture.currentLead = `${lead.company} — ${lead.role}`;
+    const url = lead.career_page_url || lead.search_url;
+
+    try {
+      // Navigate to the job search URL
+      await chrome.tabs.update(tabId, { url });
+      await waitForTab(tabId);
+      // Extra wait for SPA content to render
+      await sleep(3000);
+
+      // Extract JD from the page
+      let extracted;
+      try {
+        extracted = await chrome.tabs.sendMessage(tabId, { type: "DO_CAPTURE_JD" });
+      } catch {
+        // Content script not loaded — wait and retry
+        await sleep(2000);
+        try {
+          extracted = await chrome.tabs.sendMessage(tabId, { type: "DO_CAPTURE_JD" });
+        } catch {
+          bulkCapture.failed++;
+          bulkCapture.processed++;
+          continue;
+        }
+      }
+
+      if (extracted?.description && extracted.description.length > 50) {
+        const result = await captureJobDescription(
+          extracted.url || url,
+          extracted.description,
+          extracted.title || lead.role,
+          extracted.company || lead.company
+        );
+        if (result?.matched) {
+          bulkCapture.captured++;
+        } else {
+          bulkCapture.failed++;
+        }
+      } else {
+        bulkCapture.failed++;
+      }
+    } catch {
+      bulkCapture.failed++;
+    }
+
+    bulkCapture.processed++;
+
+    // Small delay between requests to be polite to LinkedIn
+    if (bulkCapture.running) await sleep(2000);
+  }
+
+  // Clean up
+  try { chrome.tabs.remove(tabId); } catch { /* tab may already be closed */ }
+  bulkCapture.running = false;
+  bulkCapture.currentLead = "Done";
+}
 
 chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) => {
   handleMessage(message).then(sendResponse);
@@ -50,6 +167,18 @@ async function handleMessage(message: Message): Promise<unknown> {
         extracted.company
       );
     }
+
+    case "BULK_CAPTURE_START":
+      if (bulkCapture.running) return { error: "Already running" };
+      runBulkCapture(); // fire and forget
+      return { started: true };
+
+    case "BULK_CAPTURE_STATUS":
+      return { ...bulkCapture };
+
+    case "BULK_CAPTURE_STOP":
+      bulkCapture.running = false;
+      return { stopped: true };
 
     default:
       return { error: "Unknown message type" };
