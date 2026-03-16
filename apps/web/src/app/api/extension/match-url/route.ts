@@ -24,7 +24,14 @@ export async function GET(req: Request) {
       return NextResponse.json({ match: exact });
     }
 
-    // Try partial domain match — extract domain from URL and match
+    // Try partial URL match — but skip generic job board domains
+    // (they'd match every application sourced from that board)
+    const GENERIC_DOMAINS = [
+      "linkedin.com", "indeed.com", "glassdoor.com", "ziprecruiter.com",
+      "dice.com", "google.com", "monster.com", "careerbuilder.com",
+      "joinhandshake.com", "swooped.co",
+    ];
+
     let domain: string | null = null;
     try {
       domain = new URL(url).hostname.replace(/^www\./, "");
@@ -32,7 +39,8 @@ export async function GET(req: Request) {
       // invalid URL
     }
 
-    if (domain) {
+    if (domain && !GENERIC_DOMAINS.some((g) => domain!.endsWith(g))) {
+      // For company career pages, match by full URL path to be precise
       const { data: partial } = await supabase
         .from("applications")
         .select("id, company, role, status")
