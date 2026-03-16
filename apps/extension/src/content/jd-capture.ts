@@ -117,7 +117,7 @@ const JD_EXTRACTORS: {
 
 /** Pages we should never try to capture JDs from */
 const SKIP_PATTERNS = [
-  /\/(login|signin|signup|register|auth|account|settings|profile|search|feed)\b/i,
+  /\/(login|signin|signup|register|auth|account|settings|profile|feed)\b/i,
   /\/(apply|application)\//i, // Application form pages, not job postings
   /mail\.google\.com/i,
   /github\.com/i,
