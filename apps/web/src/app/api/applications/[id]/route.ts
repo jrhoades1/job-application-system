@@ -1,16 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedClient } from "@/lib/supabase";
-import { getExtensionClient } from "@/lib/extension-auth";
 import { updateApplicationSchema } from "@/schemas/application";
-
-/** Authenticate via Clerk session or extension Bearer token */
-async function authenticate(req: Request) {
-  const authHeader = req.headers.get("authorization");
-  if (authHeader?.startsWith("Bearer ")) {
-    return getExtensionClient(req);
-  }
-  return getAuthenticatedClient();
-}
 
 export async function GET(
   _req: Request,
@@ -43,7 +33,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { supabase, userId } = await authenticate(req);
+    const { supabase, userId } = await getAuthenticatedClient();
     const { id } = await params;
     const body = await req.json();
 

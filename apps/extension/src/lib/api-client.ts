@@ -81,9 +81,9 @@ export async function matchUrl(url: string): Promise<MatchedApplication | null> 
 
 export async function markApplied(applicationId: string): Promise<boolean> {
   try {
-    const res = await apiFetch(`/api/applications/${applicationId}`, {
-      method: "PUT",
-      body: JSON.stringify({ status: "applied" }),
+    const res = await apiFetch("/api/extension/mark-applied", {
+      method: "POST",
+      body: JSON.stringify({ application_id: applicationId }),
     });
     return res.ok;
   } catch {
