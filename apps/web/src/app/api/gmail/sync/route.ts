@@ -15,6 +15,7 @@ import {
 import {
   extractRequirements,
   scoreRequirement,
+  scoreRequirementsWithAI,
   calculateOverallScore,
 } from "@/scoring";
 import {
@@ -378,7 +379,15 @@ export async function POST() {
       // red flags like "content is truncated". Use role-title inference instead.
       if (digestEmail) {
         const allReqs = requirementsFromRoleTitle(role);
-        const matches = allReqs.map((r) => scoreRequirement(r, achievementsMap));
+        let matches = await scoreRequirementsWithAI(allReqs, achievementsMap, {
+          role,
+          company,
+        }).catch(() => []);
+
+        if (matches.length === 0) {
+          matches = allReqs.map((r) => scoreRequirement(r, achievementsMap));
+        }
+
         const score = calculateOverallScore(matches, "estimated");
         return { score, red_flags: [] as string[] };
       }
@@ -409,7 +418,16 @@ export async function POST() {
         scoreSource = "estimated";
       }
 
-      const matches = allReqs.map((r) => scoreRequirement(r, achievementsMap));
+      // AI scoring with fallback to word-overlap
+      let matches = await scoreRequirementsWithAI(allReqs, achievementsMap, {
+        role,
+        company,
+      }).catch(() => []);
+
+      if (matches.length === 0) {
+        matches = allReqs.map((r) => scoreRequirement(r, achievementsMap));
+      }
+
       const score = calculateOverallScore(matches, scoreSource);
       return { score, red_flags: redFlags };
     }

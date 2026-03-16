@@ -8,6 +8,7 @@ import {
 import {
   extractRequirements,
   scoreRequirement,
+  scoreRequirementsWithAI,
   calculateOverallScore,
 } from "@/scoring";
 
@@ -177,9 +178,17 @@ export async function POST(req: Request) {
       });
     }
 
-    const matches = allReqs.map((r) =>
-      scoreRequirement(r, achievementsMap)
-    );
+    // AI scoring with fallback to word-overlap
+    let matches = await scoreRequirementsWithAI(allReqs, achievementsMap, {
+      role: lead.role ?? undefined,
+      company: lead.company ?? undefined,
+    }).catch(() => []);
+
+    if (matches.length === 0) {
+      // Fallback: word-overlap scorer
+      matches = allReqs.map((r) => scoreRequirement(r, achievementsMap));
+    }
+
     const score = calculateOverallScore(matches, scoreSource);
 
     // Build rich score_details with per-requirement breakdown

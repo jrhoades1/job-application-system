@@ -15,6 +15,8 @@ export type { ExtractedRequirements } from "./extract-requirements";
 export { scoreRequirement } from "./score-requirement";
 export type { Achievement, RequirementMatch } from "./score-requirement";
 
+export { scoreRequirementsWithAI } from "./score-requirements-ai";
+
 export { calculateOverallScore } from "./calculate-score";
 export type { OverallScore, ScoreSource } from "./calculate-score";
 
