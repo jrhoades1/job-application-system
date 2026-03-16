@@ -255,6 +255,7 @@ export interface CaptureResult {
   title?: string;
   company?: string;
   error?: string;
+  _debug_pageTitle?: string;
 }
 
 /**
@@ -288,24 +289,34 @@ export function attemptJDCapture(): CaptureResult {
   let title = extractFirst(extractor.titleSelectors) ?? undefined;
   let company = extractFirst(extractor.companySelectors) ?? undefined;
 
-  // Fallback: extract title from the first h1 or h2 on the page
-  if (!title) {
-    const h1 = document.querySelector("h1");
-    if (h1) {
-      const h1Text = h1.textContent?.trim() ?? "";
-      if (h1Text.length > 2 && h1Text.length < 150) title = h1Text;
+  // Fallback: extract from page title (most reliable on LinkedIn)
+  const pageTitle = document.title;
+  const parsed = parsePageTitle(pageTitle);
+  if (!title && parsed.title) title = parsed.title;
+  if (!company && parsed.company) company = parsed.company;
+
+  // Fallback: try og:title meta tag
+  if (!title || !company) {
+    const ogTitle = document.querySelector('meta[property="og:title"]')?.getAttribute("content") ?? "";
+    if (ogTitle) {
+      const ogParsed = parsePageTitle(ogTitle);
+      if (!title && ogParsed.title) title = ogParsed.title;
+      if (!company && ogParsed.company) company = ogParsed.company;
     }
   }
 
-  // Fallback: extract title and company from page title
-  // LinkedIn format: "Company hiring Role in Location | LinkedIn"
-  // ZipRecruiter: "Role - Company | ZipRecruiter"
-  if (!title || !company) {
-    const pageTitle = document.title;
-    const parsed = parsePageTitle(pageTitle);
-    if (!title && parsed.title) title = parsed.title;
-    if (!company && parsed.company) company = parsed.company;
+  // Fallback: find h1 elements (skip generic ones)
+  if (!title) {
+    const h1s = document.querySelectorAll("h1, h2");
+    for (const h of h1s) {
+      const text = h.textContent?.trim() ?? "";
+      if (text.length > 3 && text.length < 150 && !/jobs?\s+(based|search|results|alert)/i.test(text)) {
+        title = text;
+        break;
+      }
+    }
   }
 
-  return { url, description: cleaned, title, company };
+  // Debug: include page title in result so we can see what we're working with
+  return { url, description: cleaned, title, company, _debug_pageTitle: pageTitle };
 }

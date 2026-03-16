@@ -72,7 +72,8 @@ async function init() {
       status.classList.remove("hidden");
       btn.textContent = "Capture Job Description";
     } else if (response?.matched) {
-      status.textContent = `Captured for ${response.company} — ${response.role}`;
+      const debug = response._page_title ? ` [title: "${response._extracted_title}", co: "${response._extracted_company}"]` : "";
+      status.textContent = `Captured for ${response.company} — ${response.role}${debug}`;
       status.style.color = "#22c55e";
       status.classList.remove("hidden");
       btn.textContent = "Captured!";

@@ -43,12 +43,20 @@ async function handleMessage(message: Message): Promise<unknown> {
       const extracted = await chrome.tabs.sendMessage(captureTab.id, { type: "DO_CAPTURE_JD" });
       if (extracted?.error) return { error: extracted.error };
       if (!extracted?.description) return { error: "No job description found on this page" };
-      return await captureJobDescription(
+      console.log("[JD Capture] Extracted:", {
+        title: extracted.title,
+        company: extracted.company,
+        pageTitle: extracted._debug_pageTitle,
+        descLength: extracted.description?.length,
+      });
+      const result = await captureJobDescription(
         extracted.url,
         extracted.description,
         extracted.title,
         extracted.company
       );
+      // Pass through debug info
+      return { ...result, _extracted_title: extracted.title, _extracted_company: extracted.company, _page_title: extracted._debug_pageTitle };
     }
 
     default:
