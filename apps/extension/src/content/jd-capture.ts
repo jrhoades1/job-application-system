@@ -138,24 +138,65 @@ function shouldSkip(url: string): boolean {
 function extractText(selectors: string[]): string | null {
   // Try explicit selectors first
   for (const selector of selectors) {
-    const el = document.querySelector(selector);
-    if (el) {
+    const els = document.querySelectorAll(selector);
+    for (const el of els) {
       const text = el.textContent?.trim() ?? "";
-      if (text.length > 50) return text;
+      if (text.length > 100) return text;
     }
   }
 
-  // Fallback: find "About the job" or "Job description" heading and grab sibling/parent content
-  const headings = document.querySelectorAll("h2, h3, h4, [role='heading']");
-  for (const h of headings) {
-    const text = h.textContent?.toLowerCase() ?? "";
-    if (text.includes("about the job") || text.includes("job description") || text.includes("description")) {
-      // Try next sibling, parent's next sibling, or parent container
-      const container = h.closest("section") ?? h.closest("div") ?? h.parentElement;
-      if (container) {
+  // Fallback 1: find "About the job" or "Description" heading and walk DOM
+  const allElements = document.querySelectorAll("*");
+  for (const el of allElements) {
+    const text = el.textContent?.trim().toLowerCase() ?? "";
+    if (
+      el.children.length === 0 &&
+      (text === "about the job" || text === "job description" || text === "description")
+    ) {
+      // Walk up to find a meaningful container, then grab everything after
+      let container = el.parentElement;
+      for (let i = 0; i < 5 && container; i++) {
         const content = container.textContent?.trim() ?? "";
-        if (content.length > 100) return content;
+        if (content.length > 200) return content;
+        container = container.parentElement;
       }
+    }
+  }
+
+  // Fallback 2: find the largest text block on the page (likely the JD)
+  const candidates: { el: Element; length: number }[] = [];
+  const blocks = document.querySelectorAll("div, section, article, main");
+  for (const block of blocks) {
+    // Skip nav, header, sidebar, footer
+    const tag = block.tagName.toLowerCase();
+    const role = block.getAttribute("role") ?? "";
+    if (["nav", "header", "footer"].includes(tag)) continue;
+    if (["navigation", "banner", "complementary"].includes(role)) continue;
+
+    const text = block.textContent?.trim() ?? "";
+    // Only consider blocks with substantial text that aren't the whole page
+    if (text.length > 200 && text.length < 20000) {
+      candidates.push({ el: block, length: text.length });
+    }
+  }
+
+  // Sort by length descending, pick the largest that's likely a JD
+  candidates.sort((a, b) => b.length - a.length);
+  for (const c of candidates) {
+    const text = c.el.textContent?.trim() ?? "";
+    // Check if it looks like a job description (has JD-like keywords)
+    const lower = text.toLowerCase();
+    if (
+      lower.includes("responsibilit") ||
+      lower.includes("qualificat") ||
+      lower.includes("requirement") ||
+      lower.includes("experience") ||
+      lower.includes("about the") ||
+      lower.includes("we are looking") ||
+      lower.includes("you will") ||
+      lower.includes("role")
+    ) {
+      return text;
     }
   }
 
