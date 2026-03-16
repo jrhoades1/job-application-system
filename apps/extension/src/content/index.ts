@@ -16,20 +16,21 @@ function hasFormInputs(): boolean {
   return inputs.length >= 2;
 }
 
-// Wait for DOM to settle, then decide whether to show badge or capture JD
+// Wait for DOM to settle, then decide whether to show badge
 setTimeout(() => {
   if (hasFormInputs()) {
     injectBadge(ats?.label ?? null);
   }
   detectConfirmationPage();
-  // Try to capture JD from job posting pages (LinkedIn, ZipRecruiter, etc.)
-  attemptJDCapture();
-}, 2000);
+}, 1000);
 
-// Listen for fill commands from background
+// Listen for commands from background
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === "DO_FILL" && message.profile) {
     const result = fillForm(message.profile);
+    sendResponse(result);
+  } else if (message.type === "DO_CAPTURE_JD") {
+    const result = attemptJDCapture();
     sendResponse(result);
   }
   return true;

@@ -36,13 +36,20 @@ async function handleMessage(message: Message): Promise<unknown> {
       return await chrome.tabs.sendMessage(tab.id, { type: "DO_FILL", profile });
     }
 
-    case "CAPTURE_JD":
+    case "CAPTURE_JD": {
+      // Triggered from popup — tell content script to extract, then send to API
+      const [captureTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!captureTab?.id) return { error: "No active tab" };
+      const extracted = await chrome.tabs.sendMessage(captureTab.id, { type: "DO_CAPTURE_JD" });
+      if (extracted?.error) return { error: extracted.error };
+      if (!extracted?.description) return { error: "No job description found on this page" };
       return await captureJobDescription(
-        message.url,
-        message.description,
-        message.title,
-        message.company
+        extracted.url,
+        extracted.description,
+        extracted.title,
+        extracted.company
       );
+    }
 
     default:
       return { error: "Unknown message type" };

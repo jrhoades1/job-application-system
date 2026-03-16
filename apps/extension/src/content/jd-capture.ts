@@ -153,21 +153,34 @@ function extractFirst(selectors: string[]): string | null {
 // Track URLs we've already captured to avoid duplicate sends
 const capturedUrls = new Set<string>();
 
+export interface CaptureResult {
+  url: string;
+  description: string;
+  title?: string;
+  company?: string;
+  error?: string;
+}
+
 /**
- * Try to capture the JD from the current page.
- * Called after a delay to let SPAs finish rendering.
+ * Extract JD from the current page. Returns the data for the background
+ * script to send to the API. Called when user clicks "Capture JD" in popup.
  */
-export function attemptJDCapture(): void {
+export function attemptJDCapture(): CaptureResult {
   const url = window.location.href;
 
-  if (shouldSkip(url)) return;
-  if (capturedUrls.has(url)) return;
+  if (shouldSkip(url)) {
+    return { url, description: "", error: "This page type is not supported for JD capture" };
+  }
 
   const extractor = JD_EXTRACTORS.find((e) => e.pattern.test(url));
-  if (!extractor) return;
+  if (!extractor) {
+    return { url, description: "", error: "Not a recognized job posting page" };
+  }
 
   const description = extractText(extractor.selectors);
-  if (!description || description.length < 50) return;
+  if (!description || description.length < 50) {
+    return { url, description: "", error: "Could not find job description content on this page" };
+  }
 
   // Clean the description
   const cleaned = description
@@ -179,43 +192,8 @@ export function attemptJDCapture(): void {
   const title = extractFirst(extractor.titleSelectors) ?? undefined;
   const company = extractFirst(extractor.companySelectors) ?? undefined;
 
-  // Mark as captured before sending to avoid re-sends
-  capturedUrls.add(url);
-
-  // Send to background → API
-  chrome.runtime.sendMessage({
-    type: "CAPTURE_JD",
-    url,
-    description: cleaned,
-    title,
-    company,
-  }).then((result) => {
-    if (result?.matched) {
-      showCaptureToast(
-        `JD captured for ${result.company} — ${result.role}`,
-        "success"
-      );
-    }
-    // Silently succeed if no match — don't spam the user
-  }).catch(() => {
-    // Extension not configured or API error — fail silently
-  });
+  return { url, description: cleaned, title, company };
 }
-
-/**
- * Watch for SPA navigation (LinkedIn, Indeed, etc. change URLs without
- * full page reloads). Re-attempt capture when URL changes.
- */
-let lastUrl = window.location.href;
-const urlObserver = new MutationObserver(() => {
-  const currentUrl = window.location.href;
-  if (currentUrl !== lastUrl) {
-    lastUrl = currentUrl;
-    // Wait for new content to render
-    setTimeout(() => attemptJDCapture(), 2000);
-  }
-});
-urlObserver.observe(document.body, { childList: true, subtree: true });
 
 function showCaptureToast(message: string, type: "success" | "info"): void {
   const colors = { success: "#22c55e", info: "#3b82f6" };
