@@ -9,12 +9,33 @@ const captureSchema = z.object({
   company: z.string().optional(),
 });
 
+/** Normalize text for fuzzy matching: lowercase, strip punctuation, collapse whitespace */
+function normalize(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ").trim();
+}
+
+/** Check if two strings are a fuzzy match (one contains the other, or share significant words) */
+function fuzzyMatch(a: string, b: string): boolean {
+  const na = normalize(a);
+  const nb = normalize(b);
+  if (!na || !nb) return false;
+  if (na.includes(nb) || nb.includes(na)) return true;
+  // Check word overlap: if >50% of words in the shorter string appear in the longer
+  const wordsA = na.split(" ");
+  const wordsB = nb.split(" ");
+  const shorter = wordsA.length <= wordsB.length ? wordsA : wordsB;
+  const longer = wordsA.length > wordsB.length ? wordsA : wordsB;
+  const longerText = longer.join(" ");
+  const matches = shorter.filter((w) => w.length > 2 && longerText.includes(w));
+  return matches.length >= Math.ceil(shorter.length * 0.5);
+}
+
 /**
  * POST /api/extension/capture-jd
  *
  * Receives a scraped job description from the browser extension
  * and updates the matching pipeline lead's description_text.
- * Matches by career_page_url first, then by company+role fuzzy match.
+ * If no match found, creates a new lead.
  */
 export async function POST(req: Request) {
   try {
@@ -31,16 +52,19 @@ export async function POST(req: Request) {
 
     const { url, description, title, company } = parsed.data;
 
-    // Strategy 1: Match by career_page_url
-    const { data: urlMatch } = await supabase
+    // Load all active leads once for matching
+    const { data: leads } = await supabase
       .from("pipeline_leads")
-      .select("id, company, role, description_text")
+      .select("id, company, role, description_text, career_page_url")
       .eq("clerk_user_id", userId)
-      .eq("career_page_url", url)
       .is("deleted_at", null)
-      .limit(1)
-      .single();
+      .order("created_at", { ascending: false })
+      .limit(500);
 
+    const allLeads = leads ?? [];
+
+    // Strategy 1: Match by career_page_url
+    const urlMatch = allLeads.find((l) => l.career_page_url === url);
     if (urlMatch) {
       await supabase
         .from("pipeline_leads")
@@ -56,76 +80,36 @@ export async function POST(req: Request) {
       });
     }
 
-    // Strategy 2: Match by company+role if provided
+    // Strategy 2: Match by company+role fuzzy match
     if (company && title) {
-      const { data: leads } = await supabase
-        .from("pipeline_leads")
-        .select("id, company, role, description_text")
-        .eq("clerk_user_id", userId)
-        .is("deleted_at", null)
-        .order("created_at", { ascending: false })
-        .limit(200);
-
-      if (leads) {
-        const companyLower = company.toLowerCase();
-        const titleLower = title.toLowerCase();
-
-        // Fuzzy match: company name contains or is contained by the lead's company
-        const match = leads.find((l) => {
-          const lCompany = (l.company ?? "").toLowerCase();
-          const lRole = (l.role ?? "").toLowerCase();
-          const companyMatch =
-            lCompany.includes(companyLower) || companyLower.includes(lCompany);
-          const roleMatch =
-            lRole.includes(titleLower) || titleLower.includes(lRole);
-          return companyMatch && roleMatch;
-        });
-
-        if (match) {
-          await supabase
-            .from("pipeline_leads")
-            .update({
-              description_text: description,
-              career_page_url: url,
-            })
-            .eq("id", match.id);
-
-          return NextResponse.json({
-            matched: true,
-            lead_id: match.id,
-            company: match.company,
-            role: match.role,
-            match_method: "company_role",
-          });
-        }
-      }
-    }
-
-    // Strategy 3: Match by URL domain + path patterns
-    // Extract domain from URL to match against leads from that source
-    const urlDomain = new URL(url).hostname;
-    const { data: domainLeads } = await supabase
-      .from("pipeline_leads")
-      .select("id, company, role, description_text, career_page_url")
-      .eq("clerk_user_id", userId)
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false })
-      .limit(50);
-
-    if (domainLeads && title) {
-      const titleLower = title.toLowerCase();
-      const match = domainLeads.find((l) => {
-        const lRole = (l.role ?? "").toLowerCase();
-        return lRole.includes(titleLower) || titleLower.includes(lRole);
-      });
+      const match = allLeads.find((l) =>
+        fuzzyMatch(l.company ?? "", company) && fuzzyMatch(l.role ?? "", title)
+      );
 
       if (match) {
         await supabase
           .from("pipeline_leads")
-          .update({
-            description_text: description,
-            career_page_url: url,
-          })
+          .update({ description_text: description, career_page_url: url })
+          .eq("id", match.id);
+
+        return NextResponse.json({
+          matched: true,
+          lead_id: match.id,
+          company: match.company,
+          role: match.role,
+          match_method: "company_role",
+        });
+      }
+    }
+
+    // Strategy 3: Match by role title only (across all leads)
+    if (title) {
+      const match = allLeads.find((l) => fuzzyMatch(l.role ?? "", title));
+
+      if (match) {
+        await supabase
+          .from("pipeline_leads")
+          .update({ description_text: description, career_page_url: url })
           .eq("id", match.id);
 
         return NextResponse.json({
@@ -138,18 +122,58 @@ export async function POST(req: Request) {
       }
     }
 
-    // No match — store it anyway so it's not lost
-    // Could be a job not yet in the pipeline
+    // No match — create a new lead from this JD
+    const sourcePlatform = inferPlatform(url);
+    const { data: newLead } = await supabase
+      .from("pipeline_leads")
+      .insert({
+        clerk_user_id: userId,
+        company: company || inferCompanyFromUrl(url) || "Unknown",
+        role: title || "Unknown Role",
+        description_text: description,
+        career_page_url: url,
+        source_platform: sourcePlatform,
+        email_uid: `ext_${Date.now()}`,
+        status: "pending_review",
+        created_at: new Date().toISOString(),
+      })
+      .select("id, company, role")
+      .single();
+
     return NextResponse.json({
-      matched: false,
-      message: "No matching lead found. JD captured but not linked.",
-      url,
-      title,
-      company,
+      matched: true,
+      created: true,
+      lead_id: newLead?.id,
+      company: newLead?.company ?? company,
+      role: newLead?.role ?? title,
+      match_method: "created_new",
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Internal server error";
     const status = message.includes("Unauthorized") || message.includes("Invalid token") ? 401 : 500;
     return NextResponse.json({ error: message }, { status });
   }
+}
+
+function inferPlatform(url: string): string | null {
+  const host = new URL(url).hostname.toLowerCase();
+  if (host.includes("linkedin")) return "LinkedIn";
+  if (host.includes("ziprecruiter")) return "ZipRecruiter";
+  if (host.includes("indeed")) return "Indeed";
+  if (host.includes("glassdoor")) return "Glassdoor";
+  if (host.includes("greenhouse")) return "Greenhouse";
+  if (host.includes("lever")) return "Lever";
+  return null;
+}
+
+function inferCompanyFromUrl(url: string): string | null {
+  try {
+    const host = new URL(url).hostname;
+    // e.g., "jobs.acme.com" → "acme"
+    const parts = host.replace("www.", "").split(".");
+    if (parts.length >= 2 && !["com", "io", "co", "org"].includes(parts[0])) {
+      return parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+    }
+  } catch { /* ignore */ }
+  return null;
 }
