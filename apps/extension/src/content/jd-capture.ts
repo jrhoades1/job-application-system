@@ -150,9 +150,6 @@ function extractFirst(selectors: string[]): string | null {
   return null;
 }
 
-// Track URLs we've already captured to avoid duplicate sends
-const capturedUrls = new Set<string>();
-
 export interface CaptureResult {
   url: string;
   description: string;
@@ -193,30 +190,4 @@ export function attemptJDCapture(): CaptureResult {
   const company = extractFirst(extractor.companySelectors) ?? undefined;
 
   return { url, description: cleaned, title, company };
-}
-
-function showCaptureToast(message: string, type: "success" | "info"): void {
-  const colors = { success: "#22c55e", info: "#3b82f6" };
-  const toast = document.createElement("div");
-  toast.style.cssText = `
-    position: fixed;
-    bottom: 70px;
-    right: 20px;
-    z-index: 9999999;
-    background: ${colors[type]};
-    color: white;
-    padding: 8px 14px;
-    border-radius: 8px;
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-    font-size: 12px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    transition: opacity 0.3s;
-    max-width: 300px;
-  `;
-  toast.textContent = message;
-  document.body.appendChild(toast);
-  setTimeout(() => {
-    toast.style.opacity = "0";
-    setTimeout(() => toast.remove(), 300);
-  }, 3000);
 }

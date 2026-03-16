@@ -56,6 +56,39 @@ async function init() {
     showSetup();
   });
 
+  // Capture JD button
+  $("capture-jd-btn").addEventListener("click", async () => {
+    const btn = $("capture-jd-btn") as HTMLButtonElement;
+    const status = $("capture-status");
+    btn.textContent = "Capturing...";
+    btn.disabled = true;
+    status.classList.add("hidden");
+
+    const response = await chrome.runtime.sendMessage({ type: "CAPTURE_JD" });
+
+    if (response?.error) {
+      status.textContent = response.error;
+      status.style.color = "#ef4444";
+      status.classList.remove("hidden");
+      btn.textContent = "Capture Job Description";
+    } else if (response?.matched) {
+      status.textContent = `Captured for ${response.company} — ${response.role}`;
+      status.style.color = "#22c55e";
+      status.classList.remove("hidden");
+      btn.textContent = "Captured!";
+    } else {
+      status.textContent = response?.message || "No matching lead found in pipeline";
+      status.style.color = "#eab308";
+      status.classList.remove("hidden");
+      btn.textContent = "Capture Job Description";
+    }
+
+    setTimeout(() => {
+      btn.textContent = "Capture Job Description";
+      btn.disabled = false;
+    }, 3000);
+  });
+
   // Auto-fill button
   $("fill-btn").addEventListener("click", async () => {
     const btn = $("fill-btn") as HTMLButtonElement;
