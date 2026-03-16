@@ -214,6 +214,41 @@ function extractFirst(selectors: string[]): string | null {
   return null;
 }
 
+/** Parse job title and company from the browser tab title */
+function parsePageTitle(pageTitle: string): { title?: string; company?: string } {
+  // LinkedIn: "Perfecting Peds hiring Director of Engineering in United States | LinkedIn"
+  const linkedinMatch = pageTitle.match(/^(.+?)\s+hiring\s+(.+?)\s+in\s+/i);
+  if (linkedinMatch) {
+    return { company: linkedinMatch[1].trim(), title: linkedinMatch[2].trim() };
+  }
+
+  // LinkedIn alt: "Director of Engineering - Perfecting Peds | LinkedIn"
+  const linkedinAlt = pageTitle.match(/^(.+?)\s*[-–—]\s*(.+?)\s*\|\s*LinkedIn/i);
+  if (linkedinAlt) {
+    return { title: linkedinAlt[1].trim(), company: linkedinAlt[2].trim() };
+  }
+
+  // ZipRecruiter: "Role - Company | ZipRecruiter"
+  const zipMatch = pageTitle.match(/^(.+?)\s*[-–—]\s*(.+?)\s*\|\s*ZipRecruiter/i);
+  if (zipMatch) {
+    return { title: zipMatch[1].trim(), company: zipMatch[2].trim() };
+  }
+
+  // Indeed: "Role - Company - Location | Indeed.com"
+  const indeedMatch = pageTitle.match(/^(.+?)\s*[-–—]\s*(.+?)\s*[-–—]/i);
+  if (indeedMatch) {
+    return { title: indeedMatch[1].trim(), company: indeedMatch[2].trim() };
+  }
+
+  // Generic: "Role at Company" or "Role | Company"
+  const genericMatch = pageTitle.match(/^(.+?)\s+(?:at|@|\|)\s+(.+?)(?:\s*[-–—|]|$)/i);
+  if (genericMatch) {
+    return { title: genericMatch[1].trim(), company: genericMatch[2].trim() };
+  }
+
+  return {};
+}
+
 export interface CaptureResult {
   url: string;
   description: string;
@@ -250,8 +285,27 @@ export function attemptJDCapture(): CaptureResult {
     .trim()
     .slice(0, 50000);
 
-  const title = extractFirst(extractor.titleSelectors) ?? undefined;
-  const company = extractFirst(extractor.companySelectors) ?? undefined;
+  let title = extractFirst(extractor.titleSelectors) ?? undefined;
+  let company = extractFirst(extractor.companySelectors) ?? undefined;
+
+  // Fallback: extract title from the first h1 or h2 on the page
+  if (!title) {
+    const h1 = document.querySelector("h1");
+    if (h1) {
+      const h1Text = h1.textContent?.trim() ?? "";
+      if (h1Text.length > 2 && h1Text.length < 150) title = h1Text;
+    }
+  }
+
+  // Fallback: extract title and company from page title
+  // LinkedIn format: "Company hiring Role in Location | LinkedIn"
+  // ZipRecruiter: "Role - Company | ZipRecruiter"
+  if (!title || !company) {
+    const pageTitle = document.title;
+    const parsed = parsePageTitle(pageTitle);
+    if (!title && parsed.title) title = parsed.title;
+    if (!company && parsed.company) company = parsed.company;
+  }
 
   return { url, description: cleaned, title, company };
 }
