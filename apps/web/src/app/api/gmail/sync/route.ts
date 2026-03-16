@@ -281,7 +281,7 @@ function isMultiJobPlatform(from: string, subject = "", body = ""): boolean {
   return false;
 }
 
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 export async function POST() {
   try {
@@ -567,21 +567,10 @@ export async function POST() {
           if (existingUids.has(leadUid)) continue;
           if (URL_LIKE_COMPANY.test(job.company.trim())) continue;
 
-          // Try to scrape the actual job posting for a full description
+          // Store whatever details the AI extracted from the email
           let leadText = job.description || "";
-          let careerPageUrl = job.url ?? null;
-          let compensation = job.salary ?? null;
-
-          if (job.url && !leadText) {
-            try {
-              const scraped = await scrapeJobDescription(job.url);
-              if (scraped?.description) {
-                leadText = scraped.description;
-              }
-            } catch {
-              // Scraping failed — fall back to email snippet
-            }
-          }
+          const careerPageUrl = job.url ?? null;
+          const compensation = job.salary ?? null;
 
           if (!leadText) {
             leadText = `${job.role} at ${job.company}${job.location ? ` — ${job.location}` : ""}${compensation ? ` | ${compensation}` : ""}`;
