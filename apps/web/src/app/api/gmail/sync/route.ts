@@ -281,6 +281,8 @@ function isMultiJobPlatform(from: string, subject = "", body = ""): boolean {
   return false;
 }
 
+export const maxDuration = 120;
+
 export async function POST() {
   try {
     const { supabase, userId } = await getAuthenticatedClient();

@@ -11,6 +11,8 @@ import { scrapeJobDescription } from "@/lib/scrape-job-url";
  * job URLs from the original email, scrapes each one, and updates
  * description_text with the actual job posting content.
  */
+export const maxDuration = 120;
+
 export async function POST() {
   try {
     const { supabase, userId } = await getAuthenticatedClient();
