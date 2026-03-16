@@ -195,12 +195,11 @@ function pollBulkStatus() {
     if (!s.running) {
       clearInterval(bulkPollInterval!);
       bulkPollInterval = null;
-      $("bulk-capture-btn").textContent = `Done — ${s.captured} captured`;
+      $("bulk-status").textContent = `Done — ${s.captured} captured, ${s.failed} failed out of ${s.total}`;
+      $("bulk-status").style.color = "#22c55e";
+      $("bulk-capture-btn").textContent = "Run Again";
       ($("bulk-capture-btn") as HTMLButtonElement).disabled = false;
       $("bulk-stop-btn").style.display = "none";
-      setTimeout(() => {
-        $("bulk-capture-btn").textContent = "Bulk Capture All Missing JDs";
-      }, 5000);
     }
   }, 1500);
 }
