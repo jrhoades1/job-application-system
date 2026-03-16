@@ -1,4 +1,4 @@
-/** Content script — runs on ATS pages, handles detection, badge, and auto-fill */
+/** Content script — runs on all pages, handles detection, badge, and auto-fill */
 
 import { detectATS } from "@/lib/ats-patterns";
 import type { ProfileData } from "@/lib/api-client";
@@ -7,10 +7,21 @@ import { fillLever } from "./lever";
 
 const ats = detectATS(window.location.href);
 
-if (ats) {
-  injectBadge(ats.label);
-  detectConfirmationPage();
+// Only show badge on pages that have form inputs (likely an application page)
+function hasFormInputs(): boolean {
+  const inputs = document.querySelectorAll(
+    'input[type="text"], input[type="email"], input[type="tel"], input[type="url"], input:not([type]), textarea'
+  );
+  return inputs.length >= 2;
 }
+
+// Wait for DOM to settle, then decide whether to show badge
+setTimeout(() => {
+  if (hasFormInputs()) {
+    injectBadge(ats?.label ?? null);
+  }
+  detectConfirmationPage();
+}, 1000);
 
 // Listen for fill commands from background
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -84,9 +95,19 @@ export function setInputValue(input: HTMLInputElement | HTMLTextAreaElement, val
 }
 
 /** Inject floating badge showing ATS detection */
-function injectBadge(atsLabel: string): void {
+function injectBadge(atsLabel: string | null): void {
   const badge = document.createElement("div");
   badge.id = "jaa-badge";
+  const atsTag = atsLabel
+    ? `<span style="
+        background: #3b82f6;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+      ">${atsLabel}</span>`
+    : "";
   badge.innerHTML = `
     <div style="
       position: fixed;
@@ -107,15 +128,8 @@ function injectBadge(atsLabel: string): void {
       transition: opacity 0.2s;
     " title="Click to auto-fill application">
       <span style="font-size: 16px;">📋</span>
-      <span>Job App Assistant</span>
-      <span style="
-        background: #3b82f6;
-        color: white;
-        padding: 2px 8px;
-        border-radius: 4px;
-        font-size: 11px;
-        font-weight: 600;
-      ">${atsLabel}</span>
+      <span>Auto-Fill</span>
+      ${atsTag}
     </div>
   `;
 

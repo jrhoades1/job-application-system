@@ -1,24 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Job App Assistant",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Auto-fill job applications and track your application status",
   "permissions": [
     "storage",
     "activeTab"
   ],
   "host_permissions": [
-    "https://myworkdayjobs.com/*",
-    "https://*.myworkdayjobs.com/*",
-    "https://boards.greenhouse.io/*",
-    "https://job-boards.greenhouse.io/*",
-    "https://jobs.lever.co/*",
-    "https://*.icims.com/*",
-    "https://*.successfactors.com/*",
-    "https://jobs.sap.com/*",
-    "https://jobs.smartrecruiters.com/*",
-    "https://jobs.ashbyhq.com/*",
-    "https://*.bamboohr.com/*"
+    "https://*/*",
+    "http://*/*"
   ],
   "background": {
     "service_worker": "background.js",
@@ -27,16 +18,8 @@
   "content_scripts": [
     {
       "matches": [
-        "https://*.myworkdayjobs.com/*",
-        "https://boards.greenhouse.io/*",
-        "https://job-boards.greenhouse.io/*",
-        "https://jobs.lever.co/*",
-        "https://*.icims.com/*",
-        "https://*.successfactors.com/*",
-        "https://jobs.sap.com/*",
-        "https://jobs.smartrecruiters.com/*",
-        "https://jobs.ashbyhq.com/*",
-        "https://*.bamboohr.com/*"
+        "https://*/*",
+        "http://*/*"
       ],
       "js": ["content.js"],
       "css": ["content.css"],
