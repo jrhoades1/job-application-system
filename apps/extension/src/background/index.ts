@@ -1,6 +1,6 @@
 /** Background service worker — handles messaging between popup/content scripts and API */
 
-import { matchUrl, markApplied } from "@/lib/api-client";
+import { matchUrl, markApplied, captureJobDescription } from "@/lib/api-client";
 import { getProfile } from "@/lib/profile-store";
 
 // Message types
@@ -8,7 +8,8 @@ export type Message =
   | { type: "GET_PROFILE" }
   | { type: "MATCH_URL"; url: string }
   | { type: "MARK_APPLIED"; applicationId: string }
-  | { type: "FILL_FORM" };
+  | { type: "FILL_FORM" }
+  | { type: "CAPTURE_JD"; url: string; description: string; title?: string; company?: string };
 
 chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) => {
   handleMessage(message).then(sendResponse);
@@ -34,6 +35,14 @@ async function handleMessage(message: Message): Promise<unknown> {
       if (!tab?.id) return { error: "No active tab" };
       return await chrome.tabs.sendMessage(tab.id, { type: "DO_FILL", profile });
     }
+
+    case "CAPTURE_JD":
+      return await captureJobDescription(
+        message.url,
+        message.description,
+        message.title,
+        message.company
+      );
 
     default:
       return { error: "Unknown message type" };

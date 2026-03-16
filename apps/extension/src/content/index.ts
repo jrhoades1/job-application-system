@@ -1,9 +1,10 @@
-/** Content script — runs on all pages, handles detection, badge, and auto-fill */
+/** Content script — runs on all pages, handles detection, badge, auto-fill, and JD capture */
 
 import { detectATS } from "@/lib/ats-patterns";
 import type { ProfileData } from "@/lib/api-client";
 import { fillGreenhouse } from "./greenhouse";
 import { fillLever } from "./lever";
+import { attemptJDCapture } from "./jd-capture";
 
 const ats = detectATS(window.location.href);
 
@@ -15,13 +16,15 @@ function hasFormInputs(): boolean {
   return inputs.length >= 2;
 }
 
-// Wait for DOM to settle, then decide whether to show badge
+// Wait for DOM to settle, then decide whether to show badge or capture JD
 setTimeout(() => {
   if (hasFormInputs()) {
     injectBadge(ats?.label ?? null);
   }
   detectConfirmationPage();
-}, 1000);
+  // Try to capture JD from job posting pages (LinkedIn, ZipRecruiter, etc.)
+  attemptJDCapture();
+}, 2000);
 
 // Listen for fill commands from background
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {

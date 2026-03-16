@@ -90,3 +90,30 @@ export async function markApplied(applicationId: string): Promise<boolean> {
     return false;
   }
 }
+
+export interface CaptureJDResult {
+  matched: boolean;
+  lead_id?: string;
+  company?: string;
+  role?: string;
+  match_method?: string;
+  message?: string;
+}
+
+export async function captureJobDescription(
+  url: string,
+  description: string,
+  title?: string,
+  company?: string
+): Promise<CaptureJDResult | null> {
+  try {
+    const res = await apiFetch("/api/extension/capture-jd", {
+      method: "POST",
+      body: JSON.stringify({ url, description, title, company }),
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
