@@ -20,12 +20,18 @@ const JD_EXTRACTORS: {
       ".description__text",
       ".jobs-description__content",
       ".jobs-box__html-content",
-      "[class*='description']",
+      "#job-details",
+      "[class*='jobs-description']",
+      "[class*='job-details'] [class*='description']",
+      "article [class*='description']",
+      // Fallback: find the "About the job" section and grab content after it
+      ".jobs-description",
     ],
     titleSelectors: [
       ".job-details-jobs-unified-top-card__job-title",
       ".jobs-unified-top-card__job-title",
       "h1.t-24",
+      "h1 a",
       "h1",
     ],
     companySelectors: [
@@ -33,6 +39,7 @@ const JD_EXTRACTORS: {
       ".jobs-unified-top-card__company-name",
       ".jobs-unified-top-card__subtitle-primary-grouping a",
       "a[data-tracking-control-name*='company']",
+      "[class*='company-name']",
     ],
   },
   {
@@ -129,13 +136,29 @@ function shouldSkip(url: string): boolean {
 }
 
 function extractText(selectors: string[]): string | null {
+  // Try explicit selectors first
   for (const selector of selectors) {
     const el = document.querySelector(selector);
     if (el) {
       const text = el.textContent?.trim() ?? "";
-      if (text.length > 20) return text;
+      if (text.length > 50) return text;
     }
   }
+
+  // Fallback: find "About the job" or "Job description" heading and grab sibling/parent content
+  const headings = document.querySelectorAll("h2, h3, h4, [role='heading']");
+  for (const h of headings) {
+    const text = h.textContent?.toLowerCase() ?? "";
+    if (text.includes("about the job") || text.includes("job description") || text.includes("description")) {
+      // Try next sibling, parent's next sibling, or parent container
+      const container = h.closest("section") ?? h.closest("div") ?? h.parentElement;
+      if (container) {
+        const content = container.textContent?.trim() ?? "";
+        if (content.length > 100) return content;
+      }
+    }
+  }
+
   return null;
 }
 
