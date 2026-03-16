@@ -35,6 +35,8 @@ function isDigestLead(platform: string | null, text: string): boolean {
  * with old count-only score_details. Pass ?force=true to rescore ALL leads
  * (e.g. after updating profile achievements).
  */
+export const maxDuration = 120;
+
 export async function POST(req: Request) {
   try {
     const { supabase, userId } = await getAuthenticatedClient();
@@ -161,6 +163,7 @@ export async function POST(req: Request) {
               partials,
               gaps,
             },
+            red_flags: digest ? [] : undefined,
           })
           .eq("id", lead.id)
           .eq("clerk_user_id", userId);

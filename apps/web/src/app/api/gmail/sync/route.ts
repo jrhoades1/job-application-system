@@ -576,8 +576,8 @@ export async function POST() {
             leadText = `${job.role} at ${job.company}${job.location ? ` — ${job.location}` : ""}${compensation ? ` | ${compensation}` : ""}`;
           }
 
-          const isDigest = !leadText || leadText.length < 100;
-          const leadScore = await scoreLead(leadText, job.role, job.company, { digestEmail: isDigest });
+          // Always treat multi-job platform leads as digest — email never has full JD
+          const leadScore = await scoreLead(leadText, job.role, job.company, { digestEmail: true });
 
           await supabase.from("pipeline_leads").insert({
             clerk_user_id: userId,
