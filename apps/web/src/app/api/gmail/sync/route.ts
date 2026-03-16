@@ -270,6 +270,75 @@ function extractCompanyRole(
   return null;
 }
 
+/**
+ * Strip email boilerplate from a forwarded/notification email body to extract
+ * the real job description, if one exists. Returns null if the remaining text
+ * doesn't look like a real JD (e.g. it's just a "we found a match" alert).
+ *
+ * Real JDs come from the Chrome extension — this is a best-effort fallback
+ * for emails that happen to contain the full posting inline.
+ */
+function stripEmailToJd(body: string): string | null {
+  let text = body;
+
+  // 1. Remove forwarded-message header blocks
+  //    Gmail: "---------- Forwarded message ----------\nFrom: ...\nDate: ...\nSubject: ...\nTo: ..."
+  //    Outlook: "________________________________\nFrom: ...\nSent: ...\nTo: ...\nSubject: ..."
+  text = text.replace(
+    /-{3,}\s*Forwarded message\s*-{3,}\s*\n(?:From:.*\n|Date:.*\n|Subject:.*\n|To:.*\n)*/gi,
+    "\n"
+  );
+  text = text.replace(
+    /_{3,}\s*\n(?:From:.*\n|Sent:.*\n|To:.*\n|Subject:.*\n|Cc:.*\n)*/gi,
+    "\n"
+  );
+
+  // 2. Remove tracking/redirect URLs (awstrack, brevo, mailchimp, etc.)
+  text = text.replace(/<https?:\/\/[^\s>]*(?:awstrack|brevo|mailchimp|sendgrid|click\.|track\.|trk\.)[^\s>]*>/gi, "");
+  text = text.replace(/https?:\/\/[^\s]*(?:awstrack|brevo|mailchimp|sendgrid|click\.|track\.|trk\.)[^\s]*/gi, "");
+
+  // 3. Remove job board notification boilerplate
+  const boilerplatePatterns = [
+    /^Hello\s+there\s*[*🖐👋✋]*[,.]?\s*/gim,
+    /we\s+(?:just\s+)?identified\s+a\s+brand[- ]new\s+job\s+posting[^.]*\./gi,
+    /(?:we\s+(?:found|have)\s+a?\s*(?:great\s+)?match|a\s+job\s+that\s+matches\s+your\s+profile)[^.]*\./gi,
+    /\[image:[^\]]*\]/gi,
+    /view\s+(?:this\s+)?(?:job|position|opportunity)\s+(?:on|at)\s+\w+/gi,
+    /(?:unsubscribe|opt[- ]out|manage\s+(?:your\s+)?(?:preferences|subscriptions|alerts))[^.]*$/gim,
+    /(?:©|copyright)\s*\d{4}[^.]*$/gim,
+    /you(?:'re| are)\s+receiving\s+this\s+(?:email|message)[^.]*\.?/gi,
+    /to\s+stop\s+receiving\s+these\s+emails[^.]*$/gim,
+  ];
+  for (const pattern of boilerplatePatterns) {
+    text = text.replace(pattern, "");
+  }
+
+  // 4. Collapse excessive blank lines
+  text = text.replace(/\n{3,}/g, "\n\n").trim();
+
+  // 5. Decide: does what's left look like a real JD?
+  //    Real JDs typically have requirements, responsibilities, qualifications, etc.
+  const jdSignals = [
+    /responsibilit/i, /requirement/i, /qualificat/i, /experience/i,
+    /skills?\s*:/i, /duties/i, /about\s+the\s+(?:role|position|job)/i,
+    /what\s+you['']ll\s+(?:do|bring)/i, /we['']re\s+looking\s+for/i,
+    /must\s+have/i, /nice\s+to\s+have/i, /preferred/i,
+    /years?\s+(?:of\s+)?experience/i, /bachelor|master|degree/i,
+  ];
+  const signalCount = jdSignals.filter((p) => p.test(text)).length;
+
+  // If fewer than 2 JD signals and text is short, it's just a notification — no real JD
+  if (signalCount < 2 && text.length < 500) {
+    return null;
+  }
+  if (signalCount < 1) {
+    return null;
+  }
+
+  // Truncate to reasonable JD length
+  return text.slice(0, 10000) || null;
+}
+
 function isMultiJobPlatform(from: string, subject = "", body = ""): boolean {
   const text = `${from} ${subject} ${body.slice(0, 2000)}`;
   // Check for known digest platforms
@@ -648,9 +717,12 @@ export async function POST() {
         }
       }
 
-      const singleText = body.slice(0, 5000);
+      // Strip email boilerplate — only keep body as JD if it looks like a real posting.
+      // Real JDs come from the Chrome extension; this is a best-effort fallback.
+      const cleanedJd = stripEmailToJd(body);
+      const bodyForScoring = body.slice(0, 5000);
       const singleScore = await scoreLead(
-        singleText,
+        bodyForScoring,
         extracted?.role ?? subject,
         extracted?.company ?? ""
       );
@@ -677,7 +749,7 @@ export async function POST() {
         email_uid: msg.id,
         email_date: emailDate,
         raw_subject: subject,
-        description_text: singleText,
+        description_text: cleanedJd,
         status: "promoted",
         score_overall: singleScore.score.overall,
         score_match_percentage: singleScore.score.match_percentage,
@@ -697,7 +769,7 @@ export async function POST() {
         company: finalCompany,
         role: finalRole,
         source: platform ?? "Email Pipeline",
-        job_description: singleText,
+        job_description: cleanedJd,
         status: "pending_review",
         email_uid: msg.id,
       }).select("id").single();

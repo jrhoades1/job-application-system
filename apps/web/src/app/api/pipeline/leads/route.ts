@@ -95,7 +95,14 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
-    // Create application
+    // Create application — only carry over description_text as JD if it
+    // looks like a real job description (not digest metadata or email boilerplate).
+    // Real JDs come from the Chrome extension capturing the actual posting.
+    const descText = (lead.description_text ?? "").trim();
+    const looksLikeJd =
+      descText.length > 300 &&
+      /(?:responsibilit|requirement|qualificat|experience|years?\s+(?:of\s+)?experience)/i.test(descText);
+
     const { data: app, error: appError } = await supabase
       .from("applications")
       .insert({
@@ -105,7 +112,7 @@ export async function PATCH(req: Request) {
         location: lead.location,
         source: lead.source_platform ?? "Email Pipeline",
         source_url: lead.career_page_url,
-        job_description: lead.description_text,
+        job_description: looksLikeJd ? descText : null,
         status: lead.score_overall ? "ready_to_apply" : "evaluating",
       })
       .select()
