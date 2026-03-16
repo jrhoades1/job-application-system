@@ -564,7 +564,7 @@ export async function POST() {
           if (existingUids.has(leadUid)) continue;
           if (URL_LIKE_COMPANY.test(job.company.trim())) continue;
 
-          const leadText = body.slice(0, 5000);
+          const leadText = job.description || `${job.role} at ${job.company}${job.location ? ` — ${job.location}` : ""}`;
           const leadScore = await scoreLead(leadText, job.role, job.company, { digestEmail: true });
 
           await supabase.from("pipeline_leads").insert({

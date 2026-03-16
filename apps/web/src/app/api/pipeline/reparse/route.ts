@@ -165,7 +165,7 @@ export async function POST(req: Request) {
 
       if (dupe && dupe.length > 0) continue;
 
-      const leadText = lead.description_text ?? "";
+      const leadText = job.description || `${job.role} at ${job.company}${job.location ? ` — ${job.location}` : ""}`;
       const leadScore = await scoreLeadText(leadText, job.role, job.company);
 
       await supabase.from("pipeline_leads").insert({
@@ -177,7 +177,7 @@ export async function POST(req: Request) {
         email_uid: leadUid,
         email_date: lead.email_date,
         raw_subject: lead.raw_subject,
-        description_text: lead.description_text,
+        description_text: leadText,
         status: "pending_review",
         score_overall: leadScore.score.overall,
         score_match_percentage: leadScore.score.match_percentage,

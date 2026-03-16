@@ -4,6 +4,7 @@ export interface ExtractedJob {
   company: string;
   role: string;
   location?: string;
+  description?: string;
 }
 
 /**
@@ -15,16 +16,16 @@ export async function extractJobsFromEmail(
   subject: string,
   platform: string | null
 ): Promise<ExtractedJob[]> {
-  const truncatedBody = body.slice(0, 8000); // Keep prompt small for Haiku
+  const truncatedBody = body.slice(0, 16000); // Allow more content for full digest extraction
 
   const response = await createTrackedMessage(
     {
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 2000,
+      max_tokens: 4000,
       messages: [
         {
           role: "user",
-          content: `Extract ALL job listings from this ${platform ?? "job alert"} email. Return a JSON array of objects with "company", "role", and optionally "location" fields.
+          content: `Extract ALL job listings from this ${platform ?? "job alert"} email. Return a JSON array of objects with "company", "role", and optionally "location" and "description" fields.
 
 IMPORTANT RULES:
 - Every job MUST have a real company name. Look for company names in the email body, links, sender info, or any context clues.
@@ -32,6 +33,7 @@ IMPORTANT RULES:
 - NEVER extract URL protocols (https, http, www) or URL fragments as company names. If you only see a URL with no company context, SKIP that job.
 - If you truly cannot determine the company name for a job, SKIP that job entirely — do not include it in the array.
 - For forwarded emails, the company name is often in the original email body, not the subject.
+- For the "description" field: extract ALL available details about the job from the email — title, salary/compensation, requirements, qualifications, responsibilities, skills, benefits, employment type, etc. Include everything relevant to the specific job posting. If the email only has a title and company, omit the description field.
 
 Subject: ${subject}
 
@@ -39,7 +41,7 @@ Email body:
 ${truncatedBody}
 
 Return ONLY a JSON array, no other text. Example:
-[{"company": "Acme Corp", "role": "Software Engineer", "location": "Remote"}]
+[{"company": "Acme Corp", "role": "Software Engineer", "location": "Remote", "description": "Software Engineer role requiring 5+ years experience with Python and AWS. $120K-$150K. Full-time, remote. Must have CS degree."}]
 
 If you cannot extract any jobs with real company names, return an empty array: []`,
         },
