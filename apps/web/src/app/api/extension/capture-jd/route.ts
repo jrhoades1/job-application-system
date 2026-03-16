@@ -66,16 +66,23 @@ export async function POST(req: Request) {
     // Strategy 1: Match by career_page_url
     const urlMatch = allLeads.find((l) => l.career_page_url === url);
     if (urlMatch) {
+      // Update description, and also update company/role if we have better values
+      const updatedCompany = (company && company !== "Unknown") ? company : urlMatch.company;
+      const updatedRole = (title && title !== "Unknown Role") ? title : urlMatch.role;
       await supabase
         .from("pipeline_leads")
-        .update({ description_text: description })
+        .update({
+          description_text: description,
+          company: updatedCompany,
+          role: updatedRole,
+        })
         .eq("id", urlMatch.id);
 
       return NextResponse.json({
         matched: true,
         lead_id: urlMatch.id,
-        company: urlMatch.company,
-        role: urlMatch.role,
+        company: updatedCompany,
+        role: updatedRole,
         match_method: "url",
       });
     }

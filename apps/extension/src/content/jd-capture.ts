@@ -216,32 +216,35 @@ function extractFirst(selectors: string[]): string | null {
 
 /** Parse job title and company from the browser tab title */
 function parsePageTitle(pageTitle: string): { title?: string; company?: string } {
+  // Strip leading notification count: "(2) Title..." → "Title..."
+  const cleaned = pageTitle.replace(/^\(\d+\)\s*/, "");
+
   // LinkedIn: "Perfecting Peds hiring Director of Engineering in United States | LinkedIn"
-  const linkedinMatch = pageTitle.match(/^(.+?)\s+hiring\s+(.+?)\s+in\s+/i);
+  const linkedinMatch = cleaned.match(/^(.+?)\s+hiring\s+(.+?)\s+in\s+/i);
   if (linkedinMatch) {
     return { company: linkedinMatch[1].trim(), title: linkedinMatch[2].trim() };
   }
 
   // LinkedIn alt: "Director of Engineering - Perfecting Peds | LinkedIn"
-  const linkedinAlt = pageTitle.match(/^(.+?)\s*[-–—]\s*(.+?)\s*\|\s*LinkedIn/i);
+  const linkedinAlt = cleaned.match(/^(.+?)\s*[-–—]\s*(.+?)\s*\|\s*LinkedIn/i);
   if (linkedinAlt) {
     return { title: linkedinAlt[1].trim(), company: linkedinAlt[2].trim() };
   }
 
   // ZipRecruiter: "Role - Company | ZipRecruiter"
-  const zipMatch = pageTitle.match(/^(.+?)\s*[-–—]\s*(.+?)\s*\|\s*ZipRecruiter/i);
+  const zipMatch = cleaned.match(/^(.+?)\s*[-–—]\s*(.+?)\s*\|\s*ZipRecruiter/i);
   if (zipMatch) {
     return { title: zipMatch[1].trim(), company: zipMatch[2].trim() };
   }
 
   // Indeed: "Role - Company - Location | Indeed.com"
-  const indeedMatch = pageTitle.match(/^(.+?)\s*[-–—]\s*(.+?)\s*[-–—]/i);
+  const indeedMatch = cleaned.match(/^(.+?)\s*[-–—]\s*(.+?)\s*[-–—]/i);
   if (indeedMatch) {
     return { title: indeedMatch[1].trim(), company: indeedMatch[2].trim() };
   }
 
   // Generic: "Role at Company" or "Role | Company"
-  const genericMatch = pageTitle.match(/^(.+?)\s+(?:at|@|\|)\s+(.+?)(?:\s*[-–—|]|$)/i);
+  const genericMatch = cleaned.match(/^(.+?)\s+(?:at|@|\|)\s+(.+?)(?:\s*[-–—|]|$)/i);
   if (genericMatch) {
     return { title: genericMatch[1].trim(), company: genericMatch[2].trim() };
   }
@@ -255,7 +258,6 @@ export interface CaptureResult {
   title?: string;
   company?: string;
   error?: string;
-  _debug_pageTitle?: string;
 }
 
 /**
@@ -317,6 +319,5 @@ export function attemptJDCapture(): CaptureResult {
     }
   }
 
-  // Debug: include page title in result so we can see what we're working with
-  return { url, description: cleaned, title, company, _debug_pageTitle: pageTitle };
+  return { url, description: cleaned, title, company };
 }
