@@ -339,6 +339,25 @@ function stripEmailToJd(body: string): string | null {
   return text.slice(0, 10000) || null;
 }
 
+/** Detect notification/alert subjects that are NOT real job titles */
+const NOTIFICATION_SUBJECT_PATTERNS = [
+  /new\s+opportunit(?:y|ies)\s+alert/i,
+  /a\s+job\s+that\s+matches\s+your\s+profile/i,
+  /jobs?\s+(?:you\s+might|for\s+you|matching|alert)/i,
+  /new\s+jobs?\s+(?:for|posted|available)/i,
+  /your\s+(?:daily|weekly)\s+job/i,
+  /recommended\s+jobs?/i,
+  /we\s+(?:found|identified|have)\s+a?\s*(?:new\s+)?(?:job|match|opportunit)/i,
+  /profile\s+(?:just\s+)?posted/i,
+  /you\s+have\s+\d+\s+new/i,
+  /job\s+recommendations?/i,
+];
+
+function isNotificationSubject(subject: string): boolean {
+  const cleaned = subject.replace(/^(fw|fwd|re)\s*:\s*/gi, "").trim();
+  return NOTIFICATION_SUBJECT_PATTERNS.some((p) => p.test(cleaned));
+}
+
 function isMultiJobPlatform(from: string, subject = "", body = ""): boolean {
   const text = `${from} ${subject} ${body.slice(0, 2000)}`;
   // Check for known digest platforms
@@ -730,11 +749,13 @@ export async function POST() {
       // Use sender name as fallback so leads are identifiable even without AI extraction
       const senderName = from.replace(/<.*>/, "").replace(/"/g, "").trim();
       const finalCompany = extracted?.company || senderName || null;
-      const finalRole = extracted?.role || subject.replace(/^(fw|fwd|re)\s*:\s*/gi, "").trim() || subject;
+      // Don't use notification subjects ("New Opportunity Alert!") as role titles
+      const subjectAsRole = subject.replace(/^(fw|fwd|re)\s*:\s*/gi, "").trim();
+      const finalRole = extracted?.role || (isNotificationSubject(subject) ? null : subjectAsRole) || null;
 
-      // Skip leads where we truly can't determine the company — don't store "Unknown"
+      // Skip leads where we can't determine company or role
       const URL_PROTOCOL = /^(https?|http|ftp|www)$/i;
-      if (!finalCompany || /^(unknown|n\/a|none)$/i.test(finalCompany) || URL_PROTOCOL.test(finalCompany.trim())) {
+      if (!finalCompany || !finalRole || /^(unknown|n\/a|none)$/i.test(finalCompany) || URL_PROTOCOL.test(finalCompany.trim())) {
         existingUids.add(msg.id);
         skipped++;
         if (processedLabelId) labelMessage(tokens.access_token, msg.id, processedLabelId).catch(() => {});
