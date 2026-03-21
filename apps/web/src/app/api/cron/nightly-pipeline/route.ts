@@ -11,6 +11,7 @@
 
 import { NextResponse } from "next/server";
 import { getServiceRoleClient } from "@/lib/supabase";
+import { shouldSkipDigest, escapeHtml, type DigestSkipReason } from "./utils";
 
 export const maxDuration = 300;
 
@@ -30,6 +31,10 @@ interface DigestLead {
   career_page_url: string | null;
   location: string | null;
 }
+
+type DigestOutcome =
+  | { skipped: DigestSkipReason }
+  | { aboveThreshold: number; top3Count: number; emailSent: boolean };
 
 export async function GET(req: Request) {
   const cronSecret = process.env.CRON_SECRET;
@@ -60,7 +65,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Database error" }, { status: 500 });
   }
 
-  const results: { userId: string; sync: SyncResult | null; digest: object }[] = [];
+  const results: { userId: string; sync: SyncResult | null; digest: DigestOutcome }[] = [];
 
   for (const conn of connections ?? []) {
     const userId = conn.clerk_user_id;
@@ -101,18 +106,11 @@ export async function GET(req: Request) {
     const threshold = prefs.score_threshold ?? 55;
     const digestFrequency = prefs.digest_frequency ?? "daily";
 
-    // Skip digest on weekly frequency if today isn't Monday
-    if (digestFrequency === "off") {
-      results.push({ userId, sync: syncResult, digest: { skipped: "digest_off" } });
+    // Skip digest based on frequency preference
+    const skip = shouldSkipDigest(digestFrequency, new Date().getDay());
+    if (skip.skip && skip.reason) {
+      results.push({ userId, sync: syncResult, digest: { skipped: skip.reason } });
       continue;
-    }
-
-    if (digestFrequency === "weekly") {
-      const dayOfWeek = new Date().getDay(); // 0=Sun, 1=Mon
-      if (dayOfWeek !== 1) {
-        results.push({ userId, sync: syncResult, digest: { skipped: "weekly_not_monday" } });
-        continue;
-      }
     }
 
     // 3. Query new leads from today that score above threshold
@@ -241,10 +239,12 @@ async function sendEmailDigest(
     .map((l, i) => {
       const pct = l.score_match_percentage ? `${Math.round(l.score_match_percentage)}%` : "";
       const tier = l.score_overall ?? "";
+      const company = escapeHtml(l.company);
+      const role = escapeHtml(l.role);
       return `
         <tr>
-          <td style="padding:8px 12px;font-weight:600;">${i + 1}. ${l.company}</td>
-          <td style="padding:8px 12px;">${l.role}</td>
+          <td style="padding:8px 12px;font-weight:600;">${i + 1}. ${company}</td>
+          <td style="padding:8px 12px;">${role}</td>
           <td style="padding:8px 12px;text-align:center;">${pct}</td>
           <td style="padding:8px 12px;text-align:center;">${tier}</td>
           <td style="padding:8px 12px;text-align:center;">
