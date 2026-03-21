@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { getAuthenticatedClient } from "./supabase";
 
 let _anthropic: Anthropic | null = null;
@@ -51,13 +52,14 @@ export class SpendCapExceededError extends Error {
 }
 
 /**
- * Create a tracked AI message. Enforces spend caps and logs usage.
+ * Core tracked message implementation — shared by user-session and cron-initiated calls.
  */
-export async function createTrackedMessage(
+async function createTrackedMessageCore(
   params: Anthropic.MessageCreateParams,
-  generationType: string
+  generationType: string,
+  supabase: SupabaseClient,
+  userId: string
 ): Promise<Anthropic.Message> {
-  const { supabase, userId } = await getAuthenticatedClient();
 
   // 1. Check monthly spend cap
   const { data: config } = await supabase
@@ -133,6 +135,31 @@ export async function createTrackedMessage(
   }
 
   return response;
+}
+
+/**
+ * Create a tracked AI message. Enforces spend caps and logs usage.
+ * Requires an active Clerk session — use createTrackedMessageForUser for cron/service contexts.
+ */
+export async function createTrackedMessage(
+  params: Anthropic.MessageCreateParams,
+  generationType: string
+): Promise<Anthropic.Message> {
+  const { supabase, userId } = await getAuthenticatedClient();
+  return createTrackedMessageCore(params, generationType, supabase, userId);
+}
+
+/**
+ * Create a tracked AI message with an explicit supabase client + userId.
+ * Use in cron jobs or server-to-server calls where there's no Clerk session.
+ */
+export async function createTrackedMessageForUser(
+  params: Anthropic.MessageCreateParams,
+  generationType: string,
+  supabase: SupabaseClient,
+  userId: string
+): Promise<Anthropic.Message> {
+  return createTrackedMessageCore(params, generationType, supabase, userId);
 }
 
 export { getAnthropic as anthropic };

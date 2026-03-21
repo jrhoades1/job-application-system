@@ -16,6 +16,15 @@ function getSupabaseAdmin(): SupabaseClient {
 }
 
 /**
+ * Get a service-role Supabase client (no user auth context).
+ * Use ONLY in cron jobs or internal server-to-server calls.
+ * All queries MUST manually filter by clerk_user_id.
+ */
+export function getServiceRoleClient(): SupabaseClient {
+  return getSupabaseAdmin();
+}
+
+/**
  * Get an authenticated Supabase client scoped to the current Clerk user.
  * Every query MUST use the returned userId to filter data.
  */

@@ -6,6 +6,22 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useGmailSync } from "@/hooks/use-gmail-sync";
 
+interface DigestLead {
+  id: string;
+  company: string;
+  role: string;
+  score_overall: string | null;
+  score_match_percentage: number | null;
+}
+
+interface DigestRun {
+  run_date: string;
+  emails_fetched: number;
+  leads_created: number;
+  above_threshold: number;
+  top_leads: DigestLead[];
+}
+
 interface TodayAction {
   id: string;
   type: string;
@@ -70,6 +86,7 @@ const ACTION_ICONS: Record<string, string> = {
 export default function DashboardPage() {
   const [data, setData] = useState<TodayData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [digest, setDigest] = useState<DigestRun | null>(null);
 
   const refreshActions = useCallback(async () => {
     const res = await fetch("/api/today-actions");
@@ -83,9 +100,14 @@ export default function DashboardPage() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch("/api/today-actions");
-        if (res.ok) {
-          setData(await res.json());
+        const [actionsRes, digestRes] = await Promise.all([
+          fetch("/api/today-actions"),
+          fetch("/api/digest"),
+        ]);
+        if (actionsRes.ok) setData(await actionsRes.json());
+        if (digestRes.ok) {
+          const d = await digestRes.json();
+          if (d) setDigest(d);
         }
       } catch {
         // silent fail
@@ -134,6 +156,11 @@ export default function DashboardPage() {
           </Button>
         )}
       </div>
+
+      {/* Morning digest banner */}
+      {digest && digest.above_threshold > 0 && (
+        <DigestBanner digest={digest} />
+      )}
 
       {/* All caught up */}
       {actions.length === 0 && (
@@ -204,6 +231,53 @@ export default function DashboardPage() {
         ))}
       </div>
     </div>
+  );
+}
+
+function DigestBanner({ digest }: { digest: DigestRun }) {
+  const runDate = new Date(digest.run_date).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+
+  return (
+    <Card className="border-green-200 bg-green-50">
+      <CardContent className="py-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-green-800">
+              Morning Digest — {runDate}
+            </p>
+            <p className="text-sm text-green-700 mt-0.5">
+              {digest.above_threshold} new match{digest.above_threshold !== 1 ? "es" : ""} above
+              your threshold · {digest.emails_fetched} email{digest.emails_fetched !== 1 ? "s" : ""} scanned
+            </p>
+            {digest.top_leads.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {digest.top_leads.map((lead, i) => (
+                  <p key={lead.id} className="text-sm text-green-800">
+                    {i + 1}.{" "}
+                    <span className="font-medium">{lead.company}</span> —{" "}
+                    {lead.role}
+                    {lead.score_match_percentage != null && (
+                      <span className="ml-1 text-green-600">
+                        ({Math.round(lead.score_match_percentage)}% match)
+                      </span>
+                    )}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+          <Link href="/dashboard/jobs?tab=leads" className="shrink-0">
+            <Button variant="outline" size="sm" className="border-green-300 text-green-700 hover:bg-green-100">
+              Review →
+            </Button>
+          </Link>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
