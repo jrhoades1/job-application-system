@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner";
 import { ProfileForm } from "@/components/settings/profile-form";
 import { CostUsage } from "@/components/settings/cost-usage";
+import { BullseyeForm } from "@/components/settings/bullseye-form";
 
 interface EmailConnection {
   email_address: string;
@@ -82,6 +83,7 @@ export default function SettingsPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="bullseye">Bullseye</TabsTrigger>
           <TabsTrigger value="gmail">Gmail</TabsTrigger>
           <TabsTrigger value="extension">Extension</TabsTrigger>
           <TabsTrigger value="costs">Cost & Usage</TabsTrigger>
@@ -89,6 +91,17 @@ export default function SettingsPage() {
 
         <TabsContent value="profile">
           <ProfileForm />
+        </TabsContent>
+
+        <TabsContent value="bullseye">
+          <div className="space-y-2">
+            <h3 className="text-lg font-semibold">Bullseye Profile</h3>
+            <p className="text-sm text-muted-foreground">
+              Configure what a great job looks like for you. The nightly pipeline uses these
+              settings to filter, score, and surface your best matches each morning.
+            </p>
+            <BullseyeForm />
+          </div>
         </TabsContent>
 
         <TabsContent value="gmail">

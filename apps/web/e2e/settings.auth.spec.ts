@@ -16,7 +16,9 @@ test.describe("Settings page", () => {
 
     // All tabs should be visible
     await expect(page.getByRole("tab", { name: "Profile" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Bullseye" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Gmail" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Extension" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Cost & Usage" })).toBeVisible();
   });
 
@@ -71,6 +73,12 @@ test.describe("Settings page", () => {
       page.getByRole("heading", { name: "Settings" })
     ).toBeVisible({ timeout: 15000 });
 
+    // Click Bullseye tab
+    await page.getByRole("tab", { name: "Bullseye" }).click();
+    await expect(
+      page.getByText("Bullseye Profile").or(page.getByText("Match Threshold"))
+    ).toBeVisible({ timeout: 10000 });
+
     // Click Gmail tab
     await page.getByRole("tab", { name: "Gmail" }).click();
     await expect(page.getByText("Email Pipeline")).toBeVisible({ timeout: 10000 });
@@ -85,6 +93,23 @@ test.describe("Settings page", () => {
     await page.getByRole("tab", { name: "Profile" }).click();
     await expect(
       page.getByText("Personal Information").or(page.getByText("Loading profile..."))
+    ).toBeVisible({ timeout: 10000 });
+  });
+
+  test("Bullseye tab loads the Bullseye form", async ({ page }) => {
+    test.setTimeout(60000);
+    await page.goto("/dashboard/settings?tab=bullseye");
+    await expect(
+      page.getByRole("heading", { name: "Settings" })
+    ).toBeVisible({ timeout: 15000 });
+
+    // Bullseye tab should be active
+    const bullseyeTab = page.getByRole("tab", { name: "Bullseye" });
+    await expect(bullseyeTab).toHaveAttribute("data-state", "active", { timeout: 5000 });
+
+    // Bullseye form should render (or be loading)
+    await expect(
+      page.getByText("Match Threshold").or(page.getByText("Loading..."))
     ).toBeVisible({ timeout: 10000 });
   });
 

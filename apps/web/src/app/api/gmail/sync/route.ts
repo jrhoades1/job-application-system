@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthenticatedClient } from "@/lib/supabase";
+import { getAuthenticatedClient, getServiceRoleClient } from "@/lib/supabase";
 import { extractJobsFromEmail, type ExtractedJob } from "@/lib/extract-jobs";
 import { scrapeJobDescription } from "@/lib/scrape-job-url";
 import {
@@ -372,9 +372,23 @@ function isMultiJobPlatform(from: string, subject = "", body = ""): boolean {
 
 export const maxDuration = 300;
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
-    const { supabase, userId } = await getAuthenticatedClient();
+    // Allow cron-initiated syncs with a shared secret + explicit user ID
+    const cronSecret = req.headers.get("x-cron-secret");
+    const cronUserId = req.headers.get("x-cron-user-id");
+
+    let supabase: ReturnType<typeof getServiceRoleClient>;
+    let userId: string;
+
+    if (cronSecret && cronSecret === process.env.CRON_SECRET && cronUserId) {
+      supabase = getServiceRoleClient();
+      userId = cronUserId;
+    } else {
+      const auth = await getAuthenticatedClient();
+      supabase = auth.supabase;
+      userId = auth.userId;
+    }
 
     const tokens = await getGmailTokens(supabase, userId);
     if (!tokens) {

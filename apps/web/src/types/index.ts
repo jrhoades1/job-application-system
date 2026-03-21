@@ -86,6 +86,14 @@ export interface ProfileRow {
     min_role_level?: string;
     industries_preferred?: string[];
     exclude_contract?: boolean;
+    // Bullseye profile
+    score_threshold?: number;
+    target_roles?: string[];
+    salary_min?: number | null;
+    remote_preference?: "remote" | "hybrid" | "onsite" | "any";
+    digest_email?: string | null;
+    digest_frequency?: "daily" | "weekly" | "off";
+    auto_generate_materials?: boolean;
   };
   created_at: string;
   updated_at: string;

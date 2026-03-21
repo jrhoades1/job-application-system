@@ -132,9 +132,9 @@ test.describe("Application lifecycle walkthrough", () => {
     // -------------------------------------------------------
     await page.getByRole("tab", { name: "Evaluating" }).click();
 
-    // Wait for loading to finish and find our test application
+    // Wait for loading to finish and find our test application in the table
     await expect(page.getByText(TEST_COMPANY)).toBeVisible({ timeout: 15000 });
-    await expect(page.getByText(TEST_ROLE)).toBeVisible();
+    await expect(page.locator("table").getByText(TEST_ROLE)).toBeVisible();
 
     // -------------------------------------------------------
     // Step 3: Navigate to the detail page
@@ -148,7 +148,7 @@ test.describe("Application lifecycle walkthrough", () => {
     await expect(
       page.getByRole("heading", { name: TEST_COMPANY })
     ).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText(TEST_ROLE)).toBeVisible();
+    await expect(page.getByRole("heading", { name: TEST_ROLE })).toBeVisible();
 
     // Verify the job description is displayed
     await expect(
