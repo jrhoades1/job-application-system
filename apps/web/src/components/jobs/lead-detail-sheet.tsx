@@ -104,16 +104,10 @@ export function LeadDetailSheet({
   onPromote,
   onSkip,
 }: LeadDetailSheetProps) {
-  if (!lead) return null;
-
-  const scoreCfg = lead.score_overall
-    ? SCORE_CONFIG[lead.score_overall as keyof typeof SCORE_CONFIG]
-    : null;
-
-  const details = parseScoreDetails(lead.score_details);
+  // Hooks must be called unconditionally — early return comes after
   const cleanedDescription = useMemo(
-    () => (lead.description_text ? cleanDescription(lead.description_text) : null),
-    [lead.description_text]
+    () => (lead?.description_text ? cleanDescription(lead.description_text) : null),
+    [lead?.description_text]
   );
 
   const [addingGap, setAddingGap] = useState<string | null>(null);
@@ -158,6 +152,14 @@ export function LeadDetailSheet({
       setAddingGap(null);
     }
   }, []);
+
+  if (!lead) return null;
+
+  const scoreCfg = lead.score_overall
+    ? SCORE_CONFIG[lead.score_overall as keyof typeof SCORE_CONFIG]
+    : null;
+
+  const details = parseScoreDetails(lead.score_details);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
