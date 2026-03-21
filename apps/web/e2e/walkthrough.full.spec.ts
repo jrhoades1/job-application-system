@@ -134,7 +134,10 @@ test.describe("Application lifecycle walkthrough", () => {
 
     // Wait for loading to finish and find our test application
     await expect(page.getByText(TEST_COMPANY)).toBeVisible({ timeout: 15000 });
-    await expect(page.getByText(TEST_ROLE)).toBeVisible();
+    // Scope to the table row to avoid matching other rows with the same role title
+    await expect(
+      page.getByRole("row").filter({ hasText: TEST_COMPANY }).getByText(TEST_ROLE)
+    ).toBeVisible();
 
     // -------------------------------------------------------
     // Step 3: Navigate to the detail page
@@ -148,7 +151,8 @@ test.describe("Application lifecycle walkthrough", () => {
     await expect(
       page.getByRole("heading", { name: TEST_COMPANY })
     ).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText(TEST_ROLE)).toBeVisible();
+    // Use exact match to avoid also matching the role name inside the JD text
+    await expect(page.getByText(TEST_ROLE, { exact: true })).toBeVisible();
 
     // Verify the job description is displayed
     await expect(
