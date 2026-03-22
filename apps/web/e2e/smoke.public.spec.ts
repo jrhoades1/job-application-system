@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { hasClerkCreds } from "./helpers";
 
 test.describe("Landing page", () => {
   test("loads without console errors", async ({ page }) => {
@@ -41,6 +42,9 @@ test.describe("Landing page", () => {
 
 test.describe("Auth protection", () => {
   test("dashboard is not accessible without auth", async ({ page }) => {
+    // Without Clerk configured the dev server serves /dashboard directly — skip in that case
+    test.skip(!hasClerkCreds, "Skipped — Clerk middleware not active without credentials");
+
     const response = await page.goto("/dashboard");
     await page.waitForLoadState("domcontentloaded");
 

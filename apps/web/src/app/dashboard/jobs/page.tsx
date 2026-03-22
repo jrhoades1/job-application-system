@@ -131,7 +131,10 @@ export default function JobsPage() {
       return;
     }
     const timer = setTimeout(async () => {
+      // Show dropdown immediately so "Searching..." is visible before the fetch completes
+      setGlobalResults([]);
       setGlobalSearching(true);
+      setShowGlobalResults(true);
       try {
         const params = new URLSearchParams();
         params.set("search", globalSearch.trim());
@@ -139,7 +142,6 @@ export default function JobsPage() {
         const res = await fetch(`/api/applications?${params}`);
         const json = await res.json();
         setGlobalResults(json.data ?? []);
-        setShowGlobalResults(true);
       } catch {
         setGlobalResults([]);
       }
@@ -449,7 +451,7 @@ export default function JobsPage() {
           }}
           className="w-full max-w-md"
         />
-        {showGlobalResults && (globalResults.length > 0 || globalSearching) && (
+        {showGlobalResults && (
           <div className="absolute top-full left-0 z-50 mt-1 w-full max-w-md rounded-md border bg-popover shadow-lg">
             {globalSearching && globalResults.length === 0 && (
               <p className="p-3 text-sm text-muted-foreground">Searching...</p>

@@ -162,7 +162,10 @@ test.describe("Application lifecycle walkthrough", () => {
     // -------------------------------------------------------
     // Step 4: Score the application
     // -------------------------------------------------------
-    const scoreBtn = page.getByRole("button", { name: "Score" });
+    // Use exact:true — the ReadyToApplyBanner also has a "Score Now" button and
+    // Playwright name-matching is a substring match by default, so without exact
+    // both buttons would match and cause a strict-mode violation.
+    const scoreBtn = page.getByRole("button", { name: "Score", exact: true });
     await expect(scoreBtn).toBeVisible();
     await expect(scoreBtn).toBeEnabled();
     await scoreBtn.click();

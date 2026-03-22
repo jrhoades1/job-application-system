@@ -30,9 +30,9 @@ function parseScoreDetails(raw: Record<string, unknown> | null) {
     strong_count: (parsed.strong_count as number) ?? 0,
     partial_count: (parsed.partial_count as number) ?? 0,
     gap_count: (parsed.gap_count as number) ?? 0,
-    strengths: (parsed.strengths as string[]) ?? [],
-    partials: (parsed.partials as string[]) ?? [],
-    gaps: (parsed.gaps as string[]) ?? [],
+    strengths: Array.isArray(parsed.strengths) ? (parsed.strengths as string[]) : [],
+    partials: Array.isArray(parsed.partials) ? (parsed.partials as string[]) : [],
+    gaps: Array.isArray(parsed.gaps) ? (parsed.gaps as string[]) : [],
     score_source: (parsed.score_source as "scored" | "estimated") ?? "scored",
   };
 }

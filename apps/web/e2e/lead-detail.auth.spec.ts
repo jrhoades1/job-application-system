@@ -37,10 +37,13 @@ test.describe("Lead detail sheet", () => {
                 score_overall: "good",
                 score_match_percentage: 72,
                 score_details: {
-                  hard_requirements: 3,
-                  matched: 2,
-                  partial: 1,
-                  gaps: 0,
+                  strong_count: 2,
+                  partial_count: 1,
+                  gap_count: 0,
+                  strengths: ["TypeScript", "React"],
+                  partials: ["Node.js"],
+                  gaps: [],
+                  score_source: "scored",
                 },
                 status: "pending_review",
                 skip_reason: null,
@@ -245,7 +248,8 @@ test.describe("Lead detail sheet", () => {
     });
 
     // Click the Score button — should NOT open sheet
-    await page.getByRole("button", { name: "Score" }).click();
+    // Use exact:true to avoid also matching the "Quick Score" dialog trigger button
+    await page.getByRole("button", { name: "Score", exact: true }).click();
 
     // Give a moment for sheet to potentially appear
     await page.waitForTimeout(500);

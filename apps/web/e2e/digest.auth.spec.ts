@@ -5,7 +5,7 @@
  *   - Today page renders the digest section when a run exists
  */
 
-import { test, expect, request as playwrightRequest } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import { skipWithoutAuth, refreshClerkSession } from "./helpers";
 
 // ---------------------------------------------------------------------------
@@ -69,10 +69,18 @@ test.describe("GET /api/digest", () => {
     expect(Array.isArray(body.top_leads)).toBe(true);
   });
 
-  test("returns 401 when called without a session", async ({ request }) => {
-    const res = await request.get("/api/digest");
-    // Unauthenticated → 401 (Clerk throws, caught as Unauthorized)
-    expect(res.status()).toBe(401);
+  test("returns 401 when called without a session", async ({ playwright, baseURL }) => {
+    // Create a fresh request context with NO storageState (no Clerk session cookies).
+    // We cannot use the `request` fixture here: for .auth.spec.ts projects Playwright
+    // loads the saved storageState into the request fixture, making it authenticated.
+    const ctx = await playwright.request.newContext({ baseURL });
+    try {
+      const res = await ctx.get("/api/digest");
+      // Unauthenticated → 401 (Clerk throws, caught as Unauthorized)
+      expect(res.status()).toBe(401);
+    } finally {
+      await ctx.dispose();
+    }
   });
 });
 
