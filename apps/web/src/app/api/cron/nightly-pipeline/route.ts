@@ -22,6 +22,13 @@ interface SyncResult {
   skipped: number;
 }
 
+interface ApiSourcesResult {
+  ok: boolean;
+  inserted: number;
+  skipped: number;
+  message?: string;
+}
+
 interface DigestLead {
   id: string;
   company: string;
@@ -65,7 +72,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Database error" }, { status: 500 });
   }
 
-  const results: { userId: string; sync: SyncResult | null; digest: DigestOutcome }[] = [];
+  const results: { userId: string; sync: SyncResult | null; apiSources: ApiSourcesResult | null; digest: DigestOutcome }[] = [];
 
   for (const conn of connections ?? []) {
     const userId = conn.clerk_user_id;
@@ -89,7 +96,26 @@ export async function GET(req: Request) {
       console.error(`[nightly-pipeline] Sync error for ${userId}:`, err);
     }
 
-    // 2. Get this user's score threshold from profile preferences
+    // 2. Fetch jobs from Jobicy + Adzuna API sources
+    let apiSourcesResult: ApiSourcesResult | null = null;
+    try {
+      const apiRes = await fetch(`${appUrl}/api/pipeline/api-sources`, {
+        method: "POST",
+        headers: {
+          "x-cron-secret": cronSecret,
+          "x-cron-user-id": userId,
+        },
+      });
+      if (apiRes.ok) {
+        apiSourcesResult = await apiRes.json();
+      } else {
+        console.error(`[nightly-pipeline] api-sources failed for ${userId}:`, await apiRes.text());
+      }
+    } catch (err) {
+      console.error(`[nightly-pipeline] api-sources error for ${userId}:`, err);
+    }
+
+    // 3. Get this user's score threshold from profile preferences
     const { data: profile } = await supabase
       .from("profiles")
       .select("preferences, email")
@@ -109,7 +135,7 @@ export async function GET(req: Request) {
     // Skip digest based on frequency preference
     const skip = shouldSkipDigest(digestFrequency, new Date().getDay());
     if (skip.skip && skip.reason) {
-      results.push({ userId, sync: syncResult, digest: { skipped: skip.reason } });
+      results.push({ userId, sync: syncResult, apiSources: apiSourcesResult, digest: { skipped: skip.reason } });
       continue;
     }
 
@@ -159,6 +185,7 @@ export async function GET(req: Request) {
     results.push({
       userId,
       sync: syncResult,
+      apiSources: apiSourcesResult,
       digest: { aboveThreshold, top3Count: top3.length, emailSent: !!(digestEmail && top3.length > 0) },
     });
   }
