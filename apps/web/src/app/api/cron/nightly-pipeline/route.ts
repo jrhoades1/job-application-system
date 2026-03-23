@@ -12,6 +12,7 @@
 import { NextResponse } from "next/server";
 import { getServiceRoleClient } from "@/lib/supabase";
 import { shouldSkipDigest, escapeHtml, type DigestSkipReason } from "./utils";
+import { sendSms } from "@/lib/twilio";
 
 export const maxDuration = 300;
 
@@ -41,7 +42,7 @@ interface DigestLead {
 
 type DigestOutcome =
   | { skipped: DigestSkipReason }
-  | { aboveThreshold: number; top3Count: number; emailSent: boolean };
+  | { aboveThreshold: number; top3Count: number; emailSent: boolean; smsSent: boolean };
 
 export async function GET(req: Request) {
   const cronSecret = process.env.CRON_SECRET;
@@ -158,9 +159,10 @@ export async function GET(req: Request) {
     const top3 = (topLeads ?? []).slice(0, 3) as DigestLead[];
 
     // 4. Record digest run summary
+    const runDate = new Date().toISOString().split("T")[0];
     const { error: insertError } = await supabase.from("digest_runs").insert({
       clerk_user_id: userId,
-      run_date: new Date().toISOString().split("T")[0],
+      run_date: runDate,
       emails_fetched: syncResult?.found ?? 0,
       leads_created: syncResult?.inserted ?? 0,
       above_threshold: aboveThreshold,
@@ -182,11 +184,18 @@ export async function GET(req: Request) {
       await sendEmailDigest(userId, digestEmail, top3, aboveThreshold, appUrl);
     }
 
+    // 7. Optionally send SMS digest via Twilio
+    const smsTo = process.env.TWILIO_TO_NUMBER;
+    let smsSent = false;
+    if (smsTo && top3.length > 0) {
+      smsSent = await sendSmsDigest(userId, smsTo, top3, aboveThreshold, runDate, supabase);
+    }
+
     results.push({
       userId,
       sync: syncResult,
       apiSources: apiSourcesResult,
-      digest: { aboveThreshold, top3Count: top3.length, emailSent: !!(digestEmail && top3.length > 0) },
+      digest: { aboveThreshold, top3Count: top3.length, emailSent: !!(digestEmail && top3.length > 0), smsSent },
     });
   }
 
@@ -331,5 +340,48 @@ async function sendEmailDigest(
     }
   } catch (err) {
     console.error(`[nightly-pipeline] Email send error for ${userId}:`, err);
+  }
+}
+
+/**
+ * Send SMS digest via Twilio and record sms_sent_at in digest_runs.
+ * Returns true if the SMS was sent successfully.
+ */
+async function sendSmsDigest(
+  userId: string,
+  toNumber: string,
+  leads: DigestLead[],
+  totalAboveThreshold: number,
+  runDate: string,
+  supabase: ReturnType<typeof getServiceRoleClient>
+): Promise<boolean> {
+  const leadLines = leads
+    .map((l, i) => {
+      const score = l.score_match_percentage
+        ? Math.round(l.score_match_percentage)
+        : "?";
+      return `${i + 1}) ${l.role} @ ${l.company} (score: ${score})`;
+    })
+    .join(" ");
+
+  const body =
+    `🎯 ${totalAboveThreshold} new job match${totalAboveThreshold !== 1 ? "es" : ""}! ` +
+    leadLines +
+    ` — Reply APPLY 1, SKIP 2, or INFO 1 for details`;
+
+  try {
+    await sendSms(toNumber, body);
+
+    // Mark sms_sent_at on the digest_run for today
+    await supabase
+      .from("digest_runs")
+      .update({ sms_sent_at: new Date().toISOString() })
+      .eq("clerk_user_id", userId)
+      .eq("run_date", runDate);
+
+    return true;
+  } catch (err) {
+    console.error(`[nightly-pipeline] SMS send error for ${userId}:`, err);
+    return false;
   }
 }
