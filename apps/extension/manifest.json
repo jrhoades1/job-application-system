@@ -21,6 +21,10 @@
         "https://*/*",
         "http://*/*"
       ],
+      "exclude_matches": [
+        "https://job-applications-three.vercel.app/*",
+        "https://*.vercel.app/*"
+      ],
       "js": ["content.js"],
       "css": ["content.css"],
       "run_at": "document_idle"

@@ -39,6 +39,23 @@ export interface TailorResumeInput {
   workHistory: WorkHistoryEntry[];
 }
 
+/**
+ * Convert YYYY-MM or YYYY date strings to human-readable format.
+ * "2023-10" → "October 2023", "2023" → "2023", anything else passes through.
+ */
+function formatDate(date: string): string {
+  if (!date) return "";
+  const match = date.match(/^(\d{4})-(\d{2})$/);
+  if (!match) return date; // already readable or just a year
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+  ];
+  const monthIndex = parseInt(match[2], 10) - 1;
+  if (monthIndex < 0 || monthIndex > 11) return date;
+  return `${months[monthIndex]} ${match[1]}`;
+}
+
 export function buildTailorResumePrompt(input: TailorResumeInput): string {
   const intensity =
     input.matchScore === "strong"
@@ -83,7 +100,7 @@ export function buildTailorResumePrompt(input: TailorResumeInput): string {
   // Build work history section
   const workHistoryText = input.workHistory.length > 0
     ? input.workHistory.map((w) => {
-        const dates = w.current ? `${w.start_date} – Present` : `${w.start_date} – ${w.end_date ?? ""}`;
+        const dates = w.current ? `${formatDate(w.start_date)} - Present` : `${formatDate(w.start_date)} - ${formatDate(w.end_date ?? "")}`;
         return `- **${w.title}** at ${w.company} (${dates})`;
       }).join("\n")
     : "NONE PROVIDED";
