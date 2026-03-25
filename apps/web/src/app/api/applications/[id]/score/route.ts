@@ -3,6 +3,7 @@ import { getAuthenticatedClient } from "@/lib/supabase";
 import {
   extractRequirements,
   scoreRequirement,
+  scoreRequirementsWithAI,
   calculateOverallScore,
 } from "@/scoring";
 
@@ -52,10 +53,19 @@ export async function POST(
       }
     }
 
-    // Score
+    // Score — AI first, word-overlap fallback
     const requirements = extractRequirements(app.job_description);
     const allReqs = [...requirements.hard_requirements, ...requirements.preferred];
-    const matches = allReqs.map((req) => scoreRequirement(req, achievementsMap));
+
+    let matches = await scoreRequirementsWithAI(allReqs, achievementsMap, {
+      role: app.role ?? undefined,
+      company: app.company ?? undefined,
+    }).catch(() => []);
+
+    if (matches.length === 0) {
+      matches = allReqs.map((req) => scoreRequirement(req, achievementsMap));
+    }
+
     const score = calculateOverallScore(matches);
 
     // Upsert match_scores (application_id has UNIQUE constraint)

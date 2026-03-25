@@ -47,12 +47,18 @@ export function calculateOverallScore(
   const matchPct =
     total > 0 ? (strong.length + partial.length * 0.5) / total : 0;
 
+  // Gap thresholds scale with total requirements so longer JDs aren't
+  // penalised unfairly. For a 15-req JD: strong allows 1 gap, good 3, stretch 4.
+  const maxGapStrong = Math.max(0, Math.floor(total * 0.1));
+  const maxGapGood = Math.max(1, Math.floor(total * 0.2));
+  const maxGapStretch = Math.max(2, Math.floor(total * 0.3));
+
   let overall: OverallScore["overall"];
-  if (matchPct >= 0.8 && gaps.length === 0) {
+  if (matchPct >= 0.8 && gaps.length <= maxGapStrong) {
     overall = "strong";
-  } else if (matchPct >= 0.6 && gaps.length <= 1) {
+  } else if (matchPct >= 0.6 && gaps.length <= maxGapGood) {
     overall = "good";
-  } else if (matchPct >= 0.4 && gaps.length <= 2) {
+  } else if (matchPct >= 0.4 && gaps.length <= maxGapStretch) {
     overall = "stretch";
   } else {
     overall = "long_shot";
