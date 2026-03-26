@@ -95,11 +95,12 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
-    // Job description is required — refuse to promote without one
+    // Job description is required — refuse to promote without a real JD
+    // (stubs like "Director of Engineering at Company" are under 200 chars)
     const descText = (lead.description_text ?? "").trim();
-    if (!descText || descText.length < 50) {
+    if (!descText || descText.length < 200) {
       return NextResponse.json(
-        { error: "Cannot promote: this lead has no job description. Add the JD before promoting." },
+        { error: "Cannot promote: this lead has no real job description. Capture the JD from the actual posting first." },
         { status: 400 }
       );
     }
