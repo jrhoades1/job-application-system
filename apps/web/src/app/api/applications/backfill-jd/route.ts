@@ -75,6 +75,11 @@ export async function POST() {
       (a) => a.job_description && isEmailGarbage(a.job_description)
     );
 
+    // Find apps with missing JDs (null or empty)
+    const missingJdApps = allApps.filter(
+      (a) => !a.job_description || a.job_description.trim().length === 0
+    );
+
     // Find apps with notification subjects as roles
     const badRoleApps = allApps.filter(
       (a) => a.role && isNotificationRole(a.role)
@@ -82,7 +87,7 @@ export async function POST() {
 
     // Combine into unique set of apps that need fixing
     const appsToFix = new Map<string, (typeof allApps)[number]>();
-    for (const a of [...garbageJdApps, ...badRoleApps]) {
+    for (const a of [...garbageJdApps, ...missingJdApps, ...badRoleApps]) {
       appsToFix.set(a.id, a);
     }
 
@@ -114,6 +119,8 @@ export async function POST() {
 
     for (const app of appsToFix.values()) {
       const hasGarbageJd = app.job_description && isEmailGarbage(app.job_description);
+      const hasMissingJd = !app.job_description || app.job_description.trim().length === 0;
+      const needsJdFix = hasGarbageJd || hasMissingJd;
       const hasBadRole = app.role && isNotificationRole(app.role);
       const fixes: string[] = [];
       const updates: Record<string, unknown> = {};
@@ -129,11 +136,11 @@ export async function POST() {
         return companyMatch && norm(l.role ?? "") === norm(app.role ?? "");
       });
 
-      // Fix garbage JD
-      if (hasGarbageJd) {
+      // Fix garbage or missing JD
+      if (needsJdFix) {
         const leadJd = leadMatch?.description_text;
         const leadJdClean =
-          leadJd && leadJd.length > 300 && !isEmailGarbage(leadJd);
+          leadJd && leadJd.length > 50 && !isEmailGarbage(leadJd);
 
         if (leadJdClean) {
           updates.job_description = leadJd;
@@ -150,12 +157,12 @@ export async function POST() {
               updates.source_url = urlToScrape;
               fixes.push("jd_scraped");
             } else {
-              updates.job_description = null;
-              fixes.push("jd_cleared");
+              fixes.push(hasMissingJd ? "jd_still_missing" : "jd_cleared");
+              if (hasGarbageJd) updates.job_description = null;
             }
           } else {
-            updates.job_description = null;
-            fixes.push("jd_cleared");
+            fixes.push(hasMissingJd ? "jd_still_missing_no_url" : "jd_cleared");
+            if (hasGarbageJd) updates.job_description = null;
           }
         }
       }
@@ -201,6 +208,7 @@ export async function POST() {
       checked: allApps.length,
       total_fixed: appsToFix.size,
       garbage_jds: garbageJdApps.length,
+      missing_jds: missingJdApps.length,
       bad_roles: badRoleApps.length,
       details: results,
     });
