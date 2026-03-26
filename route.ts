@@ -6,6 +6,7 @@ import {
   scoreRequirementsWithAI,
   calculateOverallScore,
 } from "@/scoring";
+import { extractRequirementsWithAI } from "@/lib/extract-requirements-ai";
 
 export async function POST(
   _req: Request,
@@ -53,10 +54,22 @@ export async function POST(
       }
     }
 
-    // Score — AI first, word-overlap fallback
+    // Extract requirements — regex first, AI fallback for paragraph-style JDs
     const requirements = extractRequirements(app.job_description);
-    const allReqs = [...requirements.hard_requirements, ...requirements.preferred];
+    let allReqs = [...requirements.hard_requirements, ...requirements.preferred];
+    let redFlags = requirements.red_flags;
 
+    if (allReqs.length === 0 && app.job_description.length > 200) {
+      const aiReqs = await extractRequirementsWithAI(
+        app.job_description,
+        app.role ?? "",
+        app.company ?? ""
+      );
+      allReqs = [...aiReqs.hard_requirements, ...aiReqs.preferred];
+      redFlags = [...redFlags, ...aiReqs.red_flags];
+    }
+
+    // Score — AI first, word-overlap fallback
     let matches = await scoreRequirementsWithAI(allReqs, achievementsMap, {
       role: app.role ?? undefined,
       company: app.company ?? undefined,
@@ -80,7 +93,7 @@ export async function POST(
           strong_count: score.strong_count,
           partial_count: score.partial_count,
           gap_count: score.gap_count,
-          red_flags: requirements.red_flags,
+          red_flags: redFlags,
         },
         { onConflict: "application_id" }
       );
@@ -96,7 +109,7 @@ export async function POST(
       strong_count: score.strong_count,
       partial_count: score.partial_count,
       gap_count: score.gap_count,
-      red_flags: requirements.red_flags,
+      red_flags: redFlags,
     });
   } catch (err) {
     console.error("Score error:", err);
