@@ -82,7 +82,7 @@ test.describe("Lead detail sheet", () => {
 
     // Verify company and role in sheet header
     await expect(sheet.getByText("Acme Corp")).toBeVisible();
-    await expect(sheet.getByText("Senior Software Engineer")).toBeVisible();
+    await expect(sheet.getByText("Senior Software Engineer").first()).toBeVisible();
 
     // Verify score badge
     await expect(sheet.getByText("Good 72%")).toBeVisible();

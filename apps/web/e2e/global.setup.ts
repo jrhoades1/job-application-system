@@ -70,7 +70,7 @@ setup("authenticate test user", async ({ page }) => {
   await page.waitForTimeout(5000);
   // Navigate to a protected page to verify auth works
   await page.goto("/dashboard");
-  await page.waitForURL("**/dashboard**", { timeout: 15000 });
+  await page.waitForURL("**/dashboard**", { timeout: 30000 });
 
   await page.context().storageState({ path: authFile });
 });

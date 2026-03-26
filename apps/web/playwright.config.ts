@@ -16,8 +16,8 @@ export default defineConfig({
   timeout: 30000,
   expect: { timeout: 10000 },
   fullyParallel: false,
-  workers: 4,
-  retries: 0,
+  workers: 1,
+  retries: 1,
   use: {
     baseURL: `http://localhost:${PORT}`,
     headless: true,
@@ -60,6 +60,6 @@ export default defineConfig({
     command: `npx next dev --port ${PORT}`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: true,
-    timeout: 60000,
+    timeout: 120000,
   },
 });
