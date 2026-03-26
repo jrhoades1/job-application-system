@@ -56,6 +56,88 @@ async function init() {
     showSetup();
   });
 
+  // Import Job button — triggers JD capture + creates application
+  $("import-job-btn").addEventListener("click", async () => {
+    const btn = $("import-job-btn") as HTMLButtonElement;
+    const status = $("import-status");
+    btn.textContent = "Importing...";
+    btn.disabled = true;
+    status.classList.add("hidden");
+
+    // Ask content script to extract JD
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id) {
+      status.textContent = "No active tab";
+      status.style.color = "#ef4444";
+      status.classList.remove("hidden");
+      btn.textContent = "Import Job";
+      btn.disabled = false;
+      return;
+    }
+
+    let extracted;
+    try {
+      extracted = await chrome.tabs.sendMessage(tab.id, { type: "DO_CAPTURE_JD" });
+    } catch {
+      status.textContent = "Cannot read this page — try refreshing";
+      status.style.color = "#ef4444";
+      status.classList.remove("hidden");
+      btn.textContent = "Import Job";
+      btn.disabled = false;
+      return;
+    }
+
+    if (!extracted?.description || extracted.description.length < 50) {
+      status.textContent = extracted?.error || "No job description found on this page";
+      status.style.color = "#ef4444";
+      status.classList.remove("hidden");
+      btn.textContent = "Import Job";
+      btn.disabled = false;
+      return;
+    }
+
+    if (!extracted.company || !extracted.title) {
+      status.textContent = "Could not detect company or role";
+      status.style.color = "#ef4444";
+      status.classList.remove("hidden");
+      btn.textContent = "Import Job";
+      btn.disabled = false;
+      return;
+    }
+
+    const response = await chrome.runtime.sendMessage({
+      type: "IMPORT_JOB",
+      data: {
+        url: extracted.url,
+        job_description: extracted.description,
+        role: extracted.title,
+        company: extracted.company,
+      },
+    });
+
+    if (response?.imported) {
+      status.textContent = `Imported: ${response.company} — ${response.role}`;
+      status.style.color = "#22c55e";
+      status.classList.remove("hidden");
+      btn.textContent = "Imported!";
+    } else if (response?.duplicate) {
+      status.textContent = `Already tracked: ${response.company} — ${response.role}`;
+      status.style.color = "#eab308";
+      status.classList.remove("hidden");
+      btn.textContent = "Import Job";
+    } else {
+      status.textContent = "Import failed — check connection";
+      status.style.color = "#ef4444";
+      status.classList.remove("hidden");
+      btn.textContent = "Import Job";
+    }
+
+    setTimeout(() => {
+      btn.textContent = "Import Job";
+      btn.disabled = false;
+    }, 3000);
+  });
+
   // Auto-fill button
   $("fill-btn").addEventListener("click", async () => {
     const btn = $("fill-btn") as HTMLButtonElement;
