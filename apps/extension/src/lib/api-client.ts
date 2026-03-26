@@ -137,3 +137,33 @@ export async function captureJobDescription(
     return null;
   }
 }
+
+export interface ImportJobResult {
+  imported: boolean;
+  duplicate?: boolean;
+  jd_updated?: boolean;
+  application_id: string;
+  company: string;
+  role: string;
+  source?: string;
+}
+
+export async function importJob(data: {
+  url: string;
+  job_description: string;
+  role: string;
+  company: string;
+  location?: string;
+  salary?: string;
+}): Promise<ImportJobResult | null> {
+  try {
+    const res = await apiFetch("/api/extension/import-job", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}

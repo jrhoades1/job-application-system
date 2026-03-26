@@ -1,6 +1,6 @@
 /** Background service worker — handles messaging between popup/content scripts and API */
 
-import { matchUrl, markApplied, captureJobDescription, fetchLeadsNeedingJD } from "@/lib/api-client";
+import { matchUrl, markApplied, captureJobDescription, fetchLeadsNeedingJD, importJob } from "@/lib/api-client";
 import { getProfile } from "@/lib/profile-store";
 
 // Message types
@@ -10,6 +10,7 @@ export type Message =
   | { type: "MARK_APPLIED"; applicationId: string }
   | { type: "FILL_FORM" }
   | { type: "CAPTURE_JD" }
+  | { type: "IMPORT_JOB"; data: { url: string; job_description: string; role: string; company: string; location?: string } }
   | { type: "BULK_CAPTURE_START" }
   | { type: "BULK_CAPTURE_STATUS" }
   | { type: "BULK_CAPTURE_STOP" };
@@ -167,6 +168,9 @@ async function handleMessage(message: Message): Promise<unknown> {
         extracted.company
       );
     }
+
+    case "IMPORT_JOB":
+      return await importJob(message.data);
 
     case "BULK_CAPTURE_START":
       if (bulkCapture.running) return { error: "Already running" };

@@ -1,4 +1,4 @@
-/** Content script — runs on all pages, handles detection, badge, auto-fill, and JD capture */
+/** Content script — runs on all pages, handles detection, badge, auto-fill, JD capture, and job import */
 
 import { detectATS } from "@/lib/ats-patterns";
 import type { ProfileData } from "@/lib/api-client";
@@ -16,13 +16,16 @@ function hasFormInputs(): boolean {
   return inputs.length >= 2;
 }
 
-// Wait for DOM to settle, then decide whether to show badge
+// Wait for DOM to settle, then decide what to show
 setTimeout(() => {
   if (hasFormInputs()) {
     injectBadge(ats?.label ?? null);
+  } else {
+    // Not a form page — check if it's a job listing we can import
+    tryShowImportButton();
   }
   detectConfirmationPage();
-}, 1000);
+}, 1500);
 
 // Listen for commands from background
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -244,6 +247,127 @@ function showConfirmationOverlay(match: MatchedApp): void {
   document.getElementById("jaa-confirm-dismiss")?.addEventListener("click", () => {
     overlay.remove();
   });
+}
+
+/** Auto-detect job listing pages and show "Import Job" button */
+function tryShowImportButton(): void {
+  const url = window.location.href;
+
+  // Skip pages that definitely aren't job listings
+  const skipPatterns = [
+    /\/(login|signin|signup|register|auth|account|settings|profile|feed|inbox|messages)\b/i,
+    /mail\.google\.com/i,
+    /github\.com/i,
+    /stackoverflow\.com/i,
+    /google\.com\/search/i,
+    /^chrome/i,
+  ];
+  if (skipPatterns.some((p) => p.test(url))) return;
+
+  // Try to extract a JD from the page
+  const captured = attemptJDCapture();
+  if (!captured.description || captured.description.length < 50) return;
+
+  // We found a JD — show the import button
+  injectImportButton(captured);
+}
+
+interface CapturedData {
+  url: string;
+  description: string;
+  title?: string;
+  company?: string;
+}
+
+function injectImportButton(captured: CapturedData): void {
+  // Don't double-inject
+  if (document.getElementById("jaa-import-badge")) return;
+
+  const badge = document.createElement("div");
+  badge.id = "jaa-import-badge";
+  badge.innerHTML = `
+    <div id="jaa-import-btn" style="
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 999999;
+      background: #1a1a2e;
+      color: #eee;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 13px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 1px solid #333;
+    " title="Import this job to Job App Assistant">
+      <span style="font-size: 16px;">+</span>
+      <div>
+        <div style="font-weight: 600;">Import Job</div>
+        <div style="font-size: 11px; color: #888; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+          ${captured.company ? `${captured.company}` : ""}${captured.company && captured.title ? " — " : ""}${captured.title || ""}
+        </div>
+      </div>
+    </div>
+  `;
+
+  badge.addEventListener("mouseenter", () => {
+    const btn = document.getElementById("jaa-import-btn");
+    if (btn) btn.style.borderColor = "#3b82f6";
+  });
+  badge.addEventListener("mouseleave", () => {
+    const btn = document.getElementById("jaa-import-btn");
+    if (btn) btn.style.borderColor = "#333";
+  });
+
+  badge.addEventListener("click", async () => {
+    const btn = document.getElementById("jaa-import-btn");
+    if (!btn) return;
+
+    // Validate we have minimum data
+    if (!captured.company || !captured.title) {
+      showToast("Could not detect company or role from this page", "error");
+      return;
+    }
+
+    btn.style.opacity = "0.6";
+    btn.style.pointerEvents = "none";
+    const origHtml = btn.innerHTML;
+    btn.innerHTML = `<span style="font-size: 14px;">...</span><span>Importing...</span>`;
+
+    const response = await chrome.runtime.sendMessage({
+      type: "IMPORT_JOB",
+      data: {
+        url: captured.url,
+        job_description: captured.description,
+        role: captured.title,
+        company: captured.company,
+      },
+    });
+
+    if (response?.imported) {
+      btn.innerHTML = `<span style="font-size: 16px; color: #22c55e;">&#10003;</span><div><div style="font-weight: 600; color: #22c55e;">Imported!</div><div style="font-size: 11px; color: #888;">${response.company} — ${response.role}</div></div>`;
+      btn.style.borderColor = "#22c55e";
+      btn.style.opacity = "1";
+      showToast(`Imported: ${response.company} — ${response.role}`, "success");
+    } else if (response?.duplicate) {
+      btn.innerHTML = `<span style="font-size: 16px; color: #eab308;">&#8226;</span><div><div style="font-weight: 600; color: #eab308;">Already tracked</div><div style="font-size: 11px; color: #888;">${response.company} — ${response.role}</div></div>`;
+      btn.style.borderColor = "#eab308";
+      btn.style.opacity = "1";
+      showToast(response.jd_updated ? "Already tracked — JD updated" : "Already in your tracker", "info");
+    } else {
+      btn.innerHTML = origHtml;
+      btn.style.opacity = "1";
+      btn.style.pointerEvents = "auto";
+      showToast("Import failed — check extension connection", "error");
+    }
+  });
+
+  document.body.appendChild(badge);
 }
 
 function showToast(message: string, type: "success" | "error" | "info"): void {
