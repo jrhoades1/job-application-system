@@ -42,23 +42,36 @@ export async function POST(req: Request) {
       .maybeSingle();
 
     if (existing) {
-      // Update JD if it was missing
-      if (!existing.status) {
-        return NextResponse.json({
-          imported: false,
-          duplicate: true,
-          application_id: existing.id,
-          company: existing.company,
-          role: existing.role,
-        });
-      }
-
-      // Update JD on existing app if it doesn't have one
+      // Always update JD on the existing app
       await supabase
         .from("applications")
         .update({ job_description })
         .eq("id", existing.id)
         .eq("clerk_user_id", userId);
+
+      // Also update any matching leads
+      const { data: dupLeads } = await supabase
+        .from("pipeline_leads")
+        .select("id, company, role, career_page_url")
+        .eq("clerk_user_id", userId)
+        .is("deleted_at", null)
+        .limit(500);
+
+      if (dupLeads) {
+        const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, "").trim();
+        const matching = dupLeads.filter((l) => {
+          if (l.career_page_url === url) return true;
+          const cm = norm(l.company ?? "").includes(norm(existing.company)) || norm(existing.company).includes(norm(l.company ?? ""));
+          const rm = norm(l.role ?? "").includes(norm(existing.role)) || norm(existing.role).includes(norm(l.role ?? ""));
+          return cm && rm;
+        });
+        for (const lead of matching) {
+          await supabase
+            .from("pipeline_leads")
+            .update({ description_text: job_description, career_page_url: url })
+            .eq("id", lead.id);
+        }
+      }
 
       return NextResponse.json({
         imported: false,
@@ -68,6 +81,37 @@ export async function POST(req: Request) {
         company: existing.company,
         role: existing.role,
       });
+    }
+
+    // Update any matching pipeline lead with the real JD
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, "").trim();
+    const { data: leads } = await supabase
+      .from("pipeline_leads")
+      .select("id, company, role, career_page_url")
+      .eq("clerk_user_id", userId)
+      .is("deleted_at", null)
+      .in("status", ["pending_review", "promoted"])
+      .limit(500);
+
+    if (leads) {
+      const matchingLeads = leads.filter((l) => {
+        // Match by URL
+        if (l.career_page_url === url) return true;
+        // Match by company + role fuzzy
+        const companyMatch = norm(l.company ?? "").includes(norm(company)) || norm(company).includes(norm(l.company ?? ""));
+        const roleMatch = norm(l.role ?? "").includes(norm(role)) || norm(role).includes(norm(l.role ?? ""));
+        return companyMatch && roleMatch;
+      });
+
+      for (const lead of matchingLeads) {
+        await supabase
+          .from("pipeline_leads")
+          .update({
+            description_text: job_description,
+            career_page_url: url,
+          })
+          .eq("id", lead.id);
+      }
     }
 
     // Infer source platform from URL
