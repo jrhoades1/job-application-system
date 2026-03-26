@@ -114,13 +114,17 @@ export function AddApplicationDialog({
       toast.error("Company and role are required");
       return;
     }
+    if (!newApp.job_description || newApp.job_description.trim().length < 50) {
+      toast.error("Job description is required (minimum 50 characters)");
+      return;
+    }
     const payload: Record<string, unknown> = {
       company: newApp.company,
       role: newApp.role,
+      job_description: newApp.job_description,
     };
     if (newApp.source) payload.source = newApp.source;
     if (newApp.source_url) payload.source_url = newApp.source_url;
-    if (newApp.job_description) payload.job_description = newApp.job_description;
 
     const res = await fetch("/api/applications", {
       method: "POST",
@@ -299,12 +303,27 @@ export function AddApplicationDialog({
                 placeholder="LinkedIn, Indeed, etc."
               />
             </div>
-            {newApp.job_description && (
-              <p className="text-xs text-muted-foreground">
-                {newApp.job_description.length.toLocaleString()} characters
-                scraped
-              </p>
-            )}
+            <div>
+              <div className="flex items-baseline justify-between">
+                <label className="text-sm font-medium">
+                  Job Description <span className="text-destructive">*</span>
+                </label>
+                {newApp.job_description && (
+                  <span className="text-xs text-muted-foreground">
+                    {newApp.job_description.length.toLocaleString()} characters
+                  </span>
+                )}
+              </div>
+              <Textarea
+                value={newApp.job_description}
+                onChange={(e) =>
+                  setNewApp({ ...newApp, job_description: e.target.value })
+                }
+                placeholder={newApp.job_description ? undefined : "Paste or fetch the full job description..."}
+                className="mt-1 max-h-[40vh] resize-y"
+                rows={4}
+              />
+            </div>
             <Button onClick={handleCreate} className="w-full">
               Add
             </Button>
@@ -405,7 +424,7 @@ export function AddApplicationDialog({
             </div>
             <div>
               <div className="flex items-baseline justify-between">
-                <label className="text-sm font-medium">Job Description</label>
+                <label className="text-sm font-medium">Job Description <span className="text-destructive">*</span></label>
                 {newApp.job_description && (
                   <span className="text-xs text-muted-foreground">
                     {newApp.job_description.length.toLocaleString()} characters

@@ -95,13 +95,14 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
-    // Create application — only carry over description_text as JD if it
-    // looks like a real job description (not digest metadata or email boilerplate).
-    // Real JDs come from the Chrome extension capturing the actual posting.
+    // Job description is required — refuse to promote without one
     const descText = (lead.description_text ?? "").trim();
-    const looksLikeJd =
-      descText.length > 300 &&
-      /(?:responsibilit|requirement|qualificat|experience|years?\s+(?:of\s+)?experience)/i.test(descText);
+    if (!descText || descText.length < 50) {
+      return NextResponse.json(
+        { error: "Cannot promote: this lead has no job description. Add the JD before promoting." },
+        { status: 400 }
+      );
+    }
 
     const { data: app, error: appError } = await supabase
       .from("applications")
@@ -112,7 +113,7 @@ export async function PATCH(req: Request) {
         location: lead.location,
         source: lead.source_platform ?? "Email Pipeline",
         source_url: lead.career_page_url,
-        job_description: looksLikeJd ? descText : null,
+        job_description: descText,
         status: lead.score_overall ? "ready_to_apply" : "evaluating",
       })
       .select()

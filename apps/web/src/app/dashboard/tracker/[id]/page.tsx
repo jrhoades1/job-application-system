@@ -353,6 +353,7 @@ export default function ApplicationDetailPage() {
   const [app, setApp] = useState<ApplicationWithScores | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [editingJd, setEditingJd] = useState(false);
   const [applying, setApplying] = useState(false);
   const [tailoring, setTailoring] = useState(false);
   const [generatingCL, setGeneratingCL] = useState(false);
@@ -397,6 +398,7 @@ export default function ApplicationDetailPage() {
         rejection_date: app.rejection_date,
         rejection_reason: app.rejection_reason,
         rejection_insights: app.rejection_insights,
+        job_description: app.job_description,
       }),
     });
     if (res.ok) {
@@ -719,18 +721,45 @@ export default function ApplicationDetailPage() {
       </div>
 
       {/* Job Description */}
-      {app.job_description && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Job Description</CardTitle>
-          </CardHeader>
-          <CardContent>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            Job Description
+            {app.job_description && !editingJd && (
+              <Button variant="ghost" size="sm" onClick={() => setEditingJd(true)}>
+                Edit
+              </Button>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!app.job_description || editingJd ? (
+            <div className="space-y-2">
+              <Textarea
+                value={app.job_description ?? ""}
+                onChange={(e) => setApp({ ...app, job_description: e.target.value })}
+                placeholder="Paste the full job description here..."
+                className="min-h-[200px] max-h-[60vh] resize-y text-sm"
+                rows={10}
+              />
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  {app.job_description ? `${app.job_description.length.toLocaleString()} characters` : "Required for scoring and resume tailoring"}
+                </p>
+                {editingJd && (
+                  <Button variant="ghost" size="sm" onClick={() => setEditingJd(false)}>
+                    Done
+                  </Button>
+                )}
+              </div>
+            </div>
+          ) : (
             <pre className="text-sm bg-muted p-4 rounded-lg overflow-auto max-h-96 whitespace-pre-wrap">
               {app.job_description}
             </pre>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
 
       {/* Documents */}
       <Card>

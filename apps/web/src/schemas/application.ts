@@ -40,7 +40,7 @@ export const createApplicationSchema = z.object({
   source: z.string().optional(),
   source_url: z.string().url().optional().or(z.literal("")),
   status: applicationStatusSchema.default("evaluating"),
-  job_description: z.string().max(50000).optional(),
+  job_description: z.string().min(50, "Job description is required (minimum 50 characters)").max(50000),
   contact: z.string().optional(),
   notes: z.string().optional(),
 });
