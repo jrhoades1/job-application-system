@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getExtensionClient } from "@/lib/extension-auth";
 import { z } from "zod";
+import { SupabaseClient } from "@supabase/supabase-js";
 import { extractRequirements, scoreRequirement, calculateOverallScore } from "@/scoring";
 
 const importSchema = z.object({
@@ -14,18 +15,19 @@ const importSchema = z.object({
 
 /** Score a JD and update lead score fields */
 async function rescoreLead(
-  supabase: ReturnType<typeof import("@supabase/supabase-js").createClient>,
+  supabase: SupabaseClient,
   leadId: string,
   jd: string,
   userId: string,
 ) {
   // Load user achievements for scoring
-  const { data: profile } = await supabase
+  const { data: profileData } = await supabase
     .from("profiles")
     .select("achievements")
     .eq("clerk_user_id", userId)
     .single();
 
+  const profile = profileData as { achievements: unknown } | null;
   const achievementsMap: Record<string, string[]> = {};
   const achievements = profile?.achievements ?? [];
   if (Array.isArray(achievements)) {
