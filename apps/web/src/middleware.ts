@@ -11,6 +11,7 @@ const isPublicRoute = createRouteMatcher([
   "/api/pipeline/api-sources",
   "/api/applications/backfill-jd",
   "/api/applications/backfill-jd-email",
+  "/api/applications/patch-jd",
   "/api/sms/webhook",
 ]);
 
