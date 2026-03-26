@@ -9,6 +9,7 @@ const isPublicRoute = createRouteMatcher([
   "/api/cron(.*)",
   "/api/gmail/sync",
   "/api/pipeline/api-sources",
+  "/api/applications/backfill-jd",
   "/api/sms/webhook",
 ]);
 

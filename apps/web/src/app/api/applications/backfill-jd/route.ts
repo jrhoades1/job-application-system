@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthenticatedClient } from "@/lib/supabase";
+import { getAuthenticatedClient, getServiceRoleClient } from "@/lib/supabase";
 import { scrapeJobDescription } from "@/lib/scrape-job-url";
 
 /**
@@ -53,9 +53,23 @@ function isNotificationRole(role: string): boolean {
 
 export const maxDuration = 300;
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
-    const { supabase, userId } = await getAuthenticatedClient();
+    // Support cron-secret auth for CLI/automation triggers
+    const cronSecret = req.headers.get("x-cron-secret");
+    const cronUserId = req.headers.get("x-cron-user-id");
+
+    let supabase: ReturnType<typeof getServiceRoleClient>;
+    let userId: string;
+
+    if (cronSecret && cronSecret === process.env.CRON_SECRET && cronUserId) {
+      supabase = getServiceRoleClient();
+      userId = cronUserId;
+    } else {
+      const auth = await getAuthenticatedClient();
+      supabase = auth.supabase;
+      userId = auth.userId;
+    }
 
     // Fetch all applications
     const { data: apps, error } = await supabase
