@@ -27,6 +27,38 @@ setTimeout(() => {
   detectConfirmationPage();
 }, 1500);
 
+// LinkedIn is an SPA — re-detect when user clicks a different job in the list.
+// Watch for URL changes and DOM mutations that indicate a new job panel loaded.
+if (/linkedin\.com\/jobs/i.test(window.location.href)) {
+  let lastUrl = window.location.href;
+
+  // Poll for URL changes (LinkedIn doesn't fire popstate reliably)
+  setInterval(() => {
+    if (window.location.href !== lastUrl) {
+      lastUrl = window.location.href;
+      // Remove old import button and re-detect
+      document.getElementById("jaa-import-badge")?.remove();
+      setTimeout(() => tryShowImportButton(), 2000);
+    }
+  }, 1000);
+
+  // Also watch for job detail panel content changes
+  const observer = new MutationObserver(() => {
+    const badge = document.getElementById("jaa-import-badge");
+    // If no badge and the JD panel has content, try to show the button
+    if (!badge) {
+      const jdPanel = document.querySelector(".jobs-description__content, #job-details, [class*='jobs-description']");
+      if (jdPanel && jdPanel.textContent && jdPanel.textContent.trim().length > 100) {
+        tryShowImportButton();
+      }
+    }
+  });
+  const jobsContainer = document.querySelector(".jobs-search__job-details, .scaffold-layout__detail, main");
+  if (jobsContainer) {
+    observer.observe(jobsContainer, { childList: true, subtree: true });
+  }
+}
+
 // Listen for commands from background
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === "DO_FILL" && message.profile) {

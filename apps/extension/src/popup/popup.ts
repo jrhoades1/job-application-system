@@ -89,27 +89,6 @@ async function init() {
     }, 3000);
   });
 
-  // Bulk capture button
-  $("bulk-capture-btn").addEventListener("click", async () => {
-    const btn = $("bulk-capture-btn") as HTMLButtonElement;
-    btn.disabled = true;
-    btn.textContent = "Starting...";
-    $("bulk-status").classList.remove("hidden");
-    $("bulk-progress").classList.remove("hidden");
-    $("bulk-stop-btn").style.display = "block";
-
-    await chrome.runtime.sendMessage({ type: "BULK_CAPTURE_START" });
-    pollBulkStatus();
-  });
-
-  $("bulk-stop-btn").addEventListener("click", async () => {
-    await chrome.runtime.sendMessage({ type: "BULK_CAPTURE_STOP" });
-    $("bulk-status").textContent = "Stopping...";
-  });
-
-  // Check if bulk capture is already running
-  checkBulkStatus();
-
   // Auto-fill button
   $("fill-btn").addEventListener("click", async () => {
     const btn = $("fill-btn") as HTMLButtonElement;
@@ -166,42 +145,6 @@ async function checkCurrentPage() {
     $("match-company").textContent = match.company;
     $("match-role").textContent = match.role;
   }
-}
-
-let bulkPollInterval: ReturnType<typeof setInterval> | null = null;
-
-async function checkBulkStatus() {
-  const status = await chrome.runtime.sendMessage({ type: "BULK_CAPTURE_STATUS" });
-  if (status?.running) {
-    $("bulk-capture-btn").textContent = "Running...";
-    ($("bulk-capture-btn") as HTMLButtonElement).disabled = true;
-    $("bulk-status").classList.remove("hidden");
-    $("bulk-progress").classList.remove("hidden");
-    $("bulk-stop-btn").style.display = "block";
-    pollBulkStatus();
-  }
-}
-
-function pollBulkStatus() {
-  if (bulkPollInterval) clearInterval(bulkPollInterval);
-  bulkPollInterval = setInterval(async () => {
-    const s = await chrome.runtime.sendMessage({ type: "BULK_CAPTURE_STATUS" });
-    if (!s) return;
-
-    const pct = s.total > 0 ? Math.round((s.processed / s.total) * 100) : 0;
-    $("bulk-status").textContent = `${s.processed}/${s.total} — ${s.captured} captured, ${s.failed} failed | ${s.currentLead}`;
-    $("bulk-progress-bar").style.width = `${pct}%`;
-
-    if (!s.running) {
-      clearInterval(bulkPollInterval!);
-      bulkPollInterval = null;
-      $("bulk-status").textContent = `Done — ${s.captured} captured, ${s.failed} failed out of ${s.total}`;
-      $("bulk-status").style.color = "#22c55e";
-      $("bulk-capture-btn").textContent = "Run Again";
-      ($("bulk-capture-btn") as HTMLButtonElement).disabled = false;
-      $("bulk-stop-btn").style.display = "none";
-    }
-  }, 1500);
 }
 
 document.addEventListener("DOMContentLoaded", init);
