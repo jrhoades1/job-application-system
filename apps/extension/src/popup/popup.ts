@@ -79,12 +79,39 @@ async function init() {
     try {
       extracted = await chrome.tabs.sendMessage(tab.id, { type: "DO_CAPTURE_JD" });
     } catch {
-      status.textContent = "Cannot read this page — try refreshing";
-      status.style.color = "#ef4444";
-      status.classList.remove("hidden");
-      btn.textContent = "Import Job";
-      btn.disabled = false;
-      return;
+      // Content script may not be injected — try programmatic injection
+      try {
+        const results = await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => {
+            // Inline JD extraction for when content script isn't reachable
+            const selectors = [
+              ".show-more-less-html__markup", ".description__text",
+              ".jobs-description__content", "#job-details",
+              "[class*='jobs-description']", ".job-description",
+              "#jobDescriptionText", ".jobsearch-jobDescriptionText",
+              "[class*='description']", "article", "main section",
+            ];
+            for (const sel of selectors) {
+              const el = document.querySelector(sel);
+              if (el && el.innerText.trim().length > 100) {
+                const title = document.querySelector("h1")?.innerText?.trim();
+                const company = document.querySelector("[class*='company']")?.innerText?.trim();
+                return { url: window.location.href, description: el.innerText.trim().slice(0, 50000), title, company };
+              }
+            }
+            return { url: window.location.href, description: "", error: "No job description found" };
+          },
+        });
+        extracted = results?.[0]?.result;
+      } catch {
+        status.textContent = "Cannot read this page — try refreshing";
+        status.style.color = "#ef4444";
+        status.classList.remove("hidden");
+        btn.textContent = "Import Job";
+        btn.disabled = false;
+        return;
+      }
     }
 
     if (!extracted?.description || extracted.description.length < 50) {

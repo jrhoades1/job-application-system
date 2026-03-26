@@ -5,7 +5,8 @@
   "description": "Auto-fill job applications and track your application status",
   "permissions": [
     "storage",
-    "activeTab"
+    "activeTab",
+    "scripting"
   ],
   "host_permissions": [
     "https://*/*",
