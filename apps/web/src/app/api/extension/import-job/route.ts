@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getExtensionClient } from "@/lib/extension-auth";
 import { z } from "zod";
+import { extractRequirements, scoreRequirement, calculateOverallScore } from "@/scoring";
 
 const importSchema = z.object({
   url: z.string().url(),
@@ -10,6 +11,53 @@ const importSchema = z.object({
   location: z.string().max(200).optional(),
   salary: z.string().max(200).optional(),
 });
+
+/** Score a JD and update lead score fields */
+async function rescoreLead(
+  supabase: ReturnType<typeof import("@supabase/supabase-js").createClient>,
+  leadId: string,
+  jd: string,
+  userId: string,
+) {
+  // Load user achievements for scoring
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("achievements")
+    .eq("clerk_user_id", userId)
+    .single();
+
+  const achievementsMap: Record<string, string[]> = {};
+  const achievements = profile?.achievements ?? [];
+  if (Array.isArray(achievements)) {
+    for (const cat of achievements as { category: string; items: { text: string }[] }[]) {
+      if (cat.category && Array.isArray(cat.items)) {
+        achievementsMap[cat.category] = cat.items.map((i) => i.text);
+      }
+    }
+  }
+
+  const reqs = extractRequirements(jd);
+  const allReqs = [...reqs.hard_requirements, ...reqs.preferred];
+  if (allReqs.length === 0) return;
+
+  const matches = allReqs.map((r) => scoreRequirement(r, achievementsMap));
+  const score = calculateOverallScore(matches, "scored");
+
+  await supabase
+    .from("pipeline_leads")
+    .update({
+      score_overall: score.overall,
+      score_match_percentage: score.match_percentage,
+      score_details: {
+        strong_count: score.strong_count,
+        partial_count: score.partial_count,
+        gap_count: score.gap_count,
+        score_source: "scored",
+      },
+      red_flags: reqs.red_flags,
+    })
+    .eq("id", leadId);
+}
 
 /**
  * POST /api/extension/import-job
@@ -70,6 +118,7 @@ export async function POST(req: Request) {
             .from("pipeline_leads")
             .update({ description_text: job_description, career_page_url: url })
             .eq("id", lead.id);
+          await rescoreLead(supabase, lead.id, job_description, userId);
         }
       }
 
@@ -111,6 +160,7 @@ export async function POST(req: Request) {
             career_page_url: url,
           })
           .eq("id", lead.id);
+        await rescoreLead(supabase, lead.id, job_description, userId);
       }
     }
 
