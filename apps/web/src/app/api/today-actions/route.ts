@@ -71,14 +71,15 @@ export async function GET() {
         .eq("status", "interviewing")
         .not("interviews", "eq", "[]"),
 
-      // Overdue follow-ups
+      // Overdue follow-ups (exclude terminal statuses)
       supabase
         .from("applications")
         .select("id, company, role, follow_up_date, status")
         .eq("clerk_user_id", userId)
         .is("deleted_at", null)
         .not("follow_up_date", "is", null)
-        .lt("follow_up_date", todayStr),
+        .lt("follow_up_date", todayStr)
+        .not("status", "in", '("withdrawn","rejected","accepted")'),
 
       // Debriefs needed (past scheduled interviews)
       supabase
@@ -107,13 +108,14 @@ export async function GET() {
         .lte("applied_date", ago5d)
         .gte("applied_date", ago7d),
 
-      // Follow-ups due today
+      // Follow-ups due today (exclude terminal statuses)
       supabase
         .from("applications")
         .select("id, company, role, follow_up_date")
         .eq("clerk_user_id", userId)
         .is("deleted_at", null)
-        .eq("follow_up_date", todayStr),
+        .eq("follow_up_date", todayStr)
+        .not("status", "in", '("withdrawn","rejected","accepted")'),
 
       // Ready to apply (evaluating or ready_to_apply)
       supabase
@@ -132,7 +134,7 @@ export async function GET() {
         .eq("status", "applied")
         .lt("applied_date", ago21d),
 
-      // Follow-ups coming this week (tomorrow through +7 days)
+      // Follow-ups coming this week (tomorrow through +7 days, exclude terminal statuses)
       supabase
         .from("applications")
         .select("id, company, role, follow_up_date")
@@ -140,7 +142,8 @@ export async function GET() {
         .is("deleted_at", null)
         .not("follow_up_date", "is", null)
         .gt("follow_up_date", todayStr)
-        .lte("follow_up_date", in7d),
+        .lte("follow_up_date", in7d)
+        .not("status", "in", '("withdrawn","rejected","accepted")'),
     ]);
 
     const actions: TodayAction[] = [];
