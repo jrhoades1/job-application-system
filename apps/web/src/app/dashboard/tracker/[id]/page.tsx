@@ -409,13 +409,20 @@ export default function ApplicationDetailPage() {
         rejection_date: app.rejection_date,
         rejection_reason: app.rejection_reason,
         rejection_insights: app.rejection_insights,
-        job_description: app.job_description,
+        ...(app.job_description ? { job_description: app.job_description } : {}),
       }),
     });
     if (res.ok) {
       toast.success("Application updated");
     } else {
-      toast.error("Failed to update");
+      const err = await res.json().catch(() => null);
+      const detail = err?.details?.fieldErrors
+        ? Object.entries(err.details.fieldErrors)
+            .map(([k, v]) => `${k}: ${(v as string[]).join(", ")}`)
+            .join("; ")
+        : err?.error ?? "Unknown error";
+      toast.error(`Failed to update: ${detail}`);
+      console.error("Update failed:", err);
     }
     setSaving(false);
   }

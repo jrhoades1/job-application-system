@@ -4,19 +4,19 @@ export const interviewRoundSchema = z.object({
   round: z.number().int().positive(),
   type: z.string().min(1),
   date: z.string(),
-  interviewer: z.string(),
-  duration: z.string().optional(),
-  focus: z.string().optional(),
-  notes_file: z.string().optional(),
-  status: z.enum(["scheduled", "completed", "cancelled"]),
-  outcome: z.string().optional(),
+  interviewer: z.string().optional().default(""),
+  duration: z.string().optional().nullable(),
+  focus: z.string().optional().nullable(),
+  notes_file: z.string().optional().nullable(),
+  status: z.enum(["scheduled", "completed", "cancelled"]).optional().default("scheduled"),
+  outcome: z.string().optional().nullable(),
 });
 
 export const resourceLinkSchema = z.object({
-  url: z.string().url(),
-  title: z.string().optional(),
-  type: z.string().optional(),
-  notes: z.string().optional(),
+  url: z.string().url().or(z.literal("")),
+  title: z.string().optional().nullable(),
+  type: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
 });
 
 export const applicationStatusSchema = z.enum([
