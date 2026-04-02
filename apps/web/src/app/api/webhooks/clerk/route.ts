@@ -80,6 +80,13 @@ export async function POST(req: Request) {
     await getSupabase().from("cost_config").insert({
       clerk_user_id: id,
     });
+
+    // Create free-tier subscription for metering
+    await getSupabase().from("subscriptions").insert({
+      clerk_user_id: id,
+      plan_type: "free",
+      applications_cap: 3,
+    });
   }
 
   return NextResponse.json({ received: true });

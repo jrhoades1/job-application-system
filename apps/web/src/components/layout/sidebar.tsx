@@ -18,6 +18,7 @@ export function Sidebar() {
     today: 0,
     jobs: 0,
   });
+  const [plan, setPlan] = useState<{ type: string; used: number; total: number } | null>(null);
 
   const fetchCounts = useCallback(async () => {
     try {
@@ -43,6 +44,16 @@ export function Sidebar() {
       }
 
       setCounts({ today: todayCount, jobs: jobsCount });
+
+      const subRes = await fetch("/api/subscription");
+      if (subRes.ok) {
+        const subData = await subRes.json();
+        setPlan({
+          type: subData.plan_type,
+          used: subData.applications_used,
+          total: subData.total_available,
+        });
+      }
     } catch {
       // silent
     }
@@ -87,6 +98,35 @@ export function Sidebar() {
           </Link>
         );
       })}
+
+      {/* Plan info & upgrade nudge */}
+      <div className="mt-auto pt-4 px-3 border-t">
+        {plan && (
+          <div className="text-xs text-muted-foreground">
+            <div className="flex justify-between">
+              <span>{plan.used}/{plan.total} apps</span>
+              <span className="capitalize">{plan.type === "career_maintenance" ? "Maintenance" : plan.type}</span>
+            </div>
+            <div className="w-full bg-gray-100 rounded-full h-1.5 mt-1">
+              <div
+                className={cn(
+                  "h-1.5 rounded-full",
+                  plan.used >= plan.total ? "bg-red-500" : plan.used >= plan.total * 0.8 ? "bg-yellow-500" : "bg-primary"
+                )}
+                style={{ width: `${Math.min((plan.used / Math.max(plan.total, 1)) * 100, 100)}%` }}
+              />
+            </div>
+            {plan.type === "free" && (
+              <Link
+                href="/dashboard/settings?tab=billing"
+                className="block mt-2 text-primary hover:underline text-xs font-medium"
+              >
+                Upgrade to Pro
+              </Link>
+            )}
+          </div>
+        )}
+      </div>
     </nav>
   );
 }

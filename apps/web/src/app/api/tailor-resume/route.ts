@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthenticatedClient } from "@/lib/supabase";
-import { createTrackedMessage, SpendCapExceededError } from "@/lib/anthropic";
+import { createTrackedMessage, ApplicationQuotaExceededError } from "@/lib/anthropic";
 import { buildTailorResumePrompt } from "@/ai/tailor-resume";
 
 const tailorSchema = z.object({
@@ -93,7 +93,8 @@ export async function POST(req: Request) {
         max_tokens: 2000,
         messages: [{ role: "user", content: prompt }],
       },
-      "tailor_resume"
+      "tailor_resume",
+      parsed.data.application_id
     );
 
     const rawContent =
@@ -137,9 +138,9 @@ export async function POST(req: Request) {
       match_overall: score?.overall ?? null,
     });
   } catch (err) {
-    if (err instanceof SpendCapExceededError) {
+    if (err instanceof ApplicationQuotaExceededError) {
       return NextResponse.json(
-        { error: "Monthly AI spend cap exceeded", cap: err.cap },
+        { error: "Application quota exceeded", used: err.used, cap: err.cap },
         { status: 429 }
       );
     }

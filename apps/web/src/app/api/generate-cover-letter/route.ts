@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthenticatedClient } from "@/lib/supabase";
-import { createTrackedMessage, SpendCapExceededError } from "@/lib/anthropic";
+import { createTrackedMessage, ApplicationQuotaExceededError } from "@/lib/anthropic";
 import { buildCoverLetterPrompt } from "@/ai/generate-cover-letter";
 
 const coverLetterSchema = z.object({
@@ -81,7 +81,8 @@ export async function POST(req: Request) {
         max_tokens: 1500,
         messages: [{ role: "user", content: prompt }],
       },
-      "cover_letter"
+      "cover_letter",
+      parsed.data.application_id
     );
 
     const content =
@@ -97,9 +98,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ cover_letter: content });
   } catch (err) {
-    if (err instanceof SpendCapExceededError) {
+    if (err instanceof ApplicationQuotaExceededError) {
       return NextResponse.json(
-        { error: "Monthly AI spend cap exceeded", cap: err.cap },
+        { error: "Application quota exceeded", used: err.used, cap: err.cap },
         { status: 429 }
       );
     }

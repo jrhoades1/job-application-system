@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthenticatedClient } from "@/lib/supabase";
-import { createTrackedMessage, SpendCapExceededError } from "@/lib/anthropic";
+import { createTrackedMessage } from "@/lib/anthropic";
 import { buildParseResumePrompt } from "@/ai/parse-resume";
 
 const resumeResponseSchema = z.object({
@@ -158,12 +158,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json(resumeData);
   } catch (err) {
-    if (err instanceof SpendCapExceededError) {
-      return NextResponse.json(
-        { error: "Monthly AI spend cap exceeded", cap: err.cap },
-        { status: 429 }
-      );
-    }
     console.error("Parse resume error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

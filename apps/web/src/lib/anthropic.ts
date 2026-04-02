@@ -1,6 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getAuthenticatedClient } from "./supabase";
+import {
+  checkApplicationQuota,
+  incrementApplicationUsage,
+} from "./metering";
 
 let _anthropic: Anthropic | null = null;
 
@@ -51,39 +55,43 @@ export class SpendCapExceededError extends Error {
   }
 }
 
+export class ApplicationQuotaExceededError extends Error {
+  constructor(
+    public used: number,
+    public cap: number
+  ) {
+    super(
+      `Application quota exceeded: ${used} / ${cap} applications used this period`
+    );
+    this.name = "ApplicationQuotaExceededError";
+  }
+}
+
 /**
  * Core tracked message implementation — shared by user-session and cron-initiated calls.
+ * When applicationId is provided, enforces application-count metering.
+ * When applicationId is null/undefined (pipeline/system calls), allows through.
  */
 async function createTrackedMessageCore(
   params: Anthropic.MessageCreateParams,
   generationType: string,
   supabase: SupabaseClient,
-  userId: string
+  userId: string,
+  applicationId?: string
 ): Promise<Anthropic.Message> {
 
-  // 1. Check monthly spend cap
-  const { data: config } = await supabase
-    .from("cost_config")
-    .select("monthly_ai_cap_usd, block_on_cap, alert_threshold_pct")
-    .eq("clerk_user_id", userId)
-    .single();
+  // 1. Check application quota (replaces USD-based spend cap)
+  let isNewApplication = false;
 
-  const cap = config?.monthly_ai_cap_usd ?? 10.0;
-  const blockOnCap = config?.block_on_cap ?? true;
-
-  const { data: spendData } = await supabase
-    .from("ai_generations")
-    .select("cost_usd")
-    .eq("clerk_user_id", userId)
-    .gte("created_at", new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString());
-
-  const monthlySpend = (spendData ?? []).reduce(
-    (sum, row) => sum + (row.cost_usd ?? 0),
-    0
-  );
-
-  if (blockOnCap && monthlySpend >= cap) {
-    throw new SpendCapExceededError(monthlySpend, cap);
+  if (applicationId) {
+    const quota = await checkApplicationQuota(supabase, userId, applicationId);
+    if (!quota.allowed) {
+      throw new ApplicationQuotaExceededError(
+        quota.used,
+        quota.cap + quota.topOff
+      );
+    }
+    isNewApplication = quota.isNewApplication;
   }
 
   // 2. Make the API call (non-streaming)
@@ -99,6 +107,7 @@ async function createTrackedMessageCore(
 
   await supabase.from("ai_generations").insert({
     clerk_user_id: userId,
+    application_id: applicationId ?? null,
     generation_type: generationType,
     model_used: params.model,
     tokens_input: response.usage.input_tokens,
@@ -107,30 +116,15 @@ async function createTrackedMessageCore(
     duration_ms: durationMs,
   });
 
-  // 4. Check alert thresholds
-  const newTotal = monthlySpend + cost;
-  const alertThreshold = (config?.alert_threshold_pct ?? 80) / 100;
-
-  if (newTotal >= cap * alertThreshold && monthlySpend < cap * alertThreshold) {
-    // Just crossed the warning threshold
-    const { data: existingAlert } = await supabase
-      .from("expense_alerts")
-      .select("id")
-      .eq("clerk_user_id", userId)
-      .eq("alert_type", "monthly_cap_warning")
-      .eq("resolved", false)
-      .gte("created_at", new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString())
-      .limit(1);
-
-    if (!existingAlert?.length) {
-      await supabase.from("expense_alerts").insert({
-        clerk_user_id: userId,
-        alert_type: "monthly_cap_warning",
-        severity: "medium",
-        threshold_value: cap * alertThreshold,
-        actual_value: newTotal,
-        message: `You've used ${Math.round((newTotal / cap) * 100)}% of your $${cap.toFixed(2)} monthly AI budget ($${newTotal.toFixed(2)}).`,
-      });
+  // 4. Increment application usage if this is a new application
+  if (applicationId && isNewApplication) {
+    const incremented = await incrementApplicationUsage(supabase, userId);
+    if (!incremented) {
+      // Race condition: another request consumed the last slot.
+      // The AI call already ran, so we log but don't fail.
+      console.warn(
+        `Application usage increment failed for user ${userId} — possible race condition`
+      );
     }
   }
 
@@ -138,28 +132,32 @@ async function createTrackedMessageCore(
 }
 
 /**
- * Create a tracked AI message. Enforces spend caps and logs usage.
+ * Create a tracked AI message. Enforces application quota and logs usage.
  * Requires an active Clerk session — use createTrackedMessageForUser for cron/service contexts.
+ * Pass applicationId to enforce metering; omit for pipeline/system calls.
  */
 export async function createTrackedMessage(
   params: Anthropic.MessageCreateParams,
-  generationType: string
+  generationType: string,
+  applicationId?: string
 ): Promise<Anthropic.Message> {
   const { supabase, userId } = await getAuthenticatedClient();
-  return createTrackedMessageCore(params, generationType, supabase, userId);
+  return createTrackedMessageCore(params, generationType, supabase, userId, applicationId);
 }
 
 /**
  * Create a tracked AI message with an explicit supabase client + userId.
  * Use in cron jobs or server-to-server calls where there's no Clerk session.
+ * Pass applicationId to enforce metering; omit for pipeline/system calls.
  */
 export async function createTrackedMessageForUser(
   params: Anthropic.MessageCreateParams,
   generationType: string,
   supabase: SupabaseClient,
-  userId: string
+  userId: string,
+  applicationId?: string
 ): Promise<Anthropic.Message> {
-  return createTrackedMessageCore(params, generationType, supabase, userId);
+  return createTrackedMessageCore(params, generationType, supabase, userId, applicationId);
 }
 
 export { getAnthropic as anthropic };

@@ -4,6 +4,18 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+
+interface SubscriptionData {
+  plan_type: string;
+  plan_label: string;
+  applications_used: number;
+  applications_cap: number;
+  top_off_balance: number;
+  total_available: number;
+  billing_period_end: string | null;
+  has_stripe: boolean;
+}
 
 interface UsageData {
   cap: number;
@@ -32,30 +44,73 @@ interface UserUsageData {
 }
 
 export function CostUsage() {
+  const [sub, setSub] = useState<SubscriptionData | null>(null);
   const [data, setData] = useState<UsageData | null>(null);
   const [userUsage, setUserUsage] = useState<UserUsageData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
-    fetch("/api/admin/usage")
-      .then((r) => r.json())
-      .then((d) => {
-        setData(d);
+    Promise.all([
+      fetch("/api/subscription").then((r) => r.json()),
+      fetch("/api/admin/usage").then((r) => r.json()),
+      fetch("/api/admin/users-usage").then((r) => r.ok ? r.json() : null),
+    ])
+      .then(([subData, usageData, userData]) => {
+        setSub(subData);
+        setData(usageData);
+        if (userData) setUserUsage(userData);
         setLoading(false);
       })
       .catch(() => setLoading(false));
-
-    fetch("/api/admin/users-usage")
-      .then((r) => r.ok ? r.json() : null)
-      .then((d) => { if (d) setUserUsage(d); })
-      .catch(() => {});
   }, []);
+
+  async function handleCheckout(plan: string) {
+    setActionLoading(true);
+    try {
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+      });
+      const { url } = await res.json();
+      if (url) window.location.href = url;
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleTopOff() {
+    setActionLoading(true);
+    try {
+      const res = await fetch("/api/stripe/top-off", { method: "POST" });
+      const { url } = await res.json();
+      if (url) window.location.href = url;
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handlePortal() {
+    setActionLoading(true);
+    try {
+      const res = await fetch("/api/stripe/portal", { method: "POST" });
+      const { url } = await res.json();
+      if (url) window.location.href = url;
+    } finally {
+      setActionLoading(false);
+    }
+  }
 
   if (loading) return <p className="text-muted-foreground">Loading...</p>;
 
-  const cap = data?.cap ?? 10;
-  const spend = data?.total_spend ?? 0;
-  const pct = data?.percent_used ?? 0;
+  const planType = sub?.plan_type ?? "free";
+  const used = sub?.applications_used ?? 0;
+  const cap = sub?.applications_cap ?? 3;
+  const topOff = sub?.top_off_balance ?? 0;
+  const totalAvailable = cap + topOff;
+  const pct = totalAvailable > 0 ? Math.round((used / totalAvailable) * 100) : 0;
+  const isFree = planType === "free";
 
   return (
     <div className="space-y-6">
@@ -72,40 +127,97 @@ export function CostUsage() {
         </Card>
       )}
 
+      {/* Plan & Application Meter */}
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Your Plan
+            </CardTitle>
+            <Badge variant={isFree ? "secondary" : "default"}>
+              {sub?.plan_label ?? "Free"}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="text-3xl font-bold">
+            {used} of {totalAvailable} applications
+          </div>
+          {topOff > 0 && (
+            <div className="text-sm text-muted-foreground mt-1">
+              {cap} included + {topOff} bonus
+            </div>
+          )}
+          <Progress
+            value={Math.min(pct, 100)}
+            className={`mt-3 ${pct >= 80 ? "[&>div]:bg-red-500" : pct >= 60 ? "[&>div]:bg-yellow-500" : ""}`}
+          />
+          {sub?.billing_period_end && (
+            <div className="text-xs text-muted-foreground mt-2">
+              Resets {new Date(sub.billing_period_end).toLocaleDateString()}
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex gap-3 mt-4">
+            {isFree && (
+              <Button
+                onClick={() => handleCheckout("pro")}
+                disabled={actionLoading}
+              >
+                Upgrade to Pro - $25/mo
+              </Button>
+            )}
+            {!isFree && pct >= 60 && (
+              <Button
+                variant="outline"
+                onClick={handleTopOff}
+                disabled={actionLoading}
+              >
+                Buy 10 More Applications - $5
+              </Button>
+            )}
+            {sub?.has_stripe && (
+              <Button
+                variant="ghost"
+                onClick={handlePortal}
+                disabled={actionLoading}
+              >
+                Manage Billing
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* AI Cost Breakdown (secondary info) */}
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              AI Spend This Month
+              AI Cost This Month
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">${spend.toFixed(2)}</div>
-            <div className="text-sm text-muted-foreground mt-1">
-              of ${cap.toFixed(2)} budget ({pct}%)
+            <div className="text-2xl font-bold">${(data?.total_spend ?? 0).toFixed(2)}</div>
+            <div className="text-xs text-muted-foreground mt-1">
+              {data?.total_calls ?? 0} AI calls
             </div>
-            <Progress
-              value={Math.min(pct, 100)}
-              className={`mt-3 ${pct >= 80 ? "[&>div]:bg-red-500" : ""}`}
-            />
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              AI Calls This Month
+              Token Usage
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{data?.total_calls ?? 0}</div>
-            <div className="text-sm text-muted-foreground mt-1">
-              Projected: ${(data?.projected_monthly ?? 0).toFixed(2)}/month
+            <div className="text-2xl font-bold">
+              {(((data?.total_input_tokens ?? 0) + (data?.total_output_tokens ?? 0)) / 1000).toFixed(1)}K
             </div>
             <div className="text-xs text-muted-foreground mt-1">
-              {((data?.total_input_tokens ?? 0) / 1000).toFixed(1)}K input /{" "}
-              {((data?.total_output_tokens ?? 0) / 1000).toFixed(1)}K output
-              tokens
+              {((data?.total_input_tokens ?? 0) / 1000).toFixed(1)}K in / {((data?.total_output_tokens ?? 0) / 1000).toFixed(1)}K out
             </div>
           </CardContent>
         </Card>
@@ -134,7 +246,7 @@ export function CostUsage() {
                     {type.replace(/_/g, " ")}
                   </span>
                   <span className="text-muted-foreground">
-                    {stats.count} calls — ${stats.cost.toFixed(4)}
+                    {stats.count} calls - ${stats.cost.toFixed(4)}
                   </span>
                 </div>
               ))}
@@ -148,9 +260,9 @@ export function CostUsage() {
         <Card>
           <CardHeader>
             <CardTitle>
-              All Users This Month —{" "}
+              All Users This Month{" "}
               <span className="text-muted-foreground font-normal text-sm">
-                {userUsage.total_users} users · ${userUsage.total_cost.toFixed(4)} total
+                {userUsage.total_users} users / ${userUsage.total_cost.toFixed(4)} total
               </span>
             </CardTitle>
           </CardHeader>

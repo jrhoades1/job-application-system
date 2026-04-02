@@ -43,16 +43,18 @@ export function QuickScoreDialog({ onSaved, trigger }: QuickScoreDialogProps) {
   const [role, setRole] = useState("");
   const [jobDescription, setJobDescription] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<ScoreResult | null>(null);
+  const [savedAppId, setSavedAppId] = useState<string | null>(null);
 
   function reset() {
     setCompany("");
     setRole("");
     setJobDescription("");
     setResult(null);
+    setSavedAppId(null);
   }
 
+  // Creates application first, then analyzes by ID (metered as 1 application)
   async function handleAnalyze() {
     if (!company || !role || !jobDescription) {
       toast.error("Please fill in all fields");
@@ -61,15 +63,35 @@ export function QuickScoreDialog({ onSaved, trigger }: QuickScoreDialogProps) {
     setAnalyzing(true);
     setResult(null);
     try {
-      const res = await fetch("/api/analyze-job", {
+      // Step 1: Create application
+      const createRes = await fetch("/api/applications", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           company,
           role,
           job_description: jobDescription,
+          status: "evaluating",
         }),
       });
+      if (!createRes.ok) {
+        const err = await createRes.json().catch(() => null);
+        toast.error(err?.error ?? "Failed to create application");
+        return;
+      }
+      const created = await createRes.json();
+      setSavedAppId(created.id);
+
+      // Step 2: Analyze by application_id
+      const res = await fetch("/api/analyze-job", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ application_id: created.id }),
+      });
+      if (res.status === 429) {
+        toast.error("Application quota exceeded. Upgrade your plan or buy more applications.");
+        return;
+      }
       if (!res.ok) {
         const err = await res.json();
         toast.error(err.error ?? "Analysis failed");
@@ -77,47 +99,15 @@ export function QuickScoreDialog({ onSaved, trigger }: QuickScoreDialogProps) {
       }
       const data = await res.json();
       setResult(data);
+
+      // Auto-score in background
+      fetch(`/api/applications/${created.id}/score`, {
+        method: "POST",
+      }).catch(() => {});
     } catch {
       toast.error("Something went wrong");
     } finally {
       setAnalyzing(false);
-    }
-  }
-
-  async function handleSaveAsApplication() {
-    setSaving(true);
-    try {
-      const payload: Record<string, unknown> = {
-        company,
-        role,
-        job_description: jobDescription,
-        status: "evaluating",
-      };
-      const res = await fetch("/api/applications", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (res.ok) {
-        const created = await res.json();
-        toast.success("Saved to Jobs");
-        // Auto-score in background
-        if (created.id) {
-          fetch(`/api/applications/${created.id}/score`, {
-            method: "POST",
-          }).catch(() => {});
-        }
-        setOpen(false);
-        reset();
-        onSaved?.();
-      } else {
-        const err = await res.json().catch(() => null);
-        toast.error(err?.error || "Failed to save");
-      }
-    } catch {
-      toast.error("Failed to save");
-    } finally {
-      setSaving(false);
     }
   }
 
@@ -244,12 +234,16 @@ export function QuickScoreDialog({ onSaved, trigger }: QuickScoreDialogProps) {
               </div>
             )}
             <Button
-              onClick={handleSaveAsApplication}
-              disabled={saving}
+              onClick={() => {
+                toast.success("Saved to Jobs");
+                setOpen(false);
+                reset();
+                onSaved?.();
+              }}
               variant="outline"
               className="w-full"
             >
-              {saving ? "Saving..." : "Save to Jobs"}
+              Done
             </Button>
           </div>
         )}

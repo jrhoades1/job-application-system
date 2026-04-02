@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedClient } from "@/lib/supabase";
+import { getSubscription } from "@/lib/metering";
 
 export async function GET() {
   try {
@@ -78,8 +79,17 @@ export async function GET() {
 
     const cap = config?.monthly_ai_cap_usd ?? 10.0;
 
+    // Fetch subscription data
+    const subscription = await getSubscription(supabase, userId);
+
     return NextResponse.json({
       cap,
+      subscription: {
+        plan_type: subscription.plan_type,
+        applications_used: subscription.applications_used,
+        applications_cap: subscription.applications_cap,
+        top_off_balance: subscription.top_off_balance,
+      },
       alert_threshold_pct: config?.alert_threshold_pct ?? 80,
       block_on_cap: config?.block_on_cap ?? true,
       total_spend: Math.round(totalSpend * 100) / 100,

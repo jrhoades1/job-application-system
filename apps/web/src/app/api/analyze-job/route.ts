@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthenticatedClient } from "@/lib/supabase";
-import { createTrackedMessage, SpendCapExceededError } from "@/lib/anthropic";
+import { createTrackedMessage, ApplicationQuotaExceededError } from "@/lib/anthropic";
 import {
   extractRequirements,
   scoreRequirement,
@@ -13,9 +13,7 @@ import {
 import { buildAnalyzeJobPrompt } from "@/ai/analyze-job";
 
 const analyzeSchema = z.object({
-  job_description: z.string().min(50).max(50000),
-  company: z.string().min(1).max(200),
-  role: z.string().min(1).max(200),
+  application_id: z.string().uuid(),
 });
 
 export async function POST(req: Request) {
@@ -31,7 +29,31 @@ export async function POST(req: Request) {
       );
     }
 
-    const { job_description, company, role } = parsed.data;
+    const { application_id } = parsed.data;
+
+    // Load application
+    const { data: app } = await supabase
+      .from("applications")
+      .select("job_description, company, role")
+      .eq("id", application_id)
+      .eq("clerk_user_id", userId)
+      .single();
+
+    if (!app) {
+      return NextResponse.json(
+        { error: "Application not found" },
+        { status: 404 }
+      );
+    }
+
+    const { job_description, company, role } = app;
+
+    if (!job_description || job_description.length < 50) {
+      return NextResponse.json(
+        { error: "Application has no job description or it is too short" },
+        { status: 400 }
+      );
+    }
 
     // Load user achievements
     const { data: profile } = await supabase
@@ -99,7 +121,8 @@ export async function POST(req: Request) {
           max_tokens: 1500,
           messages: [{ role: "user", content: prompt }],
         },
-        "analyze_job"
+        "analyze_job",
+        application_id
       );
 
       const content =
@@ -121,9 +144,9 @@ export async function POST(req: Request) {
         aiAnalysis = validated.success ? validated.data : null;
       }
     } catch (err) {
-      if (err instanceof SpendCapExceededError) {
+      if (err instanceof ApplicationQuotaExceededError) {
         return NextResponse.json(
-          { error: "Monthly AI spend cap exceeded", cap: err.cap },
+          { error: "Application quota exceeded", used: err.used, cap: err.cap },
           { status: 429 }
         );
       }

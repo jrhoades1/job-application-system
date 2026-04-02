@@ -358,6 +358,7 @@ export default function ApplicationDetailPage() {
   const [tailoring, setTailoring] = useState(false);
   const [generatingCL, setGeneratingCL] = useState(false);
   const [scoring, setScoring] = useState(false);
+  const [quotaInfo, setQuotaInfo] = useState<{ used: number; total: number; plan: string } | null>(null);
   const [tailoredResume, setTailoredResume] = useState<string | null>(null);
   const [tailorMatchPct, setTailorMatchPct] = useState<number | null>(null);
   const [coverLetter, setCoverLetter] = useState<string | null>(null);
@@ -375,6 +376,16 @@ export default function ApplicationDetailPage() {
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data)) setStatusHistory(data);
+      })
+      .catch(() => {});
+    fetch("/api/subscription")
+      .then((r) => r.json())
+      .then((data) => {
+        setQuotaInfo({
+          used: data.applications_used ?? 0,
+          total: data.total_available ?? 3,
+          plan: data.plan_type ?? "free",
+        });
       })
       .catch(() => {});
   }, [params.id]);
@@ -422,8 +433,11 @@ export default function ApplicationDetailPage() {
         const data = await res.json();
         setTailoredResume(data.resume);
         setTailorMatchPct(data.match_percentage);
-        const pctLabel = data.match_percentage ? ` — ${data.match_percentage}% match` : "";
+        if (quotaInfo) setQuotaInfo({ ...quotaInfo, used: quotaInfo.used + 1 });
+        const pctLabel = data.match_percentage ? ` - ${data.match_percentage}% match` : "";
         toast.success(`Resume tailored${pctLabel}`);
+      } else if (res.status === 429) {
+        toast.error("Application quota exceeded. Upgrade your plan or buy more applications.");
       } else {
         const err = await res.json();
         toast.error(err.error ?? "Failed to tailor resume");
@@ -446,7 +460,10 @@ export default function ApplicationDetailPage() {
       if (res.ok) {
         const data = await res.json();
         setCoverLetter(data.cover_letter);
+        if (quotaInfo) setQuotaInfo({ ...quotaInfo, used: quotaInfo.used + 1 });
         toast.success("Cover letter generated");
+      } else if (res.status === 429) {
+        toast.error("Application quota exceeded. Upgrade your plan or buy more applications.");
       } else {
         const err = await res.json();
         toast.error(err.error ?? "Failed to generate cover letter");
@@ -777,18 +794,28 @@ export default function ApplicationDetailPage() {
             </Button>
             <Button
               onClick={handleTailorResume}
-              disabled={tailoring}
+              disabled={tailoring || (quotaInfo ? quotaInfo.used >= quotaInfo.total : false)}
               variant="outline"
             >
               {tailoring ? "Tailoring..." : "Tailor Resume"}
             </Button>
             <Button
               onClick={handleGenerateCoverLetter}
-              disabled={generatingCL}
+              disabled={generatingCL || (quotaInfo ? quotaInfo.used >= quotaInfo.total : false)}
               variant="outline"
             >
               {generatingCL ? "Generating..." : "Generate Cover Letter"}
             </Button>
+            {quotaInfo && (
+              <span className="text-xs text-muted-foreground self-center">
+                {quotaInfo.used}/{quotaInfo.total} applications used
+                {quotaInfo.used >= quotaInfo.total && (
+                  <a href="/dashboard/settings?tab=billing" className="text-primary ml-1 underline">
+                    Upgrade
+                  </a>
+                )}
+              </span>
+            )}
           </div>
 
           {resumeContent && (
