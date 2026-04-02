@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedClient } from "@/lib/supabase";
 import {
+  extractRequirementsWithAI,
+  requirementsFromRoleTitle,
+} from "@/lib/extract-requirements-ai";
+import {
   extractRequirements,
   scoreRequirement,
   scoreRequirementsWithAI,
@@ -53,9 +57,26 @@ export async function POST(
       }
     }
 
-    // Score — AI first, word-overlap fallback
+    // Score — regex extraction first, AI fallback, then role-title last resort
     const requirements = extractRequirements(app.job_description);
-    const allReqs = [...requirements.hard_requirements, ...requirements.preferred];
+    let allReqs = [...requirements.hard_requirements, ...requirements.preferred];
+    let redFlags = requirements.red_flags;
+
+    // Fallback: AI extraction when regex finds nothing (e.g. unstructured JD text)
+    if (allReqs.length === 0 && app.job_description.length > 200) {
+      const aiReqs = await extractRequirementsWithAI(
+        app.job_description,
+        app.role ?? "",
+        app.company ?? ""
+      );
+      allReqs = [...aiReqs.hard_requirements, ...aiReqs.preferred];
+      redFlags = [...redFlags, ...aiReqs.red_flags];
+    }
+
+    // Last resort: infer from role title (free, no AI call)
+    if (allReqs.length === 0 && app.role) {
+      allReqs = requirementsFromRoleTitle(app.role);
+    }
 
     let matches = await scoreRequirementsWithAI(allReqs, achievementsMap, {
       role: app.role ?? undefined,
@@ -67,6 +88,17 @@ export async function POST(
     }
 
     const score = calculateOverallScore(matches);
+
+    // Build rich breakdown
+    const strengths = matches
+      .filter((m) => m.match_type === "strong")
+      .map((m) => m.requirement);
+    const partials = matches
+      .filter((m) => m.match_type === "partial")
+      .map((m) => m.requirement);
+    const gaps = matches
+      .filter((m) => m.match_type === "gap")
+      .map((m) => m.requirement);
 
     // Upsert match_scores (application_id has UNIQUE constraint)
     const { error: upsertError } = await supabase
@@ -80,7 +112,11 @@ export async function POST(
           strong_count: score.strong_count,
           partial_count: score.partial_count,
           gap_count: score.gap_count,
-          red_flags: requirements.red_flags,
+          red_flags: redFlags,
+          requirements_matched: strengths,
+          requirements_partial: partials,
+          gaps,
+          keywords: requirements.keywords,
         },
         { onConflict: "application_id" }
       );
