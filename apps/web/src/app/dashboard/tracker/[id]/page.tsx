@@ -558,7 +558,13 @@ export default function ApplicationDetailPage() {
           const newFound = (displayAtsKeywords.filter((k) => k.found).length) + 1;
           return total > 0 ? Math.round((newFound / total) * 1000) / 10 : prev;
         });
-        toast.success(`Added "${addKeywordTarget}" to your profile`);
+        toast.success(`Added "${addKeywordTarget}" to your profile. Re-tailor your resume to include it.`, {
+          duration: 6000,
+          action: {
+            label: "Re-Tailor Now",
+            onClick: () => handleTailorResume(),
+          },
+        });
         setAddKeywordOpen(false);
       } else {
         const err = await res.json();
@@ -675,9 +681,10 @@ export default function ApplicationDetailPage() {
   const displayResumeGaps = resumeGaps.length > 0 ? resumeGaps : (score?.resume_gaps ?? []);
 
   // ATS Score: literal keyword matching (pre-submit gate)
-  const displayAtsScore = atsScore ?? score?.ats_score ?? null;
-  const displayAtsMissing = atsMissing.length > 0 ? atsMissing : (score?.ats_missing ?? []);
   const displayAtsKeywords = atsKeywords.length > 0 ? atsKeywords : (score?.ats_keywords ?? []);
+  // Derive missing from keywords so tooltip stays in sync after interactive adds
+  const displayAtsMissing = displayAtsKeywords.filter((k) => !k.found).map((k) => k.keyword);
+  const displayAtsScore = atsScore ?? score?.ats_score ?? null;
 
   const resumeContent = tailoredResume ?? app.tailored_resume ?? app.resume_version;
   const clContent = coverLetter ?? app.cover_letter;
