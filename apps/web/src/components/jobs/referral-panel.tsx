@@ -16,10 +16,10 @@ interface ReferralPanelProps {
   onStatusChanged: (status: "pending" | "contacted" | "connected" | "skipped") => void;
 }
 
-function buildLinkedInSearchUrl(company: string): string {
-  // Search for the company page — from there you can browse employees for referrals
-  const query = encodeURIComponent(company);
-  return `https://www.linkedin.com/search/results/companies/?keywords=${query}&origin=GLOBAL_SEARCH_HEADER`;
+function buildLinkedInSearchUrl(company: string, role: string): string {
+  // Include role context so LinkedIn finds people at the right company, not people named after it
+  const query = encodeURIComponent(`${company} ${role}`);
+  return `https://www.linkedin.com/search/results/people/?keywords=${query}&origin=GLOBAL_SEARCH_HEADER`;
 }
 
 function generateNetworkingMessage(company: string, role: string): string {
@@ -68,7 +68,7 @@ export function ReferralPanel({
 
   const status = referralStatus ?? "pending";
   const config = STATUS_CONFIG[status];
-  const linkedInUrl = buildLinkedInSearchUrl(company);
+  const linkedInUrl = buildLinkedInSearchUrl(company, role);
 
   async function updateStatus(newStatus: "pending" | "contacted" | "connected" | "skipped") {
     setUpdating(true);
