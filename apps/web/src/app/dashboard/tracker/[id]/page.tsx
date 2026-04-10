@@ -20,6 +20,14 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { STATUS_CONFIG, SCORE_CONFIG, APPLICATION_STATUSES } from "@/lib/constants";
 import { downloadMarkdown, downloadDocx, downloadPdf } from "@/lib/document-export";
@@ -366,6 +374,10 @@ export default function ApplicationDetailPage() {
   const [atsScore, setAtsScore] = useState<number | null>(null);
   const [atsMissing, setAtsMissing] = useState<string[]>([]);
   const [atsKeywords, setAtsKeywords] = useState<{ keyword: string; found: boolean; category: string }[]>([]);
+  const [addKeywordOpen, setAddKeywordOpen] = useState(false);
+  const [addKeywordTarget, setAddKeywordTarget] = useState<string | null>(null);
+  const [addKeywordText, setAddKeywordText] = useState("");
+  const [addingKeyword, setAddingKeyword] = useState(false);
   const [coverLetter, setCoverLetter] = useState<string | null>(null);
   const [statusHistory, setStatusHistory] = useState<StatusHistoryRow[]>([]);
 
@@ -464,6 +476,98 @@ export default function ApplicationDetailPage() {
       toast.error("Something went wrong");
     }
     setTailoring(false);
+  }
+
+  function getKeywordExample(keyword: string): string {
+    const kw = keyword.toLowerCase();
+    const role = app?.role ?? "this role";
+    // Generate contextual examples based on keyword category
+    const examples: Record<string, string> = {
+      python: `Used Python to build data pipelines and automate ML model training workflows, reducing processing time by 40%.`,
+      java: `Developed enterprise Java applications for healthcare claims processing, handling 10K+ transactions daily.`,
+      sql: `Wrote complex SQL queries for reporting dashboards, optimizing query performance across 50M+ row tables.`,
+      tensorflow: `Built and deployed TensorFlow models for predictive patient risk scoring in production environments.`,
+      pytorch: `Trained PyTorch neural networks for NLP classification tasks, achieving 92% accuracy on clinical text.`,
+      "scikit-learn": `Applied scikit-learn for feature engineering and model selection in healthcare analytics pipelines.`,
+      keras: `Prototyped deep learning models with Keras for rapid experimentation before production deployment.`,
+      aws: `Architected AWS cloud infrastructure (EC2, S3, Lambda, RDS) supporting 99.9% uptime for healthcare platforms.`,
+      azure: `Migrated on-premise systems to Azure, leveraging App Services and Azure SQL for scalable cloud deployment.`,
+      "google cloud": `Leveraged Google Cloud Platform for data analytics workloads and BigQuery-based reporting.`,
+      kubernetes: `Orchestrated containerized microservices with Kubernetes, managing 20+ services in production.`,
+      docker: `Containerized applications with Docker for consistent development, testing, and production environments.`,
+      sagemaker: `Deployed ML models to production using AWS SageMaker endpoints with auto-scaling inference.`,
+      "azure machine learning": `Built and managed ML pipelines using Azure Machine Learning for automated model retraining.`,
+      jupyter: `Used Jupyter Notebooks for exploratory data analysis, model prototyping, and stakeholder presentations.`,
+      "apache spark": `Processed large-scale datasets using Apache Spark for ETL pipelines and feature engineering.`,
+      hadoop: `Managed Hadoop clusters for distributed data processing across terabyte-scale healthcare datasets.`,
+      "data governance": `Established data governance frameworks ensuring data quality, lineage tracking, and regulatory compliance.`,
+      "data warehousing": `Designed data warehouse architectures for centralized reporting across multiple business units.`,
+      "data lake": `Built data lake infrastructure on S3/Azure Data Lake for unified storage of structured and unstructured data.`,
+      "machine learning": `Applied machine learning techniques to optimize healthcare operations, from patient scheduling to risk prediction.`,
+      "deep learning": `Implemented deep learning solutions for image classification and NLP tasks in healthcare applications.`,
+      nlp: `Built NLP pipelines for clinical text extraction, automating medical record analysis and coding.`,
+      "change management": `Led change management initiatives during technology transformations, achieving 90%+ adoption rates.`,
+      "stakeholder management": `Managed stakeholder relationships across engineering, product, and executive teams to align on technical roadmaps.`,
+      roadmap: `Developed multi-quarter technology roadmaps aligned with business objectives and growth targets.`,
+      "cross-functional": `Led cross-functional teams spanning engineering, product, design, and operations.`,
+      kpi: `Defined and monitored KPIs for engineering velocity, system reliability, and business impact.`,
+      hipaa: `Ensured HIPAA compliance across all healthcare platforms, passing annual security audits without findings.`,
+      "soc 2": `Led SOC 2 Type II certification process, establishing controls and audit preparation procedures.`,
+      agile: `Implemented Agile/Scrum methodologies across engineering teams, improving sprint velocity by 25%.`,
+      "ci/cd": `Built CI/CD pipelines using GitHub Actions and Jenkins, reducing deployment time from days to hours.`,
+      devops: `Established DevOps practices including automated testing, infrastructure-as-code, and monitoring.`,
+      microservices: `Transformed monolithic applications into microservices architecture, improving scalability and deployment independence.`,
+    };
+    return examples[kw] ?? `Applied ${keyword} in the context of ${role}, contributing to improved outcomes and efficiency.`;
+  }
+
+  function openAddKeyword(keyword: string) {
+    setAddKeywordTarget(keyword);
+    setAddKeywordText("");
+    setAddKeywordOpen(true);
+  }
+
+  async function handleAddKeyword() {
+    if (!addKeywordTarget || !addKeywordText.trim()) return;
+    setAddingKeyword(true);
+    try {
+      const res = await fetch("/api/profile/add-achievement", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: "Technical Skills",
+          text: addKeywordText.trim(),
+        }),
+      });
+      if (res.ok) {
+        // Mark keyword as found in local state
+        setAtsKeywords((prev) =>
+          prev.map((k) =>
+            k.keyword.toLowerCase() === addKeywordTarget.toLowerCase()
+              ? { ...k, found: true }
+              : k
+          )
+        );
+        setAtsMissing((prev) =>
+          prev.filter((k) => k.toLowerCase() !== addKeywordTarget!.toLowerCase())
+        );
+        // Recalculate ATS score
+        setAtsScore((prev) => {
+          if (prev == null) return prev;
+          const total = atsKeywords.length || displayAtsKeywords.length;
+          const newFound = (displayAtsKeywords.filter((k) => k.found).length) + 1;
+          return total > 0 ? Math.round((newFound / total) * 1000) / 10 : prev;
+        });
+        toast.success(`Added "${addKeywordTarget}" to your profile`);
+        setAddKeywordOpen(false);
+      } else {
+        const err = await res.json();
+        toast.error(err.error ?? "Failed to add");
+      }
+    } catch {
+      toast.error("Something went wrong");
+    }
+    setAddingKeyword(false);
   }
 
   async function handleGenerateCoverLetter() {
@@ -602,6 +706,24 @@ export default function ApplicationDetailPage() {
                 <ScoreTooltipBody score={score} />
               </TooltipContent>
             </Tooltip>
+          )}
+          {displayResumeMatchPct != null && (
+            <span className={`inline-flex rounded-full px-3 py-1 text-sm font-medium ${
+              displayResumeMatchPct >= 80 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" :
+              displayResumeMatchPct >= 60 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" :
+              "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+            }`}>
+              Resume {displayResumeMatchPct}%
+            </span>
+          )}
+          {displayAtsScore != null && (
+            <span className={`inline-flex rounded-full px-3 py-1 text-sm font-medium ${
+              displayAtsScore >= 90 ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200" :
+              displayAtsScore >= 70 ? "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200" :
+              "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+            }`}>
+              ATS {displayAtsScore}%
+            </span>
           )}
           <Badge variant={statusCfg?.variant ?? "secondary"} className="text-sm">
             {statusCfg?.label ?? app.status}
@@ -954,16 +1076,22 @@ export default function ApplicationDetailPage() {
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {displayAtsKeywords.map((k, i) => (
-                      <span
-                        key={i}
-                        className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs ${
-                          k.found
-                            ? "bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300"
-                            : "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 font-medium"
-                        }`}
-                      >
-                        {k.found ? "\u2713" : "\u2717"} {k.keyword}
-                      </span>
+                      k.found ? (
+                        <span
+                          key={i}
+                          className="inline-flex items-center rounded px-1.5 py-0.5 text-xs bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300"
+                        >
+                          {"\u2713"} {k.keyword}
+                        </span>
+                      ) : (
+                        <button
+                          key={i}
+                          onClick={() => openAddKeyword(k.keyword)}
+                          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 font-medium hover:bg-red-100 dark:hover:bg-red-900 transition-colors cursor-pointer"
+                        >
+                          {"\u2717"} {k.keyword} <span className="text-red-400 ml-0.5">+</span>
+                        </button>
+                      )
                     ))}
                   </div>
                 </div>
@@ -1010,6 +1138,44 @@ export default function ApplicationDetailPage() {
           Delete Application
         </Button>
       </div>
+
+      {/* Add Missing Keyword Dialog */}
+      <Dialog open={addKeywordOpen} onOpenChange={setAddKeywordOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add &quot;{addKeywordTarget}&quot; to your profile</DialogTitle>
+            <DialogDescription>
+              Briefly describe how you&apos;ve used {addKeywordTarget}. This will be added to your
+              achievements so future resumes include it.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">Example:</p>
+              <p className="text-xs bg-muted p-2 rounded italic">
+                {addKeywordTarget ? getKeywordExample(addKeywordTarget) : ""}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm font-medium mb-1">Your experience with {addKeywordTarget}:</p>
+              <Textarea
+                placeholder={`Describe how you've used ${addKeywordTarget ?? "this skill"}...`}
+                value={addKeywordText}
+                onChange={(e) => setAddKeywordText(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddKeywordOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddKeyword} disabled={addingKeyword || !addKeywordText.trim()}>
+              {addingKeyword ? "Adding..." : "Add to Profile"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
