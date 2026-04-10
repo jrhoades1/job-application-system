@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -59,6 +60,7 @@ export function ReferralPanel({
   referralStatus,
   onStatusChanged,
 }: ReferralPanelProps) {
+  const router = useRouter();
   const [updating, setUpdating] = useState(false);
   const [showMessage, setShowMessage] = useState(false);
   const [message, setMessage] = useState(() => generateNetworkingMessage(company, role));
@@ -79,6 +81,9 @@ export function ReferralPanel({
         onStatusChanged(newStatus);
         const labels: Record<string, string> = { contacted: "Marked as contacted", connected: "Referral connected!", skipped: "Skipped referral" };
         toast.success(labels[newStatus] ?? "Updated");
+        // Navigate back to Today for the next task
+        router.push("/dashboard");
+        return;
       } else {
         toast.error("Failed to update");
       }
