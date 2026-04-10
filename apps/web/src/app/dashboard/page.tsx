@@ -195,12 +195,12 @@ export default function DashboardPage() {
 
       {/* Action sections */}
       {urgent.length > 0 && (
-        <ActionSection priority="urgent" actions={urgent} />
+        <ActionSection priority="urgent" actions={urgent} onRefresh={refreshActions} />
       )}
       {today.length > 0 && (
-        <ActionSection priority="today" actions={today} />
+        <ActionSection priority="today" actions={today} onRefresh={refreshActions} />
       )}
-      {week.length > 0 && <ActionSection priority="week" actions={week} />}
+      {week.length > 0 && <ActionSection priority="week" actions={week} onRefresh={refreshActions} />}
 
       {/* Compact stats bar */}
       <div className="grid grid-cols-4 gap-3">
@@ -286,41 +286,153 @@ function DigestBanner({ digest }: { digest: DigestRun }) {
 function ActionSection({
   priority,
   actions,
+  onRefresh,
 }: {
   priority: "urgent" | "today" | "week";
   actions: TodayAction[];
+  onRefresh: () => Promise<void>;
 }) {
+  const [bulkActing, setBulkActing] = useState(false);
   const config = PRIORITY_CONFIG[priority];
+
+  const dismissableActions = actions.filter(
+    (a) => DISMISSABLE_TYPES.has(a.type) && extractAppId(a.id)
+  );
+  const hasBulkActions = dismissableActions.length > 1;
+
+  async function handleBulkSnooze() {
+    setBulkActing(true);
+    try {
+      await Promise.all(
+        dismissableActions.map((a) => {
+          const appId = extractAppId(a.id)!;
+          return fetch(`/api/applications/${appId}/snooze`, { method: "POST" });
+        })
+      );
+      await onRefresh();
+    } finally {
+      setBulkActing(false);
+    }
+  }
+
+  async function handleBulkArchive() {
+    setBulkActing(true);
+    try {
+      const ids = dismissableActions.map((a) => extractAppId(a.id)!);
+      await fetch("/api/applications/bulk-status", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids, status: "withdrawn" }),
+      });
+      await onRefresh();
+    } finally {
+      setBulkActing(false);
+    }
+  }
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <span
-          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${config.badge}`}
-        >
-          {config.label}
-        </span>
-        <span className="text-xs text-muted-foreground">
-          {actions.length} item{actions.length !== 1 ? "s" : ""}
-        </span>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span
+            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${config.badge}`}
+          >
+            {config.label}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {actions.length} item{actions.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+        {hasBulkActions && (
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs text-muted-foreground h-7 px-2"
+              onClick={handleBulkSnooze}
+              disabled={bulkActing}
+            >
+              {bulkActing ? "Working..." : `Snooze All (${dismissableActions.length})`}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs text-muted-foreground h-7 px-2"
+              onClick={handleBulkArchive}
+              disabled={bulkActing}
+            >
+              Archive All ({dismissableActions.length})
+            </Button>
+          </div>
+        )}
       </div>
       <div className="space-y-2">
         {actions.map((action) => (
-          <ActionCard key={action.id} action={action} config={config} />
+          <ActionCard key={action.id} action={action} config={config} onRefresh={onRefresh} />
         ))}
       </div>
     </div>
   );
 }
 
+/** Extract the real application UUID from an action ID like "decay-uuid" or "stalled-uuid" */
+function extractAppId(actionId: string): string | null {
+  const prefixes = ["decay-", "stalled-", "ready-", "overdue-", "followup-today-", "first-followup-", "followup-week-"];
+  for (const p of prefixes) {
+    if (actionId.startsWith(p)) return actionId.slice(p.length);
+  }
+  return null;
+}
+
+/** Action types that support inline archive/snooze */
+const DISMISSABLE_TYPES = new Set([
+  "decay_warning", "decay_imminent", "stalled", "overdue_followup",
+  "ready_to_apply", "needs_first_followup",
+]);
+
 function ActionCard({
   action,
   config,
+  onRefresh,
 }: {
   action: TodayAction;
   config: (typeof PRIORITY_CONFIG)[keyof typeof PRIORITY_CONFIG];
+  onRefresh: () => Promise<void>;
 }) {
+  const [acting, setActing] = useState(false);
   const icon = ACTION_ICONS[action.type] ?? "📌";
+  const isDismissable = DISMISSABLE_TYPES.has(action.type);
+  const appId = extractAppId(action.id);
+
+  async function handleArchive(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!appId || acting) return;
+    setActing(true);
+    try {
+      await fetch("/api/applications/bulk-status", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: [appId], status: "withdrawn" }),
+      });
+      await onRefresh();
+    } finally {
+      setActing(false);
+    }
+  }
+
+  async function handleSnooze(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!appId || acting) return;
+    setActing(true);
+    try {
+      await fetch(`/api/applications/${appId}/snooze`, { method: "POST" });
+      await onRefresh();
+    } finally {
+      setActing(false);
+    }
+  }
 
   return (
     <Link href={action.action_url}>
@@ -348,14 +460,39 @@ function ActionCard({
               </p>
             </div>
           </div>
-          <Button
-            variant={action.priority === "urgent" ? "default" : "outline"}
-            size="sm"
-            className="flex-shrink-0 ml-3"
-            tabIndex={-1}
-          >
-            {action.action_label}
-          </Button>
+          <div className="flex items-center gap-1.5 flex-shrink-0 ml-3">
+            {isDismissable && appId && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-muted-foreground h-7 px-2"
+                  onClick={handleSnooze}
+                  disabled={acting}
+                  tabIndex={-1}
+                >
+                  Snooze
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-muted-foreground h-7 px-2"
+                  onClick={handleArchive}
+                  disabled={acting}
+                  tabIndex={-1}
+                >
+                  Archive
+                </Button>
+              </>
+            )}
+            <Button
+              variant={action.priority === "urgent" ? "default" : "outline"}
+              size="sm"
+              tabIndex={-1}
+            >
+              {action.action_label}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </Link>
