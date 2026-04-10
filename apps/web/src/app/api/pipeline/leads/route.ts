@@ -23,7 +23,9 @@ export async function GET(req: Request) {
       .is("deleted_at", null);
 
     if (sort === "newest") {
-      query = query.order("email_date", { ascending: false, nullsFirst: false });
+      query = query
+        .order("email_date", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false });
     } else {
       // Best Match: sort by match percentage descending (highest first)
       query = query
