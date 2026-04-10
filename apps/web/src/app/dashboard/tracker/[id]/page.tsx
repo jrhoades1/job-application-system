@@ -363,6 +363,9 @@ export default function ApplicationDetailPage() {
   const [tailorMatchPct, setTailorMatchPct] = useState<number | null>(null);
   const [resumeMatchPct, setResumeMatchPct] = useState<number | null>(null);
   const [resumeGaps, setResumeGaps] = useState<string[]>([]);
+  const [atsScore, setAtsScore] = useState<number | null>(null);
+  const [atsMissing, setAtsMissing] = useState<string[]>([]);
+  const [atsKeywords, setAtsKeywords] = useState<{ keyword: string; found: boolean; category: string }[]>([]);
   const [coverLetter, setCoverLetter] = useState<string | null>(null);
   const [statusHistory, setStatusHistory] = useState<StatusHistoryRow[]>([]);
 
@@ -444,8 +447,12 @@ export default function ApplicationDetailPage() {
         setTailorMatchPct(data.match_percentage);
         setResumeMatchPct(data.resume_match_percentage ?? null);
         setResumeGaps(data.resume_gaps ?? []);
+        setAtsScore(data.ats_score ?? null);
+        setAtsMissing(data.ats_missing ?? []);
+        setAtsKeywords(data.ats_keywords ?? []);
         if (quotaInfo) setQuotaInfo({ ...quotaInfo, used: quotaInfo.used + 1 });
-        const resumePctLabel = data.resume_match_percentage ? ` - Resume ${data.resume_match_percentage}% match` : "";
+        const atsLabel = data.ats_score != null ? ` | ATS ${data.ats_score}%` : "";
+        const resumePctLabel = data.resume_match_percentage ? ` - Resume ${data.resume_match_percentage}% match${atsLabel}` : "";
         toast.success(`Resume tailored${resumePctLabel}`);
       } else if (res.status === 429) {
         toast.error("Application quota exceeded. Upgrade your plan or buy more applications.");
@@ -562,6 +569,11 @@ export default function ApplicationDetailPage() {
   // Resume Match: tailored resume text vs JD (shown on resume section)
   const displayResumeMatchPct = resumeMatchPct ?? score?.resume_match_percentage ?? null;
   const displayResumeGaps = resumeGaps.length > 0 ? resumeGaps : (score?.resume_gaps ?? []);
+
+  // ATS Score: literal keyword matching (pre-submit gate)
+  const displayAtsScore = atsScore ?? score?.ats_score ?? null;
+  const displayAtsMissing = atsMissing.length > 0 ? atsMissing : (score?.ats_missing ?? []);
+  const displayAtsKeywords = atsKeywords.length > 0 ? atsKeywords : (score?.ats_keywords ?? []);
 
   const resumeContent = tailoredResume ?? app.tailored_resume ?? app.resume_version;
   const clContent = coverLetter ?? app.cover_letter;
@@ -887,7 +899,76 @@ export default function ApplicationDetailPage() {
                     </TooltipContent>
                   </Tooltip>
                 )}
+                {displayAtsScore != null && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className={`inline-flex cursor-help rounded-full px-2 py-0.5 text-xs font-medium ${
+                        displayAtsScore >= 90 ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200" :
+                        displayAtsScore >= 70 ? "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200" :
+                        "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                      }`}>
+                        ATS {displayAtsScore}%
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent className="min-w-[280px] max-w-md text-left" side="bottom">
+                      <p className="font-medium mb-1">ATS Keyword Match</p>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Literal keyword matching — what an ATS scanner sees
+                      </p>
+                      {displayAtsMissing.length > 0 && (
+                        <>
+                          <p className="text-xs font-medium text-red-500 mb-1">
+                            Missing keywords ({displayAtsMissing.length}):
+                          </p>
+                          <div className="text-xs space-y-0.5 mb-2">
+                            {displayAtsMissing.map((k, i) => (
+                              <span key={i} className="inline-block bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 rounded px-1.5 py-0.5 mr-1 mb-0.5">
+                                {k}
+                              </span>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                      {displayAtsMissing.length === 0 && (
+                        <p className="text-xs text-green-600">All JD keywords found in resume!</p>
+                      )}
+                    </TooltipContent>
+                  </Tooltip>
+                )}
               </div>
+
+              {/* ATS Readiness Checklist */}
+              {displayAtsKeywords.length > 0 && (
+                <div className="mb-3 p-3 rounded-lg border bg-card">
+                  <div className="flex items-center justify-between mb-2">
+                    <h5 className="text-xs font-medium">ATS Readiness: {displayAtsKeywords.filter(k => k.found).length}/{displayAtsKeywords.length} keywords</h5>
+                    {displayAtsScore != null && (
+                      <span className={`text-xs font-medium ${
+                        displayAtsScore >= 90 ? "text-emerald-600" :
+                        displayAtsScore >= 70 ? "text-amber-600" : "text-red-600"
+                      }`}>
+                        {displayAtsScore >= 90 ? "Ready to submit" :
+                         displayAtsScore >= 70 ? "Review missing keywords" : "Add missing keywords before submitting"}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {displayAtsKeywords.map((k, i) => (
+                      <span
+                        key={i}
+                        className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs ${
+                          k.found
+                            ? "bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300"
+                            : "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 font-medium"
+                        }`}
+                      >
+                        {k.found ? "\u2713" : "\u2717"} {k.keyword}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <pre className="text-xs bg-muted p-4 rounded-lg overflow-auto max-h-96 whitespace-pre-wrap">
                 {resumeContent}
               </pre>

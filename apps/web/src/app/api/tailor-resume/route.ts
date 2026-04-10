@@ -6,6 +6,8 @@ import { buildTailorResumePrompt } from "@/ai/tailor-resume";
 import {
   extractRequirements,
   calculateOverallScore,
+  checkAtsKeywords,
+  extractAtsKeywords,
 } from "@/scoring";
 import { extractRequirementsWithAI } from "@/lib/extract-requirements-ai";
 import { scoreRequirementsWithAI } from "@/scoring/score-requirements-ai";
@@ -68,6 +70,11 @@ export async function POST(req: Request) {
       )
       .join("\n\n");
 
+    // Extract ATS keywords from JD to feed into tailoring prompt
+    const atsKws = app.job_description
+      ? extractAtsKeywords(app.job_description).map((k) => k.keyword)
+      : [];
+
     const prompt = buildTailorResumePrompt({
       baseResume: achievements, // Use achievements as resume base if no file
       jobDescription: app.job_description ?? "",
@@ -75,6 +82,7 @@ export async function POST(req: Request) {
       role: app.role,
       matchScore: score?.overall ?? "stretch",
       keywords: score?.keywords ?? [],
+      atsKeywords: atsKws,
       strongMatches: (score?.requirements_matched ?? []).map(
         (r: { requirement: string }) => r.requirement
       ),
@@ -179,6 +187,26 @@ export async function POST(req: Request) {
       }
     }
 
+    // --- ATS keyword check (literal string matching) ---
+    let atsResult: { ats_score: number; missing: string[]; keywords: { keyword: string; found: boolean; category: string }[] } | null = null;
+    if (app.job_description) {
+      const atsCheck = checkAtsKeywords(content, app.job_description);
+      atsResult = {
+        ats_score: atsCheck.ats_score,
+        missing: atsCheck.missing,
+        keywords: atsCheck.keywords,
+      };
+
+      await supabase
+        .from("match_scores")
+        .update({
+          ats_score: atsCheck.ats_score,
+          ats_missing: atsCheck.missing,
+          ats_keywords: atsCheck.keywords,
+        })
+        .eq("application_id", app.id);
+    }
+
     // Job score: achievement-based (existing logic)
     let jobMatchPct = score?.match_percentage ?? null;
     if (jobMatchPct == null && score) {
@@ -195,6 +223,9 @@ export async function POST(req: Request) {
       match_percentage: jobMatchPct,
       resume_match_percentage: resumeMatchPct,
       resume_gaps: resumeGaps,
+      ats_score: atsResult?.ats_score ?? null,
+      ats_missing: atsResult?.missing ?? [],
+      ats_keywords: atsResult?.keywords ?? [],
       match_overall: score?.overall ?? null,
     });
   } catch (err) {

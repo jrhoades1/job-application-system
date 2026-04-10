@@ -107,6 +107,9 @@ export interface MatchScoreRow {
   match_percentage: number | null;
   resume_match_percentage: number | null;
   resume_gaps: string[];
+  ats_score: number | null;
+  ats_missing: string[];
+  ats_keywords: { keyword: string; found: boolean; category: string }[];
   strong_count: number;
   partial_count: number;
   gap_count: number;
