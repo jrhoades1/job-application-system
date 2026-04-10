@@ -112,7 +112,7 @@ function ScoreTooltipBody({ score }: { score: MatchScoreRow }) {
 }
 
 function sanitizeFilename(s: string): string {
-  return s.replace(/[^a-zA-Z0-9_-]/g, "_").toLowerCase();
+  return s.replace(/[^a-zA-Z0-9 _-]/g, "").replace(/\s+/g, "_").trim();
 }
 
 function DownloadButtons({ content, company, role, docType }: {
@@ -121,7 +121,8 @@ function DownloadButtons({ content, company, role, docType }: {
   role: string;
   docType: "resume" | "cover-letter";
 }) {
-  const base = `${sanitizeFilename(company)}_${sanitizeFilename(role)}_${docType}`;
+  const label = docType === "resume" ? "Resume" : "Cover_Letter";
+  const base = `Jimmy_Rhoades_${label}_${sanitizeFilename(company)}`;
   return (
     <div className="flex gap-2 mt-2">
       <Button
