@@ -385,6 +385,9 @@ export default function ApplicationDetailPage() {
   const [addingKeyword, setAddingKeyword] = useState(false);
   const [coverLetter, setCoverLetter] = useState<string | null>(null);
   const [statusHistory, setStatusHistory] = useState<StatusHistoryRow[]>([]);
+  const [qaQuestion, setQaQuestion] = useState("");
+  const [qaAnswer, setQaAnswer] = useState<string | null>(null);
+  const [qaLoading, setQaLoading] = useState(false);
 
   useEffect(() => {
     fetch(`/api/applications/${params.id}`)
@@ -643,6 +646,32 @@ export default function ApplicationDetailPage() {
       toast.error("Something went wrong");
     }
     setScoring(false);
+  }
+
+  async function handleAnswerQuestion() {
+    if (!app || !qaQuestion.trim()) return;
+    setQaLoading(true);
+    setQaAnswer(null);
+    try {
+      const res = await fetch(`/api/applications/${params.id}/answer-question`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: qaQuestion.trim() }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setQaAnswer(data.answer);
+        toast.success("Answer generated");
+      } else if (res.status === 429) {
+        toast.error("Application quota exceeded. Upgrade your plan or buy more applications.");
+      } else {
+        const err = await res.json();
+        toast.error(err.error ?? "Failed to generate answer");
+      }
+    } catch {
+      toast.error("Something went wrong");
+    }
+    setQaLoading(false);
   }
 
   async function handleMarkApplied() {
@@ -1101,6 +1130,23 @@ export default function ApplicationDetailPage() {
                 )}
               </div>
 
+              {/* Resume Gaps — shown inline when match is below 80% */}
+              {displayResumeGaps.length > 0 && displayResumeMatchPct != null && displayResumeMatchPct < 80 && (
+                <div className="mb-3 p-3 rounded-lg border border-red-200 bg-red-50/50">
+                  <div className="text-xs font-medium text-red-800 mb-1.5">
+                    Missing from resume ({displayResumeGaps.length} items)
+                  </div>
+                  <ul className="space-y-0.5">
+                    {displayResumeGaps.map((g, i) => (
+                      <li key={i} className="text-xs text-red-900 flex items-start gap-1.5">
+                        <span className="text-red-500 mt-0.5 shrink-0">{"\u2717"}</span>
+                        {g}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               {/* ATS Readiness Checklist */}
               {displayAtsKeywords.length > 0 && (
                 <div className="mb-3 p-3 rounded-lg border bg-card">
@@ -1165,6 +1211,50 @@ export default function ApplicationDetailPage() {
                 role={app.role}
                 docType="cover-letter"
               />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Application Q&A */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Application Q&A</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Paste any application question and get an answer using your profile, achievements, and this job&apos;s context.
+          </p>
+          <Textarea
+            placeholder="e.g. Why do you want to work at this company?"
+            value={qaQuestion}
+            onChange={(e) => setQaQuestion(e.target.value)}
+            rows={3}
+          />
+          <Button
+            onClick={handleAnswerQuestion}
+            disabled={qaLoading || !qaQuestion.trim() || (quotaInfo ? quotaInfo.used >= quotaInfo.total : false)}
+          >
+            {qaLoading ? "Generating..." : "Answer Question"}
+          </Button>
+          {qaAnswer && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-medium">Answer</h4>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    navigator.clipboard.writeText(qaAnswer);
+                    toast.success("Copied to clipboard");
+                  }}
+                >
+                  Copy
+                </Button>
+              </div>
+              <pre className="text-sm bg-muted p-4 rounded-lg overflow-auto max-h-96 whitespace-pre-wrap">
+                {qaAnswer}
+              </pre>
             </div>
           )}
         </CardContent>
