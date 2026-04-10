@@ -16,11 +16,30 @@ interface ReferralPanelProps {
   onStatusChanged: (status: "pending" | "contacted" | "connected" | "skipped") => void;
 }
 
-function buildLinkedInSearchUrl(company: string): string {
-  // Search for the company page — user can then click "People" to find employees.
-  // People search fails for name-like companies (Alma, Grace) because LinkedIn matches person names.
-  const query = encodeURIComponent(company);
-  return `https://www.linkedin.com/search/results/companies/?keywords=${query}&origin=GLOBAL_SEARCH_HEADER`;
+function buildLinkedInSearchUrl(company: string, role: string): string {
+  // Google search for LinkedIn profiles at the company. This bypasses LinkedIn's search
+  // which confuses name-like companies (Alma, Grace) with person names.
+  // Extract a broad role keyword (e.g. "engineering" from "Senior Director, Engineering Operations")
+  const roleKeyword = extractRoleKeyword(role);
+  const query = encodeURIComponent(`site:linkedin.com/in "${company}" ${roleKeyword}`);
+  return `https://www.google.com/search?q=${query}`;
+}
+
+function extractRoleKeyword(role: string): string {
+  // Pull a broad department/function keyword from the role title
+  const lower = role.toLowerCase();
+  const keywords = [
+    "engineering", "software", "product", "design", "data", "marketing",
+    "sales", "operations", "finance", "legal", "hr", "human resources",
+    "security", "infrastructure", "devops", "platform", "analytics",
+    "customer success", "support", "clinical", "research", "science",
+  ];
+  for (const kw of keywords) {
+    if (lower.includes(kw)) return kw;
+  }
+  // Fallback: use the last meaningful word from the title
+  const words = role.split(/[\s,/]+/).filter(w => w.length > 3);
+  return words[words.length - 1] ?? "";
 }
 
 function generateNetworkingMessage(company: string, role: string): string {
@@ -69,7 +88,7 @@ export function ReferralPanel({
 
   const status = referralStatus ?? "pending";
   const config = STATUS_CONFIG[status];
-  const linkedInUrl = buildLinkedInSearchUrl(company);
+  const linkedInUrl = buildLinkedInSearchUrl(company, role);
 
   async function updateStatus(newStatus: "pending" | "contacted" | "connected" | "skipped") {
     setUpdating(true);
@@ -131,7 +150,7 @@ export function ReferralPanel({
         <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-inherit">
           <a href={linkedInUrl} target="_blank" rel="noopener noreferrer">
             <Button size="sm" variant="default" className="text-xs">
-              Search {company} on LinkedIn
+              Find {company} people on LinkedIn
             </Button>
           </a>
           <Button
