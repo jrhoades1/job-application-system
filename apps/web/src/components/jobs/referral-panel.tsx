@@ -16,31 +16,14 @@ interface ReferralPanelProps {
   onStatusChanged: (status: "pending" | "contacted" | "connected" | "skipped") => void;
 }
 
-function buildLinkedInSearchUrl(company: string, role: string): string {
-  // Use LinkedIn's company filter param to find people AT the company, not named after it.
-  // Extract a department keyword from the role for the keywords search.
-  const roleKeyword = extractRoleKeyword(role);
+function buildLinkedInSearchUrl(company: string): string {
+  // Search for recruiters at the company -- they can flag your resume.
   const params = new URLSearchParams({
     company: company,
-    keywords: roleKeyword,
+    keywords: "recruiter",
     origin: "GLOBAL_SEARCH_HEADER",
   });
   return `https://www.linkedin.com/search/results/people/?${params.toString()}`;
-}
-
-function extractRoleKeyword(role: string): string {
-  const lower = role.toLowerCase();
-  const keywords = [
-    "engineering", "software", "product", "design", "data", "marketing",
-    "sales", "operations", "finance", "legal", "hr", "human resources",
-    "security", "infrastructure", "devops", "platform", "analytics",
-    "customer success", "support", "clinical", "research", "science",
-  ];
-  for (const kw of keywords) {
-    if (lower.includes(kw)) return kw;
-  }
-  const words = role.split(/[\s,/]+/).filter(w => w.length > 3);
-  return words[words.length - 1] ?? "";
 }
 
 function generateNetworkingMessage(company: string, role: string): string {
@@ -89,7 +72,7 @@ export function ReferralPanel({
 
   const status = referralStatus ?? "pending";
   const config = STATUS_CONFIG[status];
-  const linkedInUrl = buildLinkedInSearchUrl(company, role);
+  const linkedInUrl = buildLinkedInSearchUrl(company);
 
   async function updateStatus(newStatus: "pending" | "contacted" | "connected" | "skipped") {
     setUpdating(true);
