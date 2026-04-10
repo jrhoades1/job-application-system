@@ -65,15 +65,15 @@ export function calculateOverallScore(
   }
 
   // Estimated scores (from role-title inference without a real JD) are capped
-  // at "good" — we don't have enough signal to claim "strong" match.
-  if (source === "estimated" && overall === "strong") {
-    overall = "good";
+  // at "stretch" — we don't have enough signal to claim a real match.
+  if (source === "estimated" && (overall === "strong" || overall === "good")) {
+    overall = "stretch";
   }
 
   // With fewer than 3 requirements the score is statistically meaningless —
   // cap at "stretch" for estimated, "good" for scored.
   if (total < 3) {
-    if (source === "estimated" && (overall === "strong" || overall === "good")) {
+    if (source === "estimated") {
       overall = "stretch";
     } else if (overall === "strong") {
       overall = "good";

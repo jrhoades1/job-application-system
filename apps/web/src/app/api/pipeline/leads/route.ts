@@ -135,7 +135,7 @@ export async function PATCH(req: Request) {
         source: lead.source_platform ?? "Email Pipeline",
         source_url: lead.career_page_url,
         job_description: descText,
-        status: lead.score_overall ? "ready_to_apply" : "evaluating",
+        status: lead.score_overall === "strong" || lead.score_overall === "good" ? "ready_to_apply" : "evaluating",
       })
       .select()
       .single();
