@@ -21,13 +21,7 @@ function buildLinkedInSearchUrl(company: string): string {
 }
 
 function generateNetworkingMessage(company: string, role: string): string {
-  return `Hi [Name],
-
-I came across your profile and saw you're at ${company}. I recently applied for the ${role} position and would love to learn more about the team and culture from someone on the inside.
-
-Would you be open to a quick 10-minute chat? Happy to work around your schedule.
-
-Thanks!`;
+  return `Hi! I applied for the ${role} role at ${company} and would love to hear about your experience there. Would you be open to a quick chat?`;
 }
 
 const STATUS_CONFIG = {
