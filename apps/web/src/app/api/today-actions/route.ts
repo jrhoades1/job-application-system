@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedClient } from "@/lib/supabase";
+import { DECAY_RULES, DECAYABLE_STATUSES, IMMINENT_THRESHOLD_DAYS } from "@/lib/decay-rules";
 
 export interface TodayAction {
   id: string;
@@ -12,7 +13,9 @@ export interface TodayAction {
     | "needs_first_followup"
     | "ready_to_apply"
     | "stalled"
-    | "followup_this_week";
+    | "followup_this_week"
+    | "decay_warning"
+    | "decay_imminent";
   priority: "urgent" | "today" | "week";
   company: string;
   role: string;
@@ -20,6 +23,7 @@ export interface TodayAction {
   action_url: string;
   detail: string;
   due_date: string | null;
+  decay_deadline?: string | null;
 }
 
 interface InterviewRound {
@@ -27,6 +31,10 @@ interface InterviewRound {
   date: string;
   status: string;
   type?: string;
+}
+
+function trackerUrl(id: string, actionType: string, detail: string) {
+  return `/dashboard/tracker/${id}?action=${actionType}&detail=${encodeURIComponent(detail)}`;
 }
 
 export async function GET() {
@@ -61,6 +69,8 @@ export async function GET() {
       readyToApplyRes,
       stalledRes,
       followupWeekRes,
+      decayableRes,
+      decayHistoryRes,
     ] = await Promise.all([
       // Interviewing apps (check JSONB for upcoming interviews)
       supabase
@@ -144,6 +154,21 @@ export async function GET() {
         .gt("follow_up_date", todayStr)
         .lte("follow_up_date", in7d)
         .not("status", "in", '("withdrawn","rejected","accepted")'),
+
+      // Decayable applications (for decay warnings)
+      supabase
+        .from("applications")
+        .select("id, company, role, status, created_at")
+        .eq("clerk_user_id", userId)
+        .is("deleted_at", null)
+        .in("status", DECAYABLE_STATUSES),
+
+      // Status history for decay age calculation
+      supabase
+        .from("application_status_history")
+        .select("application_id, changed_at")
+        .eq("clerk_user_id", userId)
+        .order("changed_at", { ascending: false }),
     ]);
 
     const actions: TodayAction[] = [];
@@ -165,7 +190,7 @@ export async function GET() {
             company: app.company,
             role: app.role,
             action_label: "Prepare",
-            action_url: `/dashboard/tracker/${app.id}`,
+            action_url: trackerUrl(app.id, "interview_soon", `${iv.type ?? "Interview"} R${iv.round} on ${iv.date}`),
             detail: `${iv.type ?? "Interview"} R${iv.round} on ${iv.date}`,
             due_date: iv.date,
           });
@@ -186,7 +211,7 @@ export async function GET() {
         company: app.company,
         role: app.role,
         action_label: "Follow up",
-        action_url: `/dashboard/tracker/${app.id}`,
+        action_url: trackerUrl(app.id, "overdue_followup", `${daysOverdue} day${daysOverdue !== 1 ? "s" : ""} overdue`),
         detail: `${daysOverdue} day${daysOverdue !== 1 ? "s" : ""} overdue`,
         due_date: app.follow_up_date,
       });
@@ -204,7 +229,7 @@ export async function GET() {
             company: app.company,
             role: app.role,
             action_label: "Debrief",
-            action_url: `/dashboard/tracker/${app.id}`,
+            action_url: trackerUrl(app.id, "debrief_needed", `${iv.type ?? "Interview"} R${iv.round} on ${iv.date} - update status`),
             detail: `${iv.type ?? "Interview"} R${iv.round} on ${iv.date} — update status`,
             due_date: iv.date,
           });
@@ -237,7 +262,7 @@ export async function GET() {
         company: app.company,
         role: app.role,
         action_label: "Follow up",
-        action_url: `/dashboard/tracker/${app.id}`,
+        action_url: trackerUrl(app.id, "followup_due_today", "Follow-up scheduled for today"),
         detail: "Follow-up scheduled for today",
         due_date: app.follow_up_date,
       });
@@ -252,7 +277,7 @@ export async function GET() {
         company: app.company,
         role: app.role,
         action_label: "Set follow-up",
-        action_url: `/dashboard/tracker/${app.id}`,
+        action_url: trackerUrl(app.id, "needs_first_followup", `Applied ${app.applied_date} - no follow-up scheduled`),
         detail: `Applied ${app.applied_date} — no follow-up scheduled`,
         due_date: null,
       });
@@ -267,7 +292,7 @@ export async function GET() {
         company: app.company,
         role: app.role,
         action_label: app.status === "ready_to_apply" ? "Apply" : "Review",
-        action_url: `/dashboard/tracker/${app.id}`,
+        action_url: trackerUrl(app.id, "ready_to_apply", app.status === "ready_to_apply" ? "Ready to submit application" : "Evaluate and decide"),
         detail:
           app.status === "ready_to_apply"
             ? "Ready to submit application"
@@ -289,7 +314,7 @@ export async function GET() {
         company: app.company,
         role: app.role,
         action_label: "Check status",
-        action_url: `/dashboard/tracker/${app.id}`,
+        action_url: trackerUrl(app.id, "stalled", `Applied ${daysSince} days ago - no response`),
         detail: `Applied ${daysSince} days ago — no response`,
         due_date: null,
       });
@@ -304,9 +329,57 @@ export async function GET() {
         company: app.company,
         role: app.role,
         action_label: "Follow up",
-        action_url: `/dashboard/tracker/${app.id}`,
+        action_url: trackerUrl(app.id, "followup_this_week", `Follow-up on ${app.follow_up_date}`),
         detail: `Follow-up on ${app.follow_up_date}`,
         due_date: app.follow_up_date,
+      });
+    }
+
+    // DECAY WARNINGS: flag apps approaching auto-archive
+    const decayHistoryMap = new Map<string, string>();
+    for (const row of (decayHistoryRes.data ?? []) as { application_id: string; changed_at: string }[]) {
+      if (!decayHistoryMap.has(row.application_id)) {
+        decayHistoryMap.set(row.application_id, row.changed_at);
+      }
+    }
+
+    // Track IDs already in the actions list to avoid duplicating
+    const existingActionIds = new Set(actions.map((a) => a.id.replace(/^(ready|stalled)-/, "")));
+
+    for (const app of (decayableRes.data ?? []) as { id: string; company: string; role: string; status: string; created_at: string }[]) {
+      const rule = DECAY_RULES[app.status];
+      if (!rule) continue;
+
+      const enteredAt = decayHistoryMap.get(app.id) ?? app.created_at;
+      const daysInStatus = Math.floor(
+        (now.getTime() - new Date(enteredAt).getTime()) / (24 * 60 * 60 * 1000)
+      );
+
+      // Only warn if past warnDays threshold
+      if (daysInStatus < rule.warnDays) continue;
+
+      // Skip if this app already has a more specific action (ready_to_apply, stalled, etc.)
+      if (existingActionIds.has(app.id)) continue;
+
+      const daysUntilAuto = rule.autoDays - daysInStatus;
+      const isImminent = daysUntilAuto <= IMMINENT_THRESHOLD_DAYS;
+      const deadlineDate = new Date(new Date(enteredAt).getTime() + rule.autoDays * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
+
+      actions.push({
+        id: `decay-${app.id}`,
+        type: isImminent ? "decay_imminent" : "decay_warning",
+        priority: isImminent ? "urgent" : "today",
+        company: app.company,
+        role: app.role,
+        action_label: rule.positiveLabel,
+        action_url: trackerUrl(app.id, isImminent ? "decay_imminent" : "decay_warning", `${daysInStatus} days in "${app.status}"`),
+        detail: isImminent
+          ? `Auto-archive in ${daysUntilAuto} day${daysUntilAuto !== 1 ? "s" : ""} (${daysInStatus}d in "${app.status}")`
+          : `${daysInStatus} days in "${app.status}" — auto-archive ${deadlineDate}`,
+        due_date: deadlineDate,
+        decay_deadline: deadlineDate,
       });
     }
 

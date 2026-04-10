@@ -81,6 +81,8 @@ const ACTION_ICONS: Record<string, string> = {
   ready_to_apply: "📄",
   stalled: "⏳",
   followup_this_week: "📅",
+  decay_warning: "⚠️",
+  decay_imminent: "🚨",
 };
 
 export default function DashboardPage() {

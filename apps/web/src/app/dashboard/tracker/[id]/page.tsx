@@ -34,6 +34,7 @@ import { downloadMarkdown, downloadDocx, downloadPdf } from "@/lib/document-expo
 import type { ApplicationWithScores, MatchScoreRow, InterviewRound, StatusHistoryRow } from "@/types";
 import { ReadyToApplyBanner } from "@/components/jobs/ready-to-apply-banner";
 import { StatusTimeline } from "@/components/jobs/status-timeline";
+import { FollowUpActionPanel } from "@/components/jobs/followup-action-panel";
 
 const INTERVIEW_TYPES = [
   "recruiter_screen",
@@ -358,6 +359,8 @@ export default function ApplicationDetailPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const promoted = searchParams.get("promoted") === "true";
+  const actionType = searchParams.get("action");
+  const actionDetail = searchParams.get("detail") ?? "";
   const [app, setApp] = useState<ApplicationWithScores | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -744,6 +747,19 @@ export default function ApplicationDetailPage() {
           </Badge>
         </div>
       </div>
+
+      {/* Follow-up action panel — shown when arriving from Today dashboard */}
+      {actionType && (
+        <FollowUpActionPanel
+          actionType={actionType as Parameters<typeof FollowUpActionPanel>[0]["actionType"]}
+          detail={actionDetail}
+          applicationId={app.id}
+          company={app.company}
+          followUpDate={app.follow_up_date}
+          contact={app.contact}
+          onFollowUpDateChanged={(date) => setApp({ ...app, follow_up_date: date })}
+        />
+      )}
 
       {/* Ready to Apply banner — shown for pre-apply statuses or fresh promotion */}
       {(promoted || ["pending_review", "evaluating", "ready_to_apply"].includes(app.status)) && (
