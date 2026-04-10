@@ -92,7 +92,8 @@ export function downloadPdf(content: string, filename: string) {
       margin: 0.75in auto;
       color: #374151;
     }
-    h1 { font-size: 16pt; margin-bottom: 2pt; color: #1F2937; }
+    h1 { font-size: 16pt; margin-bottom: 2pt; color: #1F2937; text-align: center; }
+    h1 + .contact, h1 + p { text-align: center; }
     h2 {
       font-size: 12pt; font-weight: bold; color: #1F2937;
       border-bottom: 1pt solid #1F2937; padding-bottom: 2pt;
@@ -267,7 +268,7 @@ function parseResumeMarkdown(md: string): Paragraph[] {
 
 function makeName(name: string): Paragraph {
   return new Paragraph({
-    alignment: AlignmentType.LEFT,
+    alignment: AlignmentType.CENTER,
     spacing: { after: 40 },
     children: [
       new TextRun({ text: name, font: FONT, size: NAME_SIZE, bold: true, color: NAVY }),
@@ -277,6 +278,7 @@ function makeName(name: string): Paragraph {
 
 function makeContact(line: string): Paragraph {
   return new Paragraph({
+    alignment: AlignmentType.CENTER,
     spacing: { after: 60 },
     children: [
       new TextRun({ text: line, font: FONT, size: CONTACT_SIZE, color: GRAY }),
@@ -372,17 +374,20 @@ function parseInlineFormatting(
 // ─── HTML export (for PDF print) ───
 
 function markdownToHtml(md: string): string {
+  let seenSection = false;
   return md
     .split("\n")
     .map((line) => {
       const t = line.trim();
       if (!t) return "";
       if (t.startsWith("### ")) return `<h3>${inlineHtml(t.slice(4))}</h3>`;
-      if (t.startsWith("## ")) return `<h2>${inlineHtml(t.slice(3))}</h2>`;
+      if (t.startsWith("## ")) { seenSection = true; return `<h2>${inlineHtml(t.slice(3))}</h2>`; }
       if (t.startsWith("# ")) return `<h1>${inlineHtml(t.slice(2))}</h1>`;
       if (/^[-*]{3,}$/.test(t)) return "<hr>";
       if (/^[-*•]\s/.test(t))
         return `<li>${inlineHtml(t.replace(/^[-*•]\s+/, ""))}</li>`;
+      if (!seenSection && isContactLine(t))
+        return `<p class="contact" style="text-align:center">${inlineHtml(t)}</p>`;
       return `<p>${inlineHtml(t)}</p>`;
     })
     .join("\n")
