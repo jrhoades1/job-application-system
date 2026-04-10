@@ -54,15 +54,8 @@ export const DECAY_RULES: Record<string, DecayRule> = {
     positiveLabel: "Follow up",
     dismissLabel: "Archive",
   },
-  interviewing: {
-    warnDays: 14,
-    autoDays: 45,
-    autoAction: "auto_withdraw",
-    targetAppStatus: "withdrawn",
-    targetLeadStatus: null,
-    positiveLabel: "Follow up",
-    dismissLabel: "Archive",
-  },
+  // interviewing: intentionally excluded — active interviews are
+  // highest-value pipeline stage, never auto-archive
 } as const;
 
 /** Statuses that the decay engine processes */
