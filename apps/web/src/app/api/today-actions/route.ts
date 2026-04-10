@@ -16,7 +16,8 @@ export interface TodayAction {
     | "stalled"
     | "followup_this_week"
     | "decay_warning"
-    | "decay_imminent";
+    | "decay_imminent"
+    | "insight";
   priority: "urgent" | "today" | "week";
   company: string;
   role: string;
@@ -160,7 +161,7 @@ export async function GET() {
       // Decayable applications (for decay warnings)
       supabase
         .from("applications")
-        .select("id, company, role, status, created_at")
+        .select("id, company, role, status, created_at, follow_up_date")
         .eq("clerk_user_id", userId)
         .is("deleted_at", null)
         .in("status", DECAYABLE_STATUSES),
@@ -372,13 +373,25 @@ export async function GET() {
     // Track IDs already in the actions list to avoid duplicating
     const existingActionIds = new Set(actions.map((a) => a.id.replace(/^(ready|stalled)-/, "")));
 
-    for (const app of (decayableRes.data ?? []) as { id: string; company: string; role: string; status: string; created_at: string }[]) {
+    for (const app of (decayableRes.data ?? []) as { id: string; company: string; role: string; status: string; created_at: string; follow_up_date: string | null }[]) {
       const rule = DECAY_RULES[app.status];
       if (!rule) continue;
 
       const enteredAt = decayHistoryMap.get(app.id) ?? app.created_at;
+
+      // For interviewing apps, follow_up_date is the heartbeat.
+      // Decay clock starts from the later of: entered_at or follow_up_date.
+      let decayAnchor = enteredAt;
+      if (app.status === "interviewing" && app.follow_up_date) {
+        const followUp = new Date(app.follow_up_date).getTime();
+        const entered = new Date(enteredAt).getTime();
+        if (followUp > entered) {
+          decayAnchor = app.follow_up_date;
+        }
+      }
+
       const daysInStatus = Math.floor(
-        (now.getTime() - new Date(enteredAt).getTime()) / (24 * 60 * 60 * 1000)
+        (now.getTime() - new Date(decayAnchor).getTime()) / (24 * 60 * 60 * 1000)
       );
 
       // Only warn if past warnDays threshold
@@ -406,6 +419,29 @@ export async function GET() {
           : `${daysInStatus} days in "${app.status}" — auto-archive ${deadlineDate}`,
         due_date: deadlineDate,
         decay_deadline: deadlineDate,
+      });
+    }
+
+    // INSIGHTS: surface undismissed insight notifications
+    const { data: activeInsights } = await supabase
+      .from("insight_notifications")
+      .select("id, title, message, category, priority")
+      .eq("clerk_user_id", userId)
+      .eq("is_dismissed", false)
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    for (const insight of activeInsights ?? []) {
+      actions.push({
+        id: `insight-${insight.id}`,
+        type: "insight",
+        priority: insight.priority === "high" ? "today" : "week",
+        company: "",
+        role: "",
+        action_label: "View",
+        action_url: `/dashboard/insights?highlight=${insight.id}`,
+        detail: insight.message,
+        due_date: null,
       });
     }
 

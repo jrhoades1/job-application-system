@@ -31,6 +31,7 @@ interface ApplicationRow {
   role: string;
   status: string;
   created_at: string;
+  follow_up_date: string | null;
 }
 
 interface StatusHistoryRow {
@@ -57,7 +58,7 @@ export async function runDecayEngine(
   // 1. Fetch all applications in decayable statuses
   const { data: apps, error: appsError } = await supabase
     .from("applications")
-    .select("id, company, role, status, created_at")
+    .select("id, company, role, status, created_at, follow_up_date")
     .eq("clerk_user_id", userId)
     .is("deleted_at", null)
     .in("status", DECAYABLE_STATUSES);
@@ -93,8 +94,21 @@ export async function runDecayEngine(
 
     // Determine when the app entered its current status
     const enteredAt = enteredAtMap.get(app.id) ?? app.created_at;
+
+    // For interviewing apps, the follow_up_date acts as a heartbeat.
+    // If follow_up_date is in the future or recently passed, the app is alive.
+    // Decay clock starts from the later of: entered_at or follow_up_date.
+    let decayAnchor = enteredAt;
+    if (app.status === "interviewing" && app.follow_up_date) {
+      const followUp = new Date(app.follow_up_date).getTime();
+      const entered = new Date(enteredAt).getTime();
+      if (followUp > entered) {
+        decayAnchor = app.follow_up_date;
+      }
+    }
+
     const daysInStatus = Math.floor(
-      (now.getTime() - new Date(enteredAt).getTime()) / (24 * 60 * 60 * 1000)
+      (now.getTime() - new Date(decayAnchor).getTime()) / (24 * 60 * 60 * 1000)
     );
 
     result.processed++;

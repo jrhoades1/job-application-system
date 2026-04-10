@@ -84,6 +84,7 @@ const ACTION_ICONS: Record<string, string> = {
   followup_this_week: "📅",
   decay_warning: "⚠️",
   decay_imminent: "🚨",
+  insight: "💡",
 };
 
 export default function DashboardPage() {
@@ -202,6 +203,9 @@ export default function DashboardPage() {
         <ActionSection priority="today" actions={today} onRefresh={refreshActions} />
       )}
       {week.length > 0 && <ActionSection priority="week" actions={week} onRefresh={refreshActions} />}
+
+      {/* Insights section */}
+      <InsightsSection onRefresh={refreshActions} />
 
       {/* Compact stats bar */}
       <div className="grid grid-cols-4 gap-3">
@@ -402,20 +406,31 @@ function ActionCard({
 }) {
   const [acting, setActing] = useState(false);
   const icon = ACTION_ICONS[action.type] ?? "📌";
-  const isDismissable = DISMISSABLE_TYPES.has(action.type);
+  const isInsight = action.type === "insight";
+  const isDismissable = DISMISSABLE_TYPES.has(action.type) || isInsight;
   const appId = extractAppId(action.id);
 
   async function handleArchive(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (!appId || acting) return;
+    if (acting) return;
     setActing(true);
     try {
-      await fetch("/api/applications/bulk-status", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: [appId], status: "withdrawn" }),
-      });
+      if (isInsight) {
+        // Dismiss insight via insights API
+        const insightId = action.id.replace("insight-", "");
+        await fetch("/api/insights/notifications", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "dismiss", ids: [insightId] }),
+        });
+      } else if (appId) {
+        await fetch("/api/applications/bulk-status", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: [appId], status: "withdrawn" }),
+        });
+      }
       await onRefresh();
     } finally {
       setActing(false);
@@ -462,18 +477,20 @@ function ActionCard({
             </div>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0 ml-3">
-            {isDismissable && appId && (
+            {isDismissable && (appId || isInsight) && (
               <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs text-muted-foreground h-7 px-2"
-                  onClick={handleSnooze}
-                  disabled={acting}
-                  tabIndex={-1}
-                >
-                  Snooze
-                </Button>
+                {!isInsight && appId && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-muted-foreground h-7 px-2"
+                    onClick={handleSnooze}
+                    disabled={acting}
+                    tabIndex={-1}
+                  >
+                    Snooze
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="sm"
@@ -482,7 +499,7 @@ function ActionCard({
                   disabled={acting}
                   tabIndex={-1}
                 >
-                  Archive
+                  {isInsight ? "Dismiss" : "Archive"}
                 </Button>
               </>
             )}
@@ -497,5 +514,178 @@ function ActionCard({
         </CardContent>
       </Card>
     </Link>
+  );
+}
+
+interface InsightNotification {
+  id: string;
+  title: string;
+  message: string;
+  category: string;
+  priority: string;
+  is_dismissed: boolean;
+  created_at: string;
+}
+
+function InsightsSection({ onRefresh }: { onRefresh: () => Promise<void> }) {
+  const [insights, setInsights] = useState<InsightNotification[]>([]);
+  const [dismissedCount, setDismissedCount] = useState(0);
+  const [showDismissed, setShowDismissed] = useState(false);
+  const [acting, setActing] = useState(false);
+
+  const loadInsights = useCallback(async () => {
+    const res = await fetch(`/api/insights/notifications?dismissed=${showDismissed}`);
+    if (res.ok) {
+      const data = await res.json();
+      setInsights(data.insights);
+      setDismissedCount(data.dismissed_count);
+    }
+  }, [showDismissed]);
+
+  useEffect(() => {
+    loadInsights();
+  }, [loadInsights]);
+
+  async function handleDismiss(id: string) {
+    setActing(true);
+    try {
+      await fetch("/api/insights/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "dismiss", ids: [id] }),
+      });
+      await loadInsights();
+      await onRefresh();
+    } finally {
+      setActing(false);
+    }
+  }
+
+  async function handleDismissAll() {
+    setActing(true);
+    try {
+      await fetch("/api/insights/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "dismiss_all" }),
+      });
+      await loadInsights();
+      await onRefresh();
+    } finally {
+      setActing(false);
+    }
+  }
+
+  async function handleRestore(id: string) {
+    setActing(true);
+    try {
+      await fetch("/api/insights/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "restore", ids: [id] }),
+      });
+      await loadInsights();
+      await onRefresh();
+    } finally {
+      setActing(false);
+    }
+  }
+
+  const activeInsights = insights.filter((i) => !i.is_dismissed);
+  const displayInsights = showDismissed ? insights : activeInsights;
+
+  if (displayInsights.length === 0 && dismissedCount === 0) return null;
+
+  const CATEGORY_ICONS: Record<string, string> = {
+    source_analysis: "📊",
+    role_fit: "🎯",
+    ghosting_pattern: "👻",
+    score_correlation: "📈",
+    pipeline_health: "🏥",
+    weekly_summary: "📋",
+    general: "💡",
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-purple-100 text-purple-700">
+            Insights
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {activeInsights.length} active
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          {activeInsights.length > 1 && !showDismissed && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs text-muted-foreground h-7 px-2"
+              onClick={handleDismissAll}
+              disabled={acting}
+            >
+              Dismiss All
+            </Button>
+          )}
+          {dismissedCount > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs text-muted-foreground h-7 px-2"
+              onClick={() => setShowDismissed(!showDismissed)}
+            >
+              {showDismissed ? "Hide Dismissed" : `Show Dismissed (${dismissedCount})`}
+            </Button>
+          )}
+        </div>
+      </div>
+      <div className="space-y-2">
+        {displayInsights.map((insight) => (
+          <Card
+            key={insight.id}
+            className={`border-purple-200 ${insight.is_dismissed ? "opacity-50" : ""}`}
+          >
+            <CardContent className="py-3 flex items-center justify-between">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="text-lg flex-shrink-0">
+                  {CATEGORY_ICONS[insight.category] ?? "💡"}
+                </span>
+                <div className="min-w-0">
+                  <span className="font-medium text-sm">{insight.title}</span>
+                  <p className="text-sm text-muted-foreground truncate">
+                    {insight.message}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 flex-shrink-0 ml-3">
+                {insight.is_dismissed ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-muted-foreground h-7 px-2"
+                    onClick={() => handleRestore(insight.id)}
+                    disabled={acting}
+                  >
+                    Restore
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-muted-foreground h-7 px-2"
+                    onClick={() => handleDismiss(insight.id)}
+                    disabled={acting}
+                  >
+                    Dismiss
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
   );
 }

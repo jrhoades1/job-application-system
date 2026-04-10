@@ -58,6 +58,13 @@ export async function PUT(
       }
     }
 
+    // Auto-set follow-up date when status changes to "interviewing"
+    if (updateData.status === "interviewing" && !updateData.follow_up_date) {
+      const followUp = new Date();
+      followUp.setDate(followUp.getDate() + 7);
+      updateData.follow_up_date = followUp.toISOString().split("T")[0];
+    }
+
     // Fetch current status for history tracking
     let previousStatus: string | null = null;
     if (updateData.status) {

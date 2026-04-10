@@ -14,6 +14,7 @@ import { getServiceRoleClient } from "@/lib/supabase";
 import { shouldSkipDigest, escapeHtml, type DigestSkipReason } from "./utils";
 import { sendSms } from "@/lib/twilio";
 import { runDecayEngine, type DecayResult } from "@/lib/decay-engine";
+import { runWeeklyIntelligence, storeInsights, type IntelligenceResult } from "@/lib/weekly-intelligence";
 
 export const maxDuration = 300;
 
@@ -123,6 +124,21 @@ export async function GET(req: Request) {
       decayResult = await runDecayEngine(supabase, userId);
     } catch (err) {
       console.error(`[nightly-pipeline] Decay engine error for ${userId}:`, err);
+    }
+
+    // 2.7 Run weekly intelligence (Mondays only)
+    let intelligenceResult: IntelligenceResult | null = null;
+    const dayOfWeek = new Date().getDay();
+    if (dayOfWeek === 1) {
+      try {
+        intelligenceResult = await runWeeklyIntelligence(supabase, userId);
+        if (intelligenceResult.insights.length > 0) {
+          const stored = await storeInsights(supabase, userId, intelligenceResult.insights);
+          console.log(`[nightly-pipeline] Weekly intelligence for ${userId}: ${stored} new insights`);
+        }
+      } catch (err) {
+        console.error(`[nightly-pipeline] Intelligence error for ${userId}:`, err);
+      }
     }
 
     // 3. Get this user's score threshold from profile preferences
