@@ -542,15 +542,30 @@ export async function POST(req: Request) {
       .is("deleted_at", null)
       .in("status", ["evaluating", "pending_review", "ready_to_apply"]);
 
-    // Load ALL application companies for duplicate detection
+    // Load ALL applications for duplicate detection (company + role)
     const { data: allApps } = await supabase
       .from("applications")
-      .select("company")
+      .select("company, role")
       .eq("clerk_user_id", userId)
       .is("deleted_at", null);
-    const knownCompanies = new Set(
-      (allApps ?? []).map((a) => normalizeCompany(a.company))
+    const knownCompanyRoles = new Set(
+      (allApps ?? []).map((a) => `${normalizeCompany(a.company)}::${normalizeCompany(a.role)}`)
     );
+
+    function isDuplicateLead(company: string, role: string): boolean {
+      const normCompany = normalizeCompany(company);
+      const normRole = normalizeCompany(role);
+      // Exact company+role match
+      if (knownCompanyRoles.has(`${normCompany}::${normRole}`)) return true;
+      // Check for similar roles at same company (e.g. "VP Engineering" vs "VP of Engineering")
+      for (const key of knownCompanyRoles) {
+        const [existingCompany, existingRole] = key.split("::");
+        if (existingCompany !== normCompany) continue;
+        // If either role contains the other, it's likely the same posting
+        if (existingRole.includes(normRole) || normRole.includes(existingRole)) return true;
+      }
+      return false;
+    }
 
     let inserted = 0;
     let skipped = 0;
@@ -699,8 +714,8 @@ export async function POST(req: Request) {
           if (existingUids.has(leadUid)) continue;
           if (URL_LIKE_COMPANY.test(job.company.trim())) continue;
 
-          // Skip if company already exists in applications (duplicate)
-          if (knownCompanies.has(normalizeCompany(job.company))) continue;
+          // Skip if same company+role already exists in applications
+          if (isDuplicateLead(job.company, job.role)) continue;
 
           // Store whatever details the AI extracted from the email
           let leadText = job.description || "";
@@ -780,8 +795,8 @@ export async function POST(req: Request) {
       const subjectAsRole = subject.replace(/^(fw|fwd|re)\s*:\s*/gi, "").trim();
       const finalRole = extracted?.role || (isNotificationSubject(subject) ? null : subjectAsRole) || null;
 
-      // Skip leads where company already exists in applications (duplicate)
-      if (finalCompany && knownCompanies.has(normalizeCompany(finalCompany))) {
+      // Skip leads where same company+role already exists in applications
+      if (finalCompany && finalRole && isDuplicateLead(finalCompany, finalRole)) {
         existingUids.add(msg.id);
         skipped++;
         if (processedLabelId) labelMessage(tokens.access_token, msg.id, processedLabelId).catch(() => {});
