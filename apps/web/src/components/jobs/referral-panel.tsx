@@ -17,9 +17,9 @@ interface ReferralPanelProps {
 }
 
 function buildLinkedInSearchUrl(company: string): string {
-  // Quote the company name so LinkedIn treats it as an entity, not a person name
-  const query = encodeURIComponent(`"${company}"`);
-  return `https://www.linkedin.com/search/results/people/?keywords=${query}&origin=GLOBAL_SEARCH_HEADER`;
+  // Search for the company page — from there you can browse employees for referrals
+  const query = encodeURIComponent(company);
+  return `https://www.linkedin.com/search/results/companies/?keywords=${query}&origin=GLOBAL_SEARCH_HEADER`;
 }
 
 function generateNetworkingMessage(company: string, role: string): string {
