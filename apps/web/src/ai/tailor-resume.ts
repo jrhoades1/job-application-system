@@ -23,6 +23,7 @@ export interface TailorResumeInput {
   role: string;
   matchScore: string; // "strong" | "good" | "stretch" | "long_shot"
   keywords: string[];
+  atsKeywords?: string[];
   strongMatches: string[];
   gaps: string[];
   addressableGaps: string[];
@@ -69,20 +70,23 @@ export function buildTailorResumePrompt(input: TailorResumeInput): string {
 - Reorder existing bullets to put most relevant first
 - Inject 3-5 keywords naturally into existing descriptions
 - Keep all content — just optimize ordering and word choice
-- One-page format maintained`,
+- One-page format maintained
+- CRITICAL: Ensure ALL ATS keywords listed below appear VERBATIM in the resume`,
     moderate: `MODERATE TAILORING:
 - Reorder sections and bullets by relevance to this role
 - Inject 5-10 keywords from the posting
 - Expand bullets that match requirements with more specific details
 - Compress less relevant experience to make room
-- One-page format mandatory`,
+- One-page format mandatory
+- CRITICAL: Ensure ALL ATS keywords listed below appear VERBATIM in the resume`,
     heavy: `HEAVY TAILORING:
 - Lead with transferable skills that map to requirements
 - Reframe experience to highlight relevance to this role
 - Inject 10+ keywords creatively but naturally
 - Frame addressable gaps as adjacent expertise
 - Compress or remove least relevant experience
-- One-page format mandatory — be aggressive with compression`,
+- One-page format mandatory — be aggressive with compression
+- CRITICAL: Ensure ALL ATS keywords listed below appear VERBATIM in the resume`,
   };
 
   // Build contact header — only include fields that have actual values
@@ -121,6 +125,13 @@ ${intensityGuide[intensity]}
 
 ## Keywords to Incorporate
 ${input.keywords.join(", ")}
+
+## ATS-CRITICAL KEYWORDS (must appear VERBATIM in the resume)
+${input.atsKeywords && input.atsKeywords.length > 0 ? `These exact terms are extracted from the job description. ATS systems do literal string matching — they do NOT understand synonyms. Every keyword below MUST appear word-for-word somewhere in the resume (Skills section, bullets, or summary). Do not paraphrase them.
+
+${input.atsKeywords.map((k) => `- "${k}"`).join("\n")}
+
+Strategy: Place as many as possible in the Technical Skills / Skills section. Weave remaining ones into experience bullets where truthful. If the candidate has the skill but it wasn't in the source achievements, it's OK to add it to the Skills section.` : "None extracted."}
 
 ## Strong Matches to Emphasize
 ${input.strongMatches.map((m) => `- ${m}`).join("\n") || "None identified"}
