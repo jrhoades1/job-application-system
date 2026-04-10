@@ -105,6 +105,8 @@ export interface MatchScoreRow {
   clerk_user_id: string;
   overall: string;
   match_percentage: number | null;
+  resume_match_percentage: number | null;
+  resume_gaps: string[];
   strong_count: number;
   partial_count: number;
   gap_count: number;

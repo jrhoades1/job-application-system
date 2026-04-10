@@ -361,6 +361,8 @@ export default function ApplicationDetailPage() {
   const [quotaInfo, setQuotaInfo] = useState<{ used: number; total: number; plan: string } | null>(null);
   const [tailoredResume, setTailoredResume] = useState<string | null>(null);
   const [tailorMatchPct, setTailorMatchPct] = useState<number | null>(null);
+  const [resumeMatchPct, setResumeMatchPct] = useState<number | null>(null);
+  const [resumeGaps, setResumeGaps] = useState<string[]>([]);
   const [coverLetter, setCoverLetter] = useState<string | null>(null);
   const [statusHistory, setStatusHistory] = useState<StatusHistoryRow[]>([]);
 
@@ -440,9 +442,11 @@ export default function ApplicationDetailPage() {
         const data = await res.json();
         setTailoredResume(data.resume);
         setTailorMatchPct(data.match_percentage);
+        setResumeMatchPct(data.resume_match_percentage ?? null);
+        setResumeGaps(data.resume_gaps ?? []);
         if (quotaInfo) setQuotaInfo({ ...quotaInfo, used: quotaInfo.used + 1 });
-        const pctLabel = data.match_percentage ? ` - ${data.match_percentage}% match` : "";
-        toast.success(`Resume tailored${pctLabel}`);
+        const resumePctLabel = data.resume_match_percentage ? ` - Resume ${data.resume_match_percentage}% match` : "";
+        toast.success(`Resume tailored${resumePctLabel}`);
       } else if (res.status === 429) {
         toast.error("Application quota exceeded. Upgrade your plan or buy more applications.");
       } else {
@@ -545,7 +549,8 @@ export default function ApplicationDetailPage() {
     : null;
   const statusCfg = STATUS_CONFIG[app.status as keyof typeof STATUS_CONFIG];
 
-  const appMatchPct = score?.match_percentage
+  // Job Score: achievement-based (shown in header)
+  const jobMatchPct = score?.match_percentage
     ?? (score ? (() => {
         const s = score.strong_count ?? 0;
         const p = score.partial_count ?? 0;
@@ -553,7 +558,10 @@ export default function ApplicationDetailPage() {
         return total > 0 ? Math.round(((s + p * 0.5) / total) * 1000) / 10 : null;
       })()
     : null);
-  const displayMatchPct = tailorMatchPct ?? appMatchPct;
+
+  // Resume Match: tailored resume text vs JD (shown on resume section)
+  const displayResumeMatchPct = resumeMatchPct ?? score?.resume_match_percentage ?? null;
+  const displayResumeGaps = resumeGaps.length > 0 ? resumeGaps : (score?.resume_gaps ?? []);
 
   const resumeContent = tailoredResume ?? app.tailored_resume ?? app.resume_version;
   const clContent = coverLetter ?? app.cover_letter;
@@ -574,8 +582,8 @@ export default function ApplicationDetailPage() {
                 <span
                   className={`inline-flex cursor-help rounded-full px-3 py-1 text-sm font-medium ${scoreCfg.color}`}
                 >
-                  {scoreCfg.label}
-                  {displayMatchPct != null && ` ${displayMatchPct}%`}
+                  Job Score
+                  {jobMatchPct != null && ` ${jobMatchPct}%`}
                 </span>
               </TooltipTrigger>
               <TooltipContent className="min-w-[200px] max-w-sm text-left" side="bottom">
@@ -831,15 +839,47 @@ export default function ApplicationDetailPage() {
                 <h4 className="text-sm font-medium">
                   {tailoredResume ? "Tailored Resume" : "Saved Resume"}
                 </h4>
-                {displayMatchPct != null && score && (
+                {displayResumeMatchPct != null && (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <span className={`inline-flex cursor-help rounded-full px-2 py-0.5 text-xs font-medium ${
-                        displayMatchPct >= 80 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" :
-                        displayMatchPct >= 60 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" :
+                        displayResumeMatchPct >= 80 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" :
+                        displayResumeMatchPct >= 60 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" :
                         "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
                       }`}>
-                        {displayMatchPct}% match
+                        Resume {displayResumeMatchPct}% match
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent className="min-w-[260px] max-w-sm text-left" side="bottom">
+                      <p className="font-medium mb-1">Resume vs Job Description</p>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        How well the tailored resume covers JD requirements
+                      </p>
+                      {displayResumeGaps.length > 0 && (
+                        <>
+                          <p className="text-xs font-medium text-red-500 mb-1">Missing from resume:</p>
+                          <ul className="text-xs space-y-0.5">
+                            {displayResumeGaps.map((g, i) => (
+                              <li key={i} className="text-muted-foreground">- {g}</li>
+                            ))}
+                          </ul>
+                        </>
+                      )}
+                      {displayResumeGaps.length === 0 && (
+                        <p className="text-xs text-green-600">All JD requirements covered!</p>
+                      )}
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+                {jobMatchPct != null && score && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className={`inline-flex cursor-help rounded-full px-2 py-0.5 text-xs font-medium ${
+                        jobMatchPct >= 80 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" :
+                        jobMatchPct >= 60 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" :
+                        "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                      }`}>
+                        You {jobMatchPct}% match
                       </span>
                     </TooltipTrigger>
                     <TooltipContent className="min-w-[200px] max-w-sm text-left" side="bottom">

@@ -3,6 +3,12 @@ import { z } from "zod";
 import { getAuthenticatedClient } from "@/lib/supabase";
 import { createTrackedMessage, ApplicationQuotaExceededError } from "@/lib/anthropic";
 import { buildTailorResumePrompt } from "@/ai/tailor-resume";
+import {
+  extractRequirements,
+  calculateOverallScore,
+} from "@/scoring";
+import { extractRequirementsWithAI } from "@/lib/extract-requirements-ai";
+import { scoreRequirementsWithAI } from "@/scoring/score-requirements-ai";
 
 const tailorSchema = z.object({
   application_id: z.string().uuid(),
@@ -118,23 +124,77 @@ export async function POST(req: Request) {
       })
       .eq("id", app.id);
 
-    // Match percentage priority: DB score → computed from counts → AI assessment
-    let matchPct = score?.match_percentage ?? null;
-    if (matchPct == null && score) {
+    // --- Score the tailored RESUME TEXT against JD requirements ---
+    let resumeMatchPct: number | null = aiMatchPct;
+    let resumeGaps: string[] = [];
+
+    if (app.job_description) {
+      try {
+        // Extract requirements from JD
+        const reqs = extractRequirements(app.job_description);
+        let allReqs = [...reqs.hard_requirements, ...reqs.preferred];
+
+        if (allReqs.length === 0 && app.job_description.length > 200) {
+          const aiReqs = await extractRequirementsWithAI(
+            app.job_description,
+            app.role ?? "",
+            app.company ?? ""
+          );
+          allReqs = [...aiReqs.hard_requirements, ...aiReqs.preferred];
+        }
+
+        if (allReqs.length > 0) {
+          // Score the tailored resume text (not profile achievements) against requirements
+          const resumeAsAchievements: Record<string, string[]> = {
+            "Tailored Resume": content.split("\n").filter((l) => l.trim().length > 0),
+          };
+
+          const resumeMatches = await scoreRequirementsWithAI(
+            allReqs,
+            resumeAsAchievements,
+            { role: app.role ?? undefined, company: app.company ?? undefined }
+          ).catch(() => []);
+
+          if (resumeMatches.length > 0) {
+            const resumeScore = calculateOverallScore(resumeMatches);
+            resumeMatchPct = resumeScore.match_percentage;
+            resumeGaps = resumeMatches
+              .filter((m) => m.match_type === "gap")
+              .map((m) => m.requirement);
+          }
+        }
+
+        // Store resume match score separately
+        if (resumeMatchPct != null) {
+          await supabase
+            .from("match_scores")
+            .update({
+              resume_match_percentage: resumeMatchPct,
+              resume_gaps: resumeGaps,
+            })
+            .eq("application_id", app.id);
+        }
+      } catch (e) {
+        console.error("Resume scoring error (non-fatal):", e);
+      }
+    }
+
+    // Job score: achievement-based (existing logic)
+    let jobMatchPct = score?.match_percentage ?? null;
+    if (jobMatchPct == null && score) {
       const strong = score.strong_count ?? 0;
       const partial = score.partial_count ?? 0;
       const total = strong + partial + (score.gap_count ?? 0);
       if (total > 0) {
-        matchPct = Math.round(((strong + partial * 0.5) / total) * 1000) / 10;
+        jobMatchPct = Math.round(((strong + partial * 0.5) / total) * 1000) / 10;
       }
-    }
-    if (matchPct == null && aiMatchPct != null) {
-      matchPct = aiMatchPct;
     }
 
     return NextResponse.json({
       resume: content,
-      match_percentage: matchPct,
+      match_percentage: jobMatchPct,
+      resume_match_percentage: resumeMatchPct,
+      resume_gaps: resumeGaps,
       match_overall: score?.overall ?? null,
     });
   } catch (err) {
