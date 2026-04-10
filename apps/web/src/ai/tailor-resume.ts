@@ -105,6 +105,10 @@ export function buildTailorResumePrompt(input: TailorResumeInput): string {
       }).join("\n")
     : "NONE PROVIDED";
 
+  // Extract hobbies/interests from achievements (if present)
+  const hobbiesCategory = input.baseResume.match(/## Hobbies & Interests\n([\s\S]*?)(?=\n## |$)/);
+  const hobbiesText = hobbiesCategory ? hobbiesCategory[1].trim() : "";
+
   return `You are an expert resume writer tailoring a resume for a specific job application.
 
 ## Target Role
@@ -149,6 +153,9 @@ ${input.baseResume}
 - NEVER invent, upgrade, or embellish job titles. "VP of Engineering" cannot become "Chief Technology Officer". This is a legal document.
 - NEVER fabricate companies, dates, degrees, or certifications not in the source data.
 
+## Hobbies & Interests
+${hobbiesText ? `Include a brief "Hobbies & Interests" section at the end of the resume. These show personality and make the candidate human. Keep each item to one line. Here are the candidate's interests:\n${hobbiesText}` : "None provided — omit this section."}
+
 ## Resume Format Instructions
 
 1. Start with the candidate's name as an H1 heading, followed by contact details on the next line
@@ -159,6 +166,7 @@ ${input.baseResume}
 6. Use strong action verbs and quantified results
 7. Place the most relevant experience first within each role
 8. For addressable gaps, frame adjacent experience positively
+9. If Hobbies & Interests are provided, include them as a brief section at the end — they humanize the candidate and show genuine passion (especially AI/ML side projects)
 
 Output the tailored resume content in Markdown format, then on the VERY LAST LINE output exactly:
 MATCH_PERCENTAGE: <number>
