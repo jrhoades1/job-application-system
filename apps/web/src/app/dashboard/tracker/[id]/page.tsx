@@ -431,11 +431,13 @@ export default function ApplicationDetailPage() {
   async function handleSave() {
     if (!app) return;
     setSaving(true);
+    // Status is NOT included here — it auto-saves via the dropdown and "I Applied" button.
+    // Including it here caused a race condition: clicking "I Applied" then "Save Changes"
+    // would revert the status because handleSave captured the stale pre-applied status.
     const res = await fetch(`/api/applications/${params.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        status: app.status,
         notes: app.notes,
         contact: app.contact,
         follow_up_date: app.follow_up_date,
@@ -847,23 +849,29 @@ export default function ApplicationDetailPage() {
                     updates.rejection_date = new Date().toISOString().split("T")[0];
                   }
                   setApp({ ...app, ...updates });
+                  // Auto-save status changes immediately to prevent race conditions
+                  // (e.g. "I Applied" then "Save Changes" reverting status)
+                  const res = await fetch(`/api/applications/${params.id}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ status: v }),
+                  });
+                  if (res.ok) {
+                    const saved = await res.json();
+                    setApp((prev) => prev ? { ...prev, ...saved } : prev);
+                    if (v === "withdrawn") {
+                      toast.success("Application withdrawn");
+                      router.push("/dashboard/jobs?tab=closed");
+                    } else if (v === "rejected") {
+                      toast.success("Marked as rejected");
+                    }
+                  } else {
+                    toast.error("Failed to update status");
+                  }
                   if (v === "rejected") {
                     setTimeout(() => {
                       document.getElementById("rejection-card")?.scrollIntoView({ behavior: "smooth", block: "center" });
                     }, 100);
-                  }
-                  if (v === "withdrawn") {
-                    const res = await fetch(`/api/applications/${params.id}`, {
-                      method: "PUT",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ status: "withdrawn" }),
-                    });
-                    if (res.ok) {
-                      toast.success("Application withdrawn");
-                      router.push("/dashboard/jobs?tab=closed");
-                    } else {
-                      toast.error("Failed to update status");
-                    }
                   }
                 }}
               >
