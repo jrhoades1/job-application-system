@@ -389,7 +389,7 @@ export default function ApplicationDetailPage() {
   const [qaAnswer, setQaAnswer] = useState<string | null>(null);
   const [qaLoading, setQaLoading] = useState(false);
 
-  useEffect(() => {
+  function refreshApplication() {
     fetch(`/api/applications/${params.id}`)
       .then((r) => r.json())
       .then((data) => {
@@ -403,6 +403,10 @@ export default function ApplicationDetailPage() {
         if (Array.isArray(data)) setStatusHistory(data);
       })
       .catch(() => {});
+  }
+
+  useEffect(() => {
+    refreshApplication();
     fetch("/api/subscription")
       .then((r) => r.json())
       .then((data) => {
@@ -413,6 +417,15 @@ export default function ApplicationDetailPage() {
         });
       })
       .catch(() => {});
+  }, [params.id]);
+
+  // Re-fetch when tab regains focus (e.g. after applying via extension in another tab)
+  useEffect(() => {
+    function onFocus() {
+      refreshApplication();
+    }
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
   }, [params.id]);
 
   async function handleSave() {
@@ -828,7 +841,7 @@ export default function ApplicationDetailPage() {
               <label className="text-sm font-medium">Status</label>
               <Select
                 value={app.status}
-                onValueChange={(v) => {
+                onValueChange={async (v) => {
                   const updates: Partial<ApplicationWithScores> = { status: v };
                   if (v === "rejected" && !app.rejection_date) {
                     updates.rejection_date = new Date().toISOString().split("T")[0];
@@ -838,6 +851,19 @@ export default function ApplicationDetailPage() {
                     setTimeout(() => {
                       document.getElementById("rejection-card")?.scrollIntoView({ behavior: "smooth", block: "center" });
                     }, 100);
+                  }
+                  if (v === "withdrawn") {
+                    const res = await fetch(`/api/applications/${params.id}`, {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ status: "withdrawn" }),
+                    });
+                    if (res.ok) {
+                      toast.success("Application withdrawn");
+                      router.push("/dashboard/jobs?tab=closed");
+                    } else {
+                      toast.error("Failed to update status");
+                    }
                   }
                 }}
               >
