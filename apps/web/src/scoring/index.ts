@@ -28,3 +28,6 @@ export type { EmploymentType } from "./detect-employment";
 
 export { detectLocationMatch } from "./detect-location";
 export type { LocationResult } from "./detect-location";
+
+export { checkAtsKeywords, extractAtsKeywords } from "./ats-keyword-check";
+export type { AtsCheckResult, AtsKeywordResult } from "./ats-keyword-check";
