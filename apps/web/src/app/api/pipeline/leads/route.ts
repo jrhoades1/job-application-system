@@ -125,6 +125,21 @@ export async function PATCH(req: Request) {
       );
     }
 
+    // Dedup: skip if an active application already exists for same company+role
+    const { data: existingApp } = await supabase
+      .from("applications")
+      .select("id")
+      .eq("clerk_user_id", userId)
+      .eq("company", lead.company)
+      .eq("role", lead.role)
+      .is("deleted_at", null)
+      .limit(1)
+      .maybeSingle();
+
+    if (existingApp) {
+      return NextResponse.json({ error: `Application already exists for ${lead.company} — ${lead.role}` }, { status: 409 });
+    }
+
     const { data: app, error: appError } = await supabase
       .from("applications")
       .insert({
