@@ -52,10 +52,9 @@ export async function PUT(
       if (!updateData.applied_date) {
         updateData.applied_date = new Date().toISOString().split("T")[0];
       }
-      if (!updateData.follow_up_date) {
-        const followUp = new Date(updateData.applied_date);
-        followUp.setDate(followUp.getDate() + 7);
-        updateData.follow_up_date = followUp.toISOString().split("T")[0];
+      // Set referral_status to pending so "Find a referral" shows on Today
+      if (!updateData.referral_status) {
+        updateData.referral_status = "pending";
       }
     }
 

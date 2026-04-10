@@ -15,6 +15,7 @@ type ActionType =
   | "debrief_needed"
   | "stalled"
   | "ready_to_apply"
+  | "find_referral"
   | "decay_warning"
   | "decay_imminent";
 
@@ -94,6 +95,14 @@ const ACTION_CONFIG: Record<
     borderClass: "border-gray-200 dark:border-gray-800",
     textClass: "text-gray-800 dark:text-gray-200",
     suggestion: "Follow up or consider withdrawing if there's been no response.",
+  },
+  find_referral: {
+    icon: "\uD83E\uDD1D",
+    title: "Find a Referral",
+    bgClass: "bg-amber-50 dark:bg-amber-950",
+    borderClass: "border-amber-200 dark:border-amber-800",
+    textClass: "text-amber-800 dark:text-amber-200",
+    suggestion: "Find someone inside this company on LinkedIn who can flag your resume.",
   },
   ready_to_apply: {
     icon: "\uD83D\uDCC4",

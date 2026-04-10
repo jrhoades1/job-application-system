@@ -78,6 +78,7 @@ const ACTION_ICONS: Record<string, string> = {
   new_leads: "📬",
   followup_due_today: "📞",
   needs_first_followup: "👋",
+  find_referral: "🤝",
   ready_to_apply: "📄",
   stalled: "⏳",
   followup_this_week: "📅",
@@ -377,7 +378,7 @@ function ActionSection({
 
 /** Extract the real application UUID from an action ID like "decay-uuid" or "stalled-uuid" */
 function extractAppId(actionId: string): string | null {
-  const prefixes = ["decay-", "stalled-", "ready-", "overdue-", "followup-today-", "first-followup-", "followup-week-"];
+  const prefixes = ["decay-", "stalled-", "ready-", "overdue-", "referral-", "followup-today-", "first-followup-", "followup-week-"];
   for (const p of prefixes) {
     if (actionId.startsWith(p)) return actionId.slice(p.length);
   }
@@ -387,7 +388,7 @@ function extractAppId(actionId: string): string | null {
 /** Action types that support inline archive/snooze */
 const DISMISSABLE_TYPES = new Set([
   "decay_warning", "decay_imminent", "stalled", "overdue_followup",
-  "ready_to_apply", "needs_first_followup",
+  "ready_to_apply", "needs_first_followup", "find_referral",
 ]);
 
 function ActionCard({

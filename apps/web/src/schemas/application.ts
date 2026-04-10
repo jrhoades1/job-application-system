@@ -72,6 +72,7 @@ export const updateApplicationSchema = createApplicationSchema.partial().extend(
   interviews: z.array(interviewRoundSchema).optional(),
   resources: z.array(resourceLinkSchema).optional(),
   learning_flags: z.array(z.string()).optional(),
+  referral_status: z.enum(["pending", "contacted", "connected", "skipped"]).optional().nullable(),
   skip_date: z.string().optional().nullable(),
   skip_reason: z.string().optional().nullable(),
 });

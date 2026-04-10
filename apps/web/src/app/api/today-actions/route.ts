@@ -11,6 +11,7 @@ export interface TodayAction {
     | "new_leads"
     | "followup_due_today"
     | "needs_first_followup"
+    | "find_referral"
     | "ready_to_apply"
     | "stalled"
     | "followup_this_week"
@@ -71,6 +72,7 @@ export async function GET() {
       followupWeekRes,
       decayableRes,
       decayHistoryRes,
+      referralPendingRes,
     ] = await Promise.all([
       // Interviewing apps (check JSONB for upcoming interviews)
       supabase
@@ -169,6 +171,15 @@ export async function GET() {
         .select("application_id, changed_at")
         .eq("clerk_user_id", userId)
         .order("changed_at", { ascending: false }),
+
+      // Referral pending — recently applied, hasn't found an insider yet
+      supabase
+        .from("applications")
+        .select("id, company, role, applied_date")
+        .eq("clerk_user_id", userId)
+        .is("deleted_at", null)
+        .eq("referral_status", "pending")
+        .not("status", "in", '("withdrawn","rejected","accepted")'),
     ]);
 
     const actions: TodayAction[] = [];
@@ -279,6 +290,21 @@ export async function GET() {
         action_label: "Set follow-up",
         action_url: trackerUrl(app.id, "needs_first_followup", `Applied ${app.applied_date} - no follow-up scheduled`),
         detail: `Applied ${app.applied_date} — no follow-up scheduled`,
+        due_date: null,
+      });
+    }
+
+    // TODAY: Find a referral (applied, referral_status = pending)
+    for (const app of referralPendingRes.data ?? []) {
+      actions.push({
+        id: `referral-${app.id}`,
+        type: "find_referral",
+        priority: "today",
+        company: app.company,
+        role: app.role,
+        action_label: "Find insider",
+        action_url: trackerUrl(app.id, "find_referral", `Applied ${app.applied_date ?? "recently"} - find someone inside`),
+        detail: `Applied ${app.applied_date ?? "recently"} — find someone inside`,
         due_date: null,
       });
     }

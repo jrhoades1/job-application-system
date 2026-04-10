@@ -11,8 +11,6 @@ export async function POST(req: Request) {
     }
 
     const today = new Date().toISOString().split("T")[0];
-    const followUp = new Date();
-    followUp.setDate(followUp.getDate() + 7);
 
     // Fetch current status for history
     const { data: current } = await supabase
@@ -32,7 +30,7 @@ export async function POST(req: Request) {
       .update({
         status: "applied",
         applied_date: today,
-        follow_up_date: followUp.toISOString().split("T")[0],
+        referral_status: "pending",
       })
       .eq("id", application_id)
       .eq("clerk_user_id", userId);

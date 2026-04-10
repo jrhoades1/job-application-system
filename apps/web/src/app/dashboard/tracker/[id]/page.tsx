@@ -35,6 +35,7 @@ import type { ApplicationWithScores, MatchScoreRow, InterviewRound, StatusHistor
 import { ReadyToApplyBanner } from "@/components/jobs/ready-to-apply-banner";
 import { StatusTimeline } from "@/components/jobs/status-timeline";
 import { FollowUpActionPanel } from "@/components/jobs/followup-action-panel";
+import { ReferralPanel } from "@/components/jobs/referral-panel";
 
 const INTERVIEW_TYPES = [
   "recruiter_screen",
@@ -655,7 +656,7 @@ export default function ApplicationDetailPage() {
       if (res.ok) {
         const updated = await res.json();
         setApp({ ...app, ...updated });
-        toast.success("Marked as Applied — follow-up set for 7 days");
+        toast.success("Marked as Applied — find a referral at this company");
       } else {
         toast.error("Failed to update");
       }
@@ -758,6 +759,18 @@ export default function ApplicationDetailPage() {
           followUpDate={app.follow_up_date}
           contact={app.contact}
           onFollowUpDateChanged={(date) => setApp({ ...app, follow_up_date: date })}
+        />
+      )}
+
+      {/* Referral panel — shown for applied apps with pending/contacted referral status */}
+      {(app.referral_status === "pending" || app.referral_status === "contacted") && (
+        <ReferralPanel
+          applicationId={app.id}
+          company={app.company}
+          role={app.role}
+          contact={app.contact}
+          referralStatus={app.referral_status}
+          onStatusChanged={(status) => setApp({ ...app, referral_status: status })}
         />
       )}
 
