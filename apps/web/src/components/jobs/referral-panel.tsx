@@ -17,7 +17,8 @@ interface ReferralPanelProps {
 }
 
 function buildLinkedInSearchUrl(company: string): string {
-  const query = encodeURIComponent(company);
+  // Quote the company name so LinkedIn treats it as an entity, not a person name
+  const query = encodeURIComponent(`"${company}"`);
   return `https://www.linkedin.com/search/results/people/?keywords=${query}&origin=GLOBAL_SEARCH_HEADER`;
 }
 
