@@ -4,8 +4,9 @@ import { getAuthenticatedClient } from "@/lib/supabase";
 
 const updateLeadSchema = z.object({
   id: z.string().uuid(),
-  action: z.enum(["promote", "skip"]),
+  action: z.enum(["promote", "skip", "update_description"]).optional(),
   skip_reason: z.string().max(500).optional(),
+  description_text: z.string().max(50000).optional(),
 });
 
 // GET — list pipeline leads with optional status filter
@@ -66,7 +67,24 @@ export async function PATCH(req: Request) {
       );
     }
 
-    const { id, action, skip_reason } = parsed.data;
+    const { id, action, skip_reason, description_text } = parsed.data;
+
+    // Update description (after fetching full JD)
+    if (action === "update_description" || (!action && description_text)) {
+      if (!description_text) {
+        return NextResponse.json({ error: "description_text required" }, { status: 400 });
+      }
+      const { error } = await supabase
+        .from("pipeline_leads")
+        .update({ description_text })
+        .eq("id", id)
+        .eq("clerk_user_id", userId);
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+      return NextResponse.json({ success: true });
+    }
 
     if (action === "skip") {
       const { error } = await supabase

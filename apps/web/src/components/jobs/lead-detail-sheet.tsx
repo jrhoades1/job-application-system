@@ -91,6 +91,7 @@ interface LeadDetailSheetProps {
   onReparse: (id: string) => void;
   onPromote: (id: string) => void;
   onSkip: (id: string) => void;
+  onLeadUpdated?: (id: string, updates: Partial<PipelineLeadRow>) => void;
 }
 
 export function LeadDetailSheet({
@@ -103,6 +104,7 @@ export function LeadDetailSheet({
   onReparse,
   onPromote,
   onSkip,
+  onLeadUpdated,
 }: LeadDetailSheetProps) {
   // Hooks must be called unconditionally — early return comes after
   const cleanedDescription = useMemo(
@@ -112,6 +114,7 @@ export function LeadDetailSheet({
 
   const [addingGap, setAddingGap] = useState<string | null>(null);
   const [addedGaps, setAddedGaps] = useState<Set<string>>(new Set());
+  const [fetchingJd, setFetchingJd] = useState(false);
 
   const handleAddToProfile = useCallback(async (gapText: string) => {
     setAddingGap(gapText);
@@ -152,6 +155,47 @@ export function LeadDetailSheet({
       setAddingGap(null);
     }
   }, []);
+
+  const handleFetchJd = useCallback(async () => {
+    if (!lead?.career_page_url) return;
+    setFetchingJd(true);
+    try {
+      // Scrape the career page for the full JD
+      const scrapeRes = await fetch("/api/scrape-job", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: lead.career_page_url }),
+      });
+      if (!scrapeRes.ok) {
+        toast.error("Failed to fetch job description");
+        setFetchingJd(false);
+        return;
+      }
+      const scraped = await scrapeRes.json();
+      const jdText = scraped.job_description || scraped.description;
+      if (!jdText || jdText.length < 100) {
+        toast.error("Could not extract a full job description from that page");
+        setFetchingJd(false);
+        return;
+      }
+
+      // Update the lead in the database
+      const updateRes = await fetch("/api/pipeline/leads", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: lead.id, description_text: jdText }),
+      });
+      if (updateRes.ok) {
+        onLeadUpdated?.(lead.id, { description_text: jdText });
+        toast.success(`Fetched full JD (${jdText.length.toLocaleString()} chars) — rescore for accurate match`);
+      } else {
+        toast.error("Fetched JD but failed to save");
+      }
+    } catch {
+      toast.error("Failed to fetch job description");
+    }
+    setFetchingJd(false);
+  }, [lead?.id, lead?.career_page_url, onLeadUpdated]);
 
   if (!lead) return null;
 
@@ -342,7 +386,7 @@ export function LeadDetailSheet({
           ) : null}
 
           {/* Job description */}
-          {cleanedDescription ? (
+          {cleanedDescription && cleanedDescription.length > 200 ? (
             <div>
               <h4 className="text-sm font-medium mb-2">Job Description</h4>
               <div className="rounded-lg border p-4 text-sm whitespace-pre-wrap leading-relaxed max-h-[50vh] overflow-y-auto">
@@ -350,8 +394,35 @@ export function LeadDetailSheet({
               </div>
             </div>
           ) : (
-            <div className="rounded-lg border p-4 text-sm text-muted-foreground text-center">
-              No job description available. Try reparsing this lead.
+            <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-4 space-y-3">
+              <p className="text-sm font-medium text-amber-800">
+                Not enough info to decide
+              </p>
+              <p className="text-xs text-amber-700">
+                {cleanedDescription
+                  ? "Only a summary was captured from the email digest. Fetch the full job description to get an accurate score."
+                  : "No job description was captured. Fetch it from the original posting or find it on LinkedIn."}
+              </p>
+              <div className="flex gap-2">
+                {lead.career_page_url ? (
+                  <Button
+                    size="sm"
+                    onClick={handleFetchJd}
+                    disabled={fetchingJd}
+                  >
+                    {fetchingJd ? "Fetching..." : "Fetch Full JD"}
+                  </Button>
+                ) : null}
+                <a
+                  href={`https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent(`${lead.role} ${lead.company}`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Button size="sm" variant="outline">
+                    Search LinkedIn
+                  </Button>
+                </a>
+              </div>
             </div>
           )}
 

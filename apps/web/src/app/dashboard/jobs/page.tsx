@@ -662,6 +662,12 @@ export default function JobsPage() {
           handleLeadAction(id, "skip", "Not interested");
           setSelectedLead(null);
         }}
+        onLeadUpdated={(id, updates) => {
+          setLeads((prev) => prev.map((l) => l.id === id ? { ...l, ...updates } : l));
+          if (selectedLead?.id === id) {
+            setSelectedLead({ ...selectedLead, ...updates });
+          }
+        }}
       />
     </div>
   );
