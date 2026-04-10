@@ -50,6 +50,19 @@ apps/web/supabase/.temp/
 .claude/settings.local.json
 .claude/billing.json
 .claude/project-code.txt
+.claude/worktrees/
+
+# Sensitive documents
+CONFIDENTIALITY AND NON-DISCLOSURE AGREEMENT.pdf
+
+# Loose resume/cover letter files (use applications/ folders instead)
+hha_resume*.md
+hha_resume*.pdf
+hha_cover_letter*.md
+
+# Council output (temporary)
+council-report-*.html
+council-transcript-*.md
 
 # Security (defense-in-depth)
 token.json
