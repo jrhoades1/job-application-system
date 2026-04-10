@@ -13,6 +13,7 @@ import { NextResponse } from "next/server";
 import { getServiceRoleClient } from "@/lib/supabase";
 import { shouldSkipDigest, escapeHtml, type DigestSkipReason } from "./utils";
 import { sendSms } from "@/lib/twilio";
+import { runDecayEngine, type DecayResult } from "@/lib/decay-engine";
 
 export const maxDuration = 300;
 
@@ -73,7 +74,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Database error" }, { status: 500 });
   }
 
-  const results: { userId: string; sync: SyncResult | null; apiSources: ApiSourcesResult | null; digest: DigestOutcome }[] = [];
+  const results: { userId: string; sync: SyncResult | null; apiSources: ApiSourcesResult | null; decay: DecayResult | null; digest: DigestOutcome }[] = [];
 
   for (const conn of connections ?? []) {
     const userId = conn.clerk_user_id;
@@ -116,6 +117,14 @@ export async function GET(req: Request) {
       console.error(`[nightly-pipeline] api-sources error for ${userId}:`, err);
     }
 
+    // 2.5 Run decay engine — auto-archive stale applications
+    let decayResult: DecayResult | null = null;
+    try {
+      decayResult = await runDecayEngine(supabase, userId);
+    } catch (err) {
+      console.error(`[nightly-pipeline] Decay engine error for ${userId}:`, err);
+    }
+
     // 3. Get this user's score threshold from profile preferences
     const { data: profile } = await supabase
       .from("profiles")
@@ -136,7 +145,7 @@ export async function GET(req: Request) {
     // Skip digest based on frequency preference
     const skip = shouldSkipDigest(digestFrequency, new Date().getDay());
     if (skip.skip && skip.reason) {
-      results.push({ userId, sync: syncResult, apiSources: apiSourcesResult, digest: { skipped: skip.reason } });
+      results.push({ userId, sync: syncResult, apiSources: apiSourcesResult, decay: decayResult, digest: { skipped: skip.reason } });
       continue;
     }
 
@@ -195,6 +204,7 @@ export async function GET(req: Request) {
       userId,
       sync: syncResult,
       apiSources: apiSourcesResult,
+      decay: decayResult,
       digest: { aboveThreshold, top3Count: top3.length, emailSent: !!(digestEmail && top3.length > 0), smsSent },
     });
   }
