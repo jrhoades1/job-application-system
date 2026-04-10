@@ -749,8 +749,18 @@ export default function ApplicationDetailPage() {
         </div>
       </div>
 
-      {/* Follow-up action panel — shown when arriving from Today dashboard */}
-      {actionType && (
+      {/* Referral panel takes priority — shown for applied apps needing insider outreach */}
+      {(app.referral_status === "pending" || app.referral_status === "contacted") ? (
+        <ReferralPanel
+          applicationId={app.id}
+          company={app.company}
+          role={app.role}
+          contact={app.contact}
+          referralStatus={app.referral_status}
+          onStatusChanged={(status) => setApp({ ...app, referral_status: status })}
+        />
+      ) : actionType ? (
+        /* Follow-up action panel — only when no referral panel and arriving from Today */
         <FollowUpActionPanel
           actionType={actionType as Parameters<typeof FollowUpActionPanel>[0]["actionType"]}
           detail={actionDetail}
@@ -760,19 +770,7 @@ export default function ApplicationDetailPage() {
           contact={app.contact}
           onFollowUpDateChanged={(date) => setApp({ ...app, follow_up_date: date })}
         />
-      )}
-
-      {/* Referral panel — shown for applied apps with pending/contacted referral status */}
-      {(app.referral_status === "pending" || app.referral_status === "contacted") && (
-        <ReferralPanel
-          applicationId={app.id}
-          company={app.company}
-          role={app.role}
-          contact={app.contact}
-          referralStatus={app.referral_status}
-          onStatusChanged={(status) => setApp({ ...app, referral_status: status })}
-        />
-      )}
+      ) : null}
 
       {/* Ready to Apply banner — shown for pre-apply statuses or fresh promotion */}
       {(promoted || ["pending_review", "evaluating", "ready_to_apply"].includes(app.status)) && (
