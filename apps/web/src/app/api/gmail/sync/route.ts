@@ -542,6 +542,16 @@ export async function POST(req: Request) {
       .is("deleted_at", null)
       .in("status", ["evaluating", "pending_review", "ready_to_apply"]);
 
+    // Load ALL application companies for duplicate detection
+    const { data: allApps } = await supabase
+      .from("applications")
+      .select("company")
+      .eq("clerk_user_id", userId)
+      .is("deleted_at", null);
+    const knownCompanies = new Set(
+      (allApps ?? []).map((a) => normalizeCompany(a.company))
+    );
+
     let inserted = 0;
     let skipped = 0;
     let confirmed = 0;
@@ -689,6 +699,9 @@ export async function POST(req: Request) {
           if (existingUids.has(leadUid)) continue;
           if (URL_LIKE_COMPANY.test(job.company.trim())) continue;
 
+          // Skip if company already exists in applications (duplicate)
+          if (knownCompanies.has(normalizeCompany(job.company))) continue;
+
           // Store whatever details the AI extracted from the email
           let leadText = job.description || "";
           const careerPageUrl = job.url ?? null;
@@ -766,6 +779,14 @@ export async function POST(req: Request) {
       // Don't use notification subjects ("New Opportunity Alert!") as role titles
       const subjectAsRole = subject.replace(/^(fw|fwd|re)\s*:\s*/gi, "").trim();
       const finalRole = extracted?.role || (isNotificationSubject(subject) ? null : subjectAsRole) || null;
+
+      // Skip leads where company already exists in applications (duplicate)
+      if (finalCompany && knownCompanies.has(normalizeCompany(finalCompany))) {
+        existingUids.add(msg.id);
+        skipped++;
+        if (processedLabelId) labelMessage(tokens.access_token, msg.id, processedLabelId).catch(() => {});
+        continue;
+      }
 
       // Skip leads where we can't determine company or role
       const URL_PROTOCOL = /^(https?|http|ftp|www)$/i;
