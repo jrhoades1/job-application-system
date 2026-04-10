@@ -200,85 +200,21 @@ function detectConfirmationPage(): void {
   const isConfirmation = confirmPatterns.some((p) => new RegExp(p, "i").test(text));
   if (!isConfirmation) return;
 
-  // Try to match this URL to a tracked application
+  // Try to match this URL to a tracked application and auto-mark as applied
   chrome.runtime.sendMessage({ type: "MATCH_URL", url: window.location.href }).then(
-    (match) => {
-      if (match) {
-        showConfirmationOverlay(match);
+    async (match) => {
+      if (!match) return;
+      const success = await chrome.runtime.sendMessage({
+        type: "MARK_APPLIED",
+        applicationId: match.id,
+      });
+      if (success) {
+        showToast(`Applied: ${match.company} -- ${match.role}`, "success");
+      } else {
+        showToast("Failed to update status", "error");
       }
     }
   );
-}
-
-interface MatchedApp {
-  id: string;
-  company: string;
-  role: string;
-}
-
-function showConfirmationOverlay(match: MatchedApp): void {
-  const overlay = document.createElement("div");
-  overlay.id = "jaa-confirm-overlay";
-  overlay.innerHTML = `
-    <div style="
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      z-index: 999999;
-      background: #1a1a2e;
-      color: #eee;
-      padding: 16px 20px;
-      border-radius: 10px;
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-      font-size: 14px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-      max-width: 320px;
-    ">
-      <p style="margin: 0 0 8px; font-weight: 600;">Application submitted!</p>
-      <p style="margin: 0 0 12px; color: #aaa; font-size: 12px;">
-        ${match.company} — ${match.role}
-      </p>
-      <div style="display: flex; gap: 8px;">
-        <button id="jaa-confirm-yes" style="
-          background: #3b82f6;
-          color: white;
-          border: none;
-          padding: 6px 14px;
-          border-radius: 6px;
-          cursor: pointer;
-          font-size: 13px;
-        ">Mark as Applied</button>
-        <button id="jaa-confirm-dismiss" style="
-          background: transparent;
-          color: #888;
-          border: 1px solid #444;
-          padding: 6px 14px;
-          border-radius: 6px;
-          cursor: pointer;
-          font-size: 13px;
-        ">Dismiss</button>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(overlay);
-
-  document.getElementById("jaa-confirm-yes")?.addEventListener("click", async () => {
-    const success = await chrome.runtime.sendMessage({
-      type: "MARK_APPLIED",
-      applicationId: match.id,
-    });
-    if (success) {
-      showToast("Marked as Applied!", "success");
-    } else {
-      showToast("Failed to update", "error");
-    }
-    overlay.remove();
-  });
-
-  document.getElementById("jaa-confirm-dismiss")?.addEventListener("click", () => {
-    overlay.remove();
-  });
 }
 
 /** Auto-detect job listing pages and show "Import Job" button */
