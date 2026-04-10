@@ -431,6 +431,13 @@ export default function ApplicationDetailPage() {
     });
     if (res.ok) {
       toast.success("Application updated");
+      // Navigate back to where the user came from (list view)
+      if (window.history.length > 1) {
+        router.back();
+      } else {
+        router.push("/dashboard/jobs");
+      }
+      return;
     } else {
       const err = await res.json().catch(() => null);
       const detail = err?.details?.fieldErrors
