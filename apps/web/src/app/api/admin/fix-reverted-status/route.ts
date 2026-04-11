@@ -12,7 +12,16 @@ import { getAuthenticatedClient } from "@/lib/supabase";
  * so any app with referral_status IN (pending, contacted, connected) that is
  * currently in a pre-apply status was affected by the bug.
  */
+// GET so Jimmy can trigger from phone browser
+export async function GET() {
+  return run();
+}
+
 export async function POST() {
+  return run();
+}
+
+async function run() {
   try {
     const { supabase, userId } = await getAuthenticatedClient();
 
