@@ -46,6 +46,7 @@ export const createApplicationSchema = z.object({
 });
 
 export const updateApplicationSchema = createApplicationSchema.partial().extend({
+  status: applicationStatusSchema.optional(), // Override: remove .default("evaluating") from partial — prevents silent status reset on partial updates
   follow_up_date: z.string().optional().nullable(),
   resume_version: z.string().optional(),
   cover_letter: z.string().optional(),
