@@ -140,6 +140,52 @@ async function run() {
       .eq("clerk_user_id", userId)
       .eq("company", "About the job Availity");
 
+    // --- Fix 1c: Strip stray quotes and fix company/role swaps ---
+    const ROLE_WORDS = /\b(director|manager|engineer|head|lead|vp|chief|senior|sr|principal|staff|architect|developer|analyst|scientist)\b/i;
+    const { data: quotedApps } = await supabase
+      .from("applications")
+      .select("id, company, role")
+      .eq("clerk_user_id", userId)
+      .is("deleted_at", null)
+      .or("company.like.\"%\"%,company.like.\\'%\\'");
+
+    const quoteFixes: { id: string; was: { company: string; role: string }; now: { company: string; role: string } }[] = [];
+
+    // Also check all apps for company/role swaps (company looks like a role title)
+    const { data: allApps } = await supabase
+      .from("applications")
+      .select("id, company, role")
+      .eq("clerk_user_id", userId)
+      .is("deleted_at", null);
+
+    for (const app of allApps ?? []) {
+      const cleanCompany = app.company.replace(/^["']+|["']+$/g, "").trim();
+      const cleanRole = app.role.replace(/^["']+|["']+$/g, "").trim();
+      let newCompany = cleanCompany;
+      let newRole = cleanRole;
+
+      // Detect swap: company looks like a role, role looks like a company
+      if (ROLE_WORDS.test(cleanCompany) && !ROLE_WORDS.test(cleanRole)) {
+        newCompany = cleanRole;
+        newRole = cleanCompany;
+      }
+
+      // Strip " - extra info and more" from role
+      newRole = newRole.replace(/\s+and more$/i, "").trim();
+
+      // Extract company from role if it has "company - role" format
+      const dashParts = newRole.match(/^([A-Z][a-z]+(?:\s+[A-Z][a-z]*)*)\s*-\s*(.+)$/);
+      if (dashParts && !ROLE_WORDS.test(dashParts[1]) && ROLE_WORDS.test(dashParts[2])) {
+        newCompany = dashParts[1].trim();
+        newRole = dashParts[2].trim();
+      }
+
+      if (newCompany !== app.company || newRole !== app.role) {
+        await supabase.from("applications").update({ company: newCompany, role: newRole }).eq("id", app.id).eq("clerk_user_id", userId);
+        quoteFixes.push({ id: app.id, was: { company: app.company, role: app.role }, now: { company: newCompany, role: newRole } });
+      }
+    }
+
     // --- Fix 1b: Clean up "Team | Company" pipe-formatted names ---
     const { data: pipeApps } = await supabase
       .from("applications")
@@ -215,6 +261,7 @@ async function run() {
         fixed: statusFixed.length,
         applications: statusFixed.map((a) => ({ company: a.company, role: a.role, was: a.status, now: "applied" })),
       },
+      quote_and_swap_fix: quoteFixes,
       pipe_name_fix: pipeFixes,
       platform_name_fix: {
         apps_fixed: appFixes,
