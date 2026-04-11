@@ -41,7 +41,9 @@ function guessCompany(jd: string | null, url: string | null, role: string | null
     const patterns = [
       /(?:about|join|at|welcome to)\s+([A-Z][A-Za-z0-9 &.,'-]{2,30})(?:\s*[,.]|\s+is\b|\s+we\b)/,
       /^([A-Z][A-Za-z0-9 &.,'-]{2,30})\s+is\s+(?:a|an|the|looking|seeking|hiring)/m,
+      /([A-Z][A-Za-z0-9 &.,'-]{2,30})\s+(?:delivers|provides|offers|builds|helps|enables|powers|creates|connects)\b/,
       /company:\s*([A-Z][A-Za-z0-9 &.,'-]{2,30})/i,
+      /position\s+(?:at|with)\s+([A-Z][A-Za-z0-9 &.,'-]{2,30})/i,
     ];
     for (const pat of patterns) {
       const m = jd.match(pat);
