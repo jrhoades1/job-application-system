@@ -47,6 +47,12 @@ export async function PUT(
 
     const updateData = { ...parsed.data };
 
+    // Defense-in-depth: only include status if it was explicitly sent in the request body.
+    // Prevents Zod defaults from silently resetting status on partial updates.
+    if (!("status" in body)) {
+      delete updateData.status;
+    }
+
     // Auto-compute dates when status changes to "applied"
     if (updateData.status === "applied") {
       if (!updateData.applied_date) {
