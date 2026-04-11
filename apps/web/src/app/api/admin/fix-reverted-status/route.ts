@@ -18,6 +18,52 @@ export async function POST() {
 
 const PLATFORM_NAMES = ["LinkedIn", "Indeed", "Glassdoor", "ZipRecruiter", "Dice", "Monster", "Hired", "Wellfound", "AngelList"];
 
+/** Try to extract the real company name from a JD, URL, or role title */
+function guessCompany(jd: string | null, url: string | null, role: string | null): string | null {
+  // Try URL first — company career pages have the company in the hostname
+  if (url) {
+    try {
+      const host = new URL(url).hostname.toLowerCase();
+      // greenhouse.io/company, lever.co/company, etc.
+      const atsMatch = url.match(/(?:boards\.greenhouse\.io|jobs\.lever\.co|jobs\.ashbyhq\.com)\/([a-z0-9-]+)/i);
+      if (atsMatch) return atsMatch[1].replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      // company.com career pages
+      const parts = host.replace("www.", "").replace("jobs.", "").replace("careers.", "").split(".");
+      const domain = parts[0];
+      if (domain && domain.length > 2 && !/^(linkedin|indeed|glassdoor|ziprecruiter|dice|monster|workday|myworkdayjobs|smartrecruiters)$/.test(domain)) {
+        return domain.charAt(0).toUpperCase() + domain.slice(1);
+      }
+    } catch { /* ignore bad URLs */ }
+  }
+
+  // Try JD text — look for "About [Company]", "at [Company]", "[Company] is" patterns
+  if (jd) {
+    const patterns = [
+      /(?:about|join|at|welcome to)\s+([A-Z][A-Za-z0-9 &.,'-]{2,30})(?:\s*[,.]|\s+is\b|\s+we\b)/,
+      /^([A-Z][A-Za-z0-9 &.,'-]{2,30})\s+is\s+(?:a|an|the|looking|seeking|hiring)/m,
+      /company:\s*([A-Z][A-Za-z0-9 &.,'-]{2,30})/i,
+    ];
+    for (const pat of patterns) {
+      const m = jd.match(pat);
+      if (m) {
+        const name = m[1].trim();
+        const platformLower = PLATFORM_NAMES.map((p) => p.toLowerCase());
+        if (!platformLower.includes(name.toLowerCase())) return name;
+      }
+    }
+  }
+
+  // Try role title — "Director at Company" or "Role | Company"
+  if (role) {
+    const atMatch = role.match(/\bat\s+([A-Z][A-Za-z0-9 &.,'-]+)$/);
+    if (atMatch) return atMatch[1].trim();
+    const pipeMatch = role.match(/\|\s*([A-Z][A-Za-z0-9 &.,'-]+)$/);
+    if (pipeMatch) return pipeMatch[1].trim();
+  }
+
+  return null;
+}
+
 async function run() {
   try {
     const { supabase, userId } = await getAuthenticatedClient();
@@ -85,20 +131,39 @@ async function run() {
       }
     }
 
-    // --- Fix 2: Platform names as company ---
+    // --- Fix 2: Platform names as company — extract real names and fix ---
     const { data: platformApps } = await supabase
       .from("applications")
-      .select("id, company, role")
+      .select("id, company, role, job_description, source_url")
       .eq("clerk_user_id", userId)
       .is("deleted_at", null)
       .in("company", PLATFORM_NAMES);
 
     const { data: platformLeads } = await supabase
       .from("pipeline_leads")
-      .select("id, company, role")
+      .select("id, company, role, description_text, career_page_url")
       .eq("clerk_user_id", userId)
       .is("deleted_at", null)
       .in("company", PLATFORM_NAMES);
+
+    // Try to extract real company names from JD/URL
+    const appFixes: { id: string; role: string; was: string; now: string }[] = [];
+    for (const app of platformApps ?? []) {
+      const realCompany = guessCompany(app.job_description, app.source_url, app.role);
+      if (realCompany) {
+        await supabase.from("applications").update({ company: realCompany }).eq("id", app.id).eq("clerk_user_id", userId);
+        appFixes.push({ id: app.id, role: app.role, was: app.company, now: realCompany });
+      }
+    }
+
+    const leadFixes: { id: string; role: string; was: string; now: string }[] = [];
+    for (const lead of platformLeads ?? []) {
+      const realCompany = guessCompany(lead.description_text, lead.career_page_url, lead.role);
+      if (realCompany) {
+        await supabase.from("pipeline_leads").update({ company: realCompany }).eq("id", lead.id).eq("clerk_user_id", userId);
+        leadFixes.push({ id: lead.id, role: lead.role, was: lead.company, now: realCompany });
+      }
+    }
 
     return NextResponse.json({
       status_fix: {
@@ -106,9 +171,18 @@ async function run() {
         applications: statusFixed.map((a) => ({ company: a.company, role: a.role, was: a.status, now: "applied" })),
       },
       platform_name_fix: {
-        applications: (platformApps ?? []).map((a) => ({ id: a.id, company: a.company, role: a.role })),
-        leads: (platformLeads ?? []).map((l) => ({ id: l.id, company: l.company, role: l.role })),
-        note: "These have platform names as company. Review and update manually, or re-parse the leads.",
+        apps_fixed: appFixes,
+        leads_fixed: leadFixes,
+        apps_unfixed: (platformApps ?? []).filter((a) => !appFixes.some((f) => f.id === a.id)).map((a) => ({
+          id: a.id, company: a.company, role: a.role,
+          jd_preview: (a.job_description ?? "").slice(0, 300),
+          source_url: a.source_url,
+        })),
+        leads_unfixed: (platformLeads ?? []).filter((l) => !leadFixes.some((f) => f.id === l.id)).map((l) => ({
+          id: l.id, company: l.company, role: l.role,
+          jd_preview: (l.description_text ?? "").slice(0, 300),
+          url: l.career_page_url,
+        })),
       },
     });
   } catch {
