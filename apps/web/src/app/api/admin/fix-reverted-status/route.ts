@@ -158,38 +158,34 @@ async function run() {
       .eq("clerk_user_id", userId)
       .is("deleted_at", null);
 
+    // --- Revert bad swaps from previous run ---
+    const badSwaps = [
+      { wrongCompany: "Vice President of Engineering", wrongRole: "Staffing Science", fixCompany: "Staffing Science", fixRole: "Vice President of Engineering" },
+      { wrongCompany: "Associate Director", wrongRole: "Engineering", fixCompany: "Careers at Westlake Company", fixRole: "Associate Director - Engineering" },
+      { wrongCompany: "Sroa Capital and others are hiring for Vice President of Technology in and around West Palm Beach, FL", wrongRole: "Vice President of", fixCompany: "Sroa Capital", fixRole: "Vice President of Technology" },
+    ];
+    for (const swap of badSwaps) {
+      await supabase.from("applications").update({ company: swap.fixCompany, role: swap.fixRole })
+        .eq("clerk_user_id", userId).eq("company", swap.wrongCompany).eq("role", swap.wrongRole);
+    }
+
     for (const app of allApps ?? []) {
-      const cleanCompany = app.company.replace(/^["']+|["']+$/g, "").trim();
-      const cleanRole = app.role.replace(/^["']+|["']+$/g, "").trim();
+      let cleanCompany = app.company.replace(/^[""'"']+|[""'"']+$/g, "").replace(/\u00c2/g, "").trim();
+      let cleanRole = app.role.replace(/^[""'"']+|[""'"']+$/g, "").replace(/\u00c2/g, "").replace(/\s+and more$/i, "").trim();
       let newCompany = cleanCompany;
       let newRole = cleanRole;
 
-      // Strip "and more" suffix
-      newRole = newRole.replace(/\s+and more$/i, "").trim();
-
-      // Detect swap: if company STARTS with a role word, it's definitely a role not a company
-      const STARTS_WITH_ROLE = /^(director|manager|engineer|head|lead|vp|vice\s+president|chief|senior|sr\.?|principal|staff|architect|developer|analyst|scientist|founding)/i;
-      if (STARTS_WITH_ROLE.test(cleanCompany)) {
-        // Company field has a role title — extract real company from the role field
-        const dashMatch = cleanRole.match(/^([a-zA-Z][a-zA-Z0-9 &.,'-]+?)\s*-\s*(.+)$/);
+      // Only swap when company field CLEARLY looks like a standalone role title
+      // Use word boundaries to prevent "Staffing" matching "staff"
+      const IS_ROLE_TITLE = /^(director|manager|head|lead|vp|vice president|chief|senior|principal|founding)\s+(of|for|\w)/i;
+      if (IS_ROLE_TITLE.test(cleanCompany)) {
+        // Extract real company from role field if it has "company - role" format
+        const dashMatch = cleanRole.match(/^([a-zA-Z][a-zA-Z0-9 &.,'-]+?)\s+-\s+(.+)$/);
         if (dashMatch) {
-          // Role has "company - actual role" format
           newCompany = dashMatch[1].trim();
-          newCompany = newCompany.charAt(0).toUpperCase() + newCompany.slice(1); // capitalize
-          newRole = cleanCompany; // the original company field IS the role
-        } else {
-          // No dash — just swap them
-          newCompany = cleanRole;
+          newCompany = newCompany.charAt(0).toUpperCase() + newCompany.slice(1);
           newRole = cleanCompany;
         }
-      }
-
-      // Extract company from role if it has "company - role" format (even without swap)
-      const dashParts = newRole.match(/^([a-zA-Z][a-zA-Z0-9 &.,'-]+?)\s*-\s*(.+)$/);
-      if (dashParts && !STARTS_WITH_ROLE.test(dashParts[1]) && STARTS_WITH_ROLE.test(dashParts[2])) {
-        newCompany = dashParts[1].trim();
-        newCompany = newCompany.charAt(0).toUpperCase() + newCompany.slice(1);
-        newRole = dashParts[2].trim();
       }
 
       if (newCompany !== app.company || newRole !== app.role) {
