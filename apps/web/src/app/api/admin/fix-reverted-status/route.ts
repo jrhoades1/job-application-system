@@ -2,17 +2,18 @@ import { NextResponse } from "next/server";
 import { getAuthenticatedClient } from "@/lib/supabase";
 
 /**
- * POST /api/admin/fix-reverted-status
+ * GET/POST /api/admin/fix-reverted-status
  *
- * One-time data fix: finds applications that were silently reverted to
- * evaluation statuses by the Zod v4 .default("evaluating") bug, and
- * restores them to "applied".
+ * One-time data fix: finds applications silently reverted to evaluation
+ * statuses by the Zod v4 .default("evaluating") bug, and restores them
+ * to "applied".
  *
- * Detection: referral_status is only set when status transitions to "applied",
- * so any app with referral_status IN (pending, contacted, connected) that is
- * currently in a pre-apply status was affected by the bug.
+ * Detection strategy (broadened):
+ * 1. Apps with referral_status set + currently in pre-apply status
+ * 2. Apps with applied_date set + currently in pre-apply status
+ * 3. Apps whose status_history shows they were previously "applied"
+ *    but are now in a pre-apply status
  */
-// GET so Jimmy can trigger from phone browser
 export async function GET() {
   return run();
 }
@@ -25,20 +26,58 @@ async function run() {
   try {
     const { supabase, userId } = await getAuthenticatedClient();
 
-    // Find affected applications
-    const { data: affected, error: findError } = await supabase
+    const preApplyStatuses = ["evaluating", "pending_review", "ready_to_apply"];
+
+    // Strategy 1: referral_status set (only happens via apply flow)
+    const { data: byReferral } = await supabase
       .from("applications")
-      .select("id, company, role, status, referral_status, applied_date")
+      .select("id, company, role, status, applied_date")
       .eq("clerk_user_id", userId)
       .is("deleted_at", null)
-      .in("status", ["evaluating", "pending_review", "ready_to_apply"])
+      .in("status", preApplyStatuses)
       .in("referral_status", ["pending", "contacted", "connected"]);
 
-    if (findError) {
-      return NextResponse.json({ error: "Query failed" }, { status: 500 });
+    // Strategy 2: applied_date set but status reverted
+    const { data: byDate } = await supabase
+      .from("applications")
+      .select("id, company, role, status, applied_date")
+      .eq("clerk_user_id", userId)
+      .is("deleted_at", null)
+      .in("status", preApplyStatuses)
+      .not("applied_date", "is", null);
+
+    // Strategy 3: status_history shows a previous transition TO "applied"
+    const { data: historyApplied } = await supabase
+      .from("application_status_history")
+      .select("application_id")
+      .eq("clerk_user_id", userId)
+      .eq("to_status", "applied");
+
+    const historyAppIds = new Set((historyApplied ?? []).map((h) => h.application_id));
+
+    let byHistory: typeof byReferral = [];
+    if (historyAppIds.size > 0) {
+      const { data } = await supabase
+        .from("applications")
+        .select("id, company, role, status, applied_date")
+        .eq("clerk_user_id", userId)
+        .is("deleted_at", null)
+        .in("status", preApplyStatuses)
+        .in("id", Array.from(historyAppIds));
+      byHistory = data ?? [];
     }
 
-    if (!affected || affected.length === 0) {
+    // Merge and deduplicate
+    const seen = new Set<string>();
+    const affected: { id: string; company: string; role: string; status: string; applied_date: string | null }[] = [];
+    for (const app of [...(byReferral ?? []), ...(byDate ?? []), ...(byHistory ?? [])]) {
+      if (!seen.has(app.id)) {
+        seen.add(app.id);
+        affected.push(app);
+      }
+    }
+
+    if (affected.length === 0) {
       return NextResponse.json({ fixed: 0, applications: [] });
     }
 
