@@ -164,19 +164,31 @@ async function run() {
       let newCompany = cleanCompany;
       let newRole = cleanRole;
 
-      // Detect swap: company looks like a role, role looks like a company
-      if (ROLE_WORDS.test(cleanCompany) && !ROLE_WORDS.test(cleanRole)) {
-        newCompany = cleanRole;
-        newRole = cleanCompany;
-      }
-
-      // Strip " - extra info and more" from role
+      // Strip "and more" suffix
       newRole = newRole.replace(/\s+and more$/i, "").trim();
 
-      // Extract company from role if it has "company - role" format
-      const dashParts = newRole.match(/^([A-Z][a-z]+(?:\s+[A-Z][a-z]*)*)\s*-\s*(.+)$/);
-      if (dashParts && !ROLE_WORDS.test(dashParts[1]) && ROLE_WORDS.test(dashParts[2])) {
+      // Detect swap: if company STARTS with a role word, it's definitely a role not a company
+      const STARTS_WITH_ROLE = /^(director|manager|engineer|head|lead|vp|vice\s+president|chief|senior|sr\.?|principal|staff|architect|developer|analyst|scientist|founding)/i;
+      if (STARTS_WITH_ROLE.test(cleanCompany)) {
+        // Company field has a role title — extract real company from the role field
+        const dashMatch = cleanRole.match(/^([a-zA-Z][a-zA-Z0-9 &.,'-]+?)\s*-\s*(.+)$/);
+        if (dashMatch) {
+          // Role has "company - actual role" format
+          newCompany = dashMatch[1].trim();
+          newCompany = newCompany.charAt(0).toUpperCase() + newCompany.slice(1); // capitalize
+          newRole = cleanCompany; // the original company field IS the role
+        } else {
+          // No dash — just swap them
+          newCompany = cleanRole;
+          newRole = cleanCompany;
+        }
+      }
+
+      // Extract company from role if it has "company - role" format (even without swap)
+      const dashParts = newRole.match(/^([a-zA-Z][a-zA-Z0-9 &.,'-]+?)\s*-\s*(.+)$/);
+      if (dashParts && !STARTS_WITH_ROLE.test(dashParts[1]) && STARTS_WITH_ROLE.test(dashParts[2])) {
         newCompany = dashParts[1].trim();
+        newCompany = newCompany.charAt(0).toUpperCase() + newCompany.slice(1);
         newRole = dashParts[2].trim();
       }
 
