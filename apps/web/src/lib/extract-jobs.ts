@@ -68,7 +68,7 @@ If you cannot extract any jobs with real company names, return an empty array: [
   try {
     const parsed = JSON.parse(jsonMatch[0]);
     if (!Array.isArray(parsed)) return [];
-    const BAD_NAMES = /^(unknown|n\/a|company|none|not specified|-|https?|http|ftp|www)$/i;
+    const BAD_NAMES = /^(unknown|n\/a|company|none|not specified|-|https?|http|ftp|www|linkedin|indeed|glassdoor|ziprecruiter|dice|monster|hired|wellfound|angellist|greenhouse|lever|workday|smartrecruiters)$/i;
     const URL_LIKE = /^(https?:\/\/|www\.)|[/:].*\.(com|org|net|io)\b/i;
     return parsed.filter(
       (j: Record<string, unknown>) =>

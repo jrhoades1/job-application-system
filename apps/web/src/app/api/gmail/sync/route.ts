@@ -790,7 +790,10 @@ export async function POST(req: Request) {
 
       // Use sender name as fallback so leads are identifiable even without AI extraction
       const senderName = from.replace(/<.*>/, "").replace(/"/g, "").trim();
-      const finalCompany = extracted?.company || senderName || null;
+      // Reject platform names and generic senders — these are not real company names
+      const PLATFORM_OR_GENERIC = /^(linkedin|indeed|glassdoor|ziprecruiter|dice|monster|hired|wellfound|angellist|greenhouse|lever|workday|smartrecruiters|no-?reply|notifications?|careers?|jobs?|talent|recruiting|hr|job\s*alerts?)$/i;
+      const validSenderCompany = senderName && !PLATFORM_OR_GENERIC.test(senderName) ? senderName : null;
+      const finalCompany = extracted?.company || validSenderCompany || null;
       // Don't use notification subjects ("New Opportunity Alert!") as role titles
       const subjectAsRole = subject.replace(/^(fw|fwd|re)\s*:\s*/gi, "").trim();
       const finalRole = extracted?.role || (isNotificationSubject(subject) ? null : subjectAsRole) || null;
