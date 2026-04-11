@@ -41,7 +41,7 @@ function guessCompany(jd: string | null, url: string | null, role: string | null
     const patterns = [
       /(?:about|join|at|welcome to)\s+([A-Z][A-Za-z0-9 &.,'-]{2,30})(?:\s*[,.]|\s+is\b|\s+we\b)/,
       /^([A-Z][A-Za-z0-9 &.,'-]{2,30})\s+is\s+(?:a|an|the|looking|seeking|hiring)/m,
-      /([A-Z][A-Za-z0-9 &.,'-]{2,30})\s+(?:delivers|provides|offers|builds|helps|enables|powers|creates|connects)\b/,
+      /(?:^|[.!]\s+)([A-Z][a-z]+(?:\s+[A-Z][a-z]*)*)\s+(?:delivers|provides|offers|builds|helps|enables|powers|creates|connects)\b/,
       /company:\s*([A-Z][A-Za-z0-9 &.,'-]{2,30})/i,
       /position\s+(?:at|with)\s+([A-Z][A-Za-z0-9 &.,'-]{2,30})/i,
     ];
@@ -132,6 +132,13 @@ async function run() {
         });
       }
     }
+
+    // --- Quick fix: clean up "About the job Availity" from previous run ---
+    await supabase
+      .from("applications")
+      .update({ company: "Availity" })
+      .eq("clerk_user_id", userId)
+      .eq("company", "About the job Availity");
 
     // --- Fix 2: Platform names as company — extract real names and fix ---
     const { data: platformApps } = await supabase
