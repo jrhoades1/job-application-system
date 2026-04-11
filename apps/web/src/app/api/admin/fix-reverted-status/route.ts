@@ -140,6 +140,42 @@ async function run() {
       .eq("clerk_user_id", userId)
       .eq("company", "About the job Availity");
 
+    // --- Fix 1b: Clean up "Team | Company" pipe-formatted names ---
+    const { data: pipeApps } = await supabase
+      .from("applications")
+      .select("id, company")
+      .eq("clerk_user_id", userId)
+      .is("deleted_at", null)
+      .like("company", "%|%");
+
+    const pipeFixes: { id: string; was: string; now: string }[] = [];
+    for (const app of pipeApps ?? []) {
+      const parts = app.company.split("|").map((s: string) => s.trim());
+      // Last segment after pipe is typically the company name
+      const realCompany = parts[parts.length - 1];
+      if (realCompany && realCompany !== app.company) {
+        await supabase.from("applications").update({ company: realCompany }).eq("id", app.id).eq("clerk_user_id", userId);
+        pipeFixes.push({ id: app.id, was: app.company, now: realCompany });
+      }
+    }
+
+    // Same for pipeline leads
+    const { data: pipeLeads } = await supabase
+      .from("pipeline_leads")
+      .select("id, company")
+      .eq("clerk_user_id", userId)
+      .is("deleted_at", null)
+      .like("company", "%|%");
+
+    for (const lead of pipeLeads ?? []) {
+      const parts = lead.company.split("|").map((s: string) => s.trim());
+      const realCompany = parts[parts.length - 1];
+      if (realCompany && realCompany !== lead.company) {
+        await supabase.from("pipeline_leads").update({ company: realCompany }).eq("id", lead.id).eq("clerk_user_id", userId);
+        pipeFixes.push({ id: lead.id, was: lead.company, now: realCompany });
+      }
+    }
+
     // --- Fix 2: Platform names as company — extract real names and fix ---
     const { data: platformApps } = await supabase
       .from("applications")
@@ -179,6 +215,7 @@ async function run() {
         fixed: statusFixed.length,
         applications: statusFixed.map((a) => ({ company: a.company, role: a.role, was: a.status, now: "applied" })),
       },
+      pipe_name_fix: pipeFixes,
       platform_name_fix: {
         apps_fixed: appFixes,
         leads_fixed: leadFixes,
