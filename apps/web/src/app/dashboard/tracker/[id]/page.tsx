@@ -383,6 +383,12 @@ export default function ApplicationDetailPage() {
   const [addKeywordTarget, setAddKeywordTarget] = useState<string | null>(null);
   const [addKeywordText, setAddKeywordText] = useState("");
   const [addingKeyword, setAddingKeyword] = useState(false);
+  const [addGapOpen, setAddGapOpen] = useState(false);
+  const [addGapTarget, setAddGapTarget] = useState<string | null>(null);
+  const [addGapText, setAddGapText] = useState("");
+  const [gapSuggestions, setGapSuggestions] = useState<string[]>([]);
+  const [loadingGapSuggestions, setLoadingGapSuggestions] = useState(false);
+  const [addingGap, setAddingGap] = useState(false);
   const [coverLetter, setCoverLetter] = useState<string | null>(null);
   const [statusHistory, setStatusHistory] = useState<StatusHistoryRow[]>([]);
   const [qaQuestion, setQaQuestion] = useState("");
@@ -604,6 +610,69 @@ export default function ApplicationDetailPage() {
       toast.error("Something went wrong");
     }
     setAddingKeyword(false);
+  }
+
+  async function openAddGap(gap: string) {
+    setAddGapTarget(gap);
+    setAddGapText("");
+    setGapSuggestions([]);
+    setAddGapOpen(true);
+    if (!app) return;
+    setLoadingGapSuggestions(true);
+    try {
+      const res = await fetch("/api/profile/suggest-gap-fix", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          gap,
+          role: app.role,
+          company: app.company,
+          job_description: app.job_description ?? undefined,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGapSuggestions(data.suggestions ?? []);
+      }
+    } catch {
+      // suggestions are optional — user can still write their own
+    }
+    setLoadingGapSuggestions(false);
+  }
+
+  async function handleAddGap() {
+    if (!addGapTarget || !addGapText.trim()) return;
+    setAddingGap(true);
+    try {
+      const res = await fetch("/api/profile/add-achievement", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: "Experience",
+          text: addGapText.trim(),
+        }),
+      });
+      if (res.ok) {
+        const target = addGapTarget;
+        const currentGaps =
+          resumeGaps.length > 0 ? resumeGaps : (score?.resume_gaps ?? []);
+        setResumeGaps(currentGaps.filter((g) => g !== target));
+        toast.success(`Added to your profile. Re-tailor your resume to apply it.`, {
+          duration: 6000,
+          action: {
+            label: "Re-Tailor Now",
+            onClick: () => handleTailorResume(),
+          },
+        });
+        setAddGapOpen(false);
+      } else {
+        const err = await res.json();
+        toast.error(err.error ?? "Failed to add");
+      }
+    } catch {
+      toast.error("Something went wrong");
+    }
+    setAddingGap(false);
   }
 
   async function handleGenerateCoverLetter() {
@@ -1168,13 +1237,20 @@ export default function ApplicationDetailPage() {
               {displayResumeGaps.length > 0 && displayResumeMatchPct != null && displayResumeMatchPct < 80 && (
                 <div className="mb-3 p-3 rounded-lg border border-red-200 bg-red-50/50">
                   <div className="text-xs font-medium text-red-800 mb-1.5">
-                    Missing from resume ({displayResumeGaps.length} items)
+                    Missing from resume ({displayResumeGaps.length} items) — click to add
                   </div>
                   <ul className="space-y-0.5">
                     {displayResumeGaps.map((g, i) => (
-                      <li key={i} className="text-xs text-red-900 flex items-start gap-1.5">
-                        <span className="text-red-500 mt-0.5 shrink-0">{"\u2717"}</span>
-                        {g}
+                      <li key={i}>
+                        <button
+                          type="button"
+                          onClick={() => openAddGap(g)}
+                          className="w-full text-left text-xs text-red-900 flex items-start gap-1.5 rounded px-1 py-0.5 hover:bg-red-100 transition-colors cursor-pointer"
+                        >
+                          <span className="text-red-500 mt-0.5 shrink-0">{"\u2717"}</span>
+                          <span className="flex-1">{g}</span>
+                          <span className="text-red-400 shrink-0">+</span>
+                        </button>
                       </li>
                     ))}
                   </ul>
@@ -1338,6 +1414,79 @@ export default function ApplicationDetailPage() {
             </Button>
             <Button onClick={handleAddKeyword} disabled={addingKeyword || !addKeywordText.trim()}>
               {addingKeyword ? "Adding..." : "Add to Profile"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Resume Gap Dialog */}
+      <Dialog open={addGapOpen} onOpenChange={setAddGapOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Close this resume gap</DialogTitle>
+            <DialogDescription>
+              The job description flagged this requirement as missing from your resume.
+              Pick a suggestion or write your own. Saved entries become part of your
+              profile so future tailored resumes include them.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded border border-red-200 bg-red-50/50 p-2">
+              <p className="text-xs font-medium text-red-800 mb-0.5">Missing requirement:</p>
+              <p className="text-xs text-red-900">{addGapTarget}</p>
+            </div>
+
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">
+                Suggestions {loadingGapSuggestions ? "(generating...)" : ""}
+              </p>
+              {loadingGapSuggestions && gapSuggestions.length === 0 && (
+                <div className="text-xs text-muted-foreground italic">
+                  Generating possible fixes...
+                </div>
+              )}
+              {!loadingGapSuggestions && gapSuggestions.length === 0 && (
+                <div className="text-xs text-muted-foreground italic">
+                  No suggestions available — write your own below.
+                </div>
+              )}
+              <div className="space-y-1.5">
+                {gapSuggestions.map((s, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setAddGapText(s)}
+                    className={`w-full text-left text-xs p-2 rounded border transition-colors ${
+                      addGapText === s
+                        ? "border-blue-400 bg-blue-50"
+                        : "border-muted hover:bg-muted"
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-sm font-medium mb-1">Your achievement:</p>
+              <Textarea
+                placeholder="Edit a suggestion or write your own..."
+                value={addGapText}
+                onChange={(e) => setAddGapText(e.target.value)}
+                rows={3}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Only save things that are actually true. This becomes part of your profile.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddGapOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddGap} disabled={addingGap || !addGapText.trim()}>
+              {addingGap ? "Adding..." : "Add to Profile"}
             </Button>
           </DialogFooter>
         </DialogContent>
