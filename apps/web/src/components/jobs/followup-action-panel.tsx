@@ -188,18 +188,21 @@ export function FollowUpActionPanel({
 
   async function handleMarkDone() {
     setSnoozing(true);
+    // For "needs first follow-up", a null date is the trigger condition,
+    // so clearing it would just re-fire the banner. Push it 14 days out instead.
+    const newDate = actionType === "needs_first_followup" ? addDays(14) : null;
     try {
       const res = await fetch(`/api/applications/${applicationId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ follow_up_date: null }),
+        body: JSON.stringify({ follow_up_date: newDate }),
       });
       if (res.ok) {
-        onFollowUpDateChanged(null);
-        toast.success("Follow-up cleared");
+        onFollowUpDateChanged(newDate);
+        toast.success(newDate ? `Next follow-up set to ${newDate}` : "Follow-up cleared");
         setDismissed(true);
       } else {
-        toast.error("Failed to clear follow-up");
+        toast.error("Failed to update follow-up");
       }
     } catch {
       toast.error("Something went wrong");
@@ -277,7 +280,7 @@ export function FollowUpActionPanel({
                 disabled={snoozing}
                 className="text-xs"
               >
-                Clear follow-up
+                {actionType === "needs_first_followup" ? "Mark followed up" : "Clear follow-up"}
               </Button>
             </>
           )}
