@@ -177,6 +177,7 @@ export function FollowUpActionPanel({
         onFollowUpDateChanged(newDate);
         toast.success(`Follow-up snoozed to ${newDate}`);
         setDismissed(true);
+        router.push("/dashboard");
       } else {
         toast.error("Failed to snooze");
       }
@@ -201,6 +202,7 @@ export function FollowUpActionPanel({
         onFollowUpDateChanged(newDate);
         toast.success(newDate ? `Next follow-up set to ${newDate}` : "Follow-up cleared");
         setDismissed(true);
+        router.push("/dashboard");
       } else {
         toast.error("Failed to update follow-up");
       }
