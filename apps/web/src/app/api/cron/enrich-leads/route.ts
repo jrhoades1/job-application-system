@@ -16,7 +16,7 @@
 
 import { NextResponse } from "next/server";
 import { getServiceRoleClient } from "@/lib/supabase";
-import { scrapeJobDescription } from "@/lib/scrape-job-url";
+import { scrapeJobDescriptionDetailed } from "@/lib/scrape-job-url";
 import {
   extractRequirements,
   scoreRequirement,
@@ -36,6 +36,7 @@ interface EnrichStats {
   enriched: number;
   filtered: number;
   failed: number;
+  dead: number;
 }
 
 export async function GET(req: Request) {
@@ -62,6 +63,7 @@ export async function GET(req: Request) {
       enriched: 0,
       filtered: 0,
       failed: 0,
+      dead: 0,
     };
 
     try {
@@ -117,8 +119,23 @@ export async function GET(req: Request) {
 
       for (const lead of stubs) {
         try {
-          const scraped = await scrapeJobDescription(lead.career_page_url!);
-          if (!scraped || !scraped.description || scraped.description.length < 200) {
+          const scraped = await scrapeJobDescriptionDetailed(lead.career_page_url!);
+
+          if (scraped.kind === "dead") {
+            await supabase
+              .from("pipeline_leads")
+              .update({
+                status: "auto_skipped",
+                skip_reason: scraped.reason,
+                description_text: null,
+              })
+              .eq("id", lead.id)
+              .eq("clerk_user_id", userId);
+            stats.dead++;
+            continue;
+          }
+
+          if (scraped.kind !== "ok" || scraped.description.length < 200) {
             stats.failed++;
             continue;
           }

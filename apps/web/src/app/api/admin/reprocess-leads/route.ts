@@ -13,7 +13,7 @@
 
 import { NextResponse } from "next/server";
 import { getAuthenticatedClient } from "@/lib/supabase";
-import { scrapeJobDescription } from "@/lib/scrape-job-url";
+import { scrapeJobDescriptionDetailed } from "@/lib/scrape-job-url";
 import {
   extractRequirements,
   scoreRequirement,
@@ -38,6 +38,7 @@ interface ReprocessSummary {
   stage2_filtered: number;
   enrichment_failed: number;
   bad_descriptions_scrubbed: number;
+  dead_jobs_removed: number;
   remaining: number;
   hit_enrichment_cap: boolean;
 }
@@ -122,6 +123,7 @@ export async function POST() {
       stage2_filtered: 0,
       enrichment_failed: 0,
       bad_descriptions_scrubbed: 0,
+      dead_jobs_removed: 0,
       remaining: 0,
       hit_enrichment_cap: false,
     };
@@ -188,8 +190,24 @@ export async function POST() {
 
     for (const lead of toEnrich) {
       try {
-        const scraped = await scrapeJobDescription(lead.career_page_url!);
-        if (!scraped || !scraped.description || scraped.description.length < 200) {
+        const scraped = await scrapeJobDescriptionDetailed(lead.career_page_url!);
+
+        if (scraped.kind === "dead") {
+          // Posting confirmed removed — auto-skip
+          await supabase
+            .from("pipeline_leads")
+            .update({
+              status: "auto_skipped",
+              skip_reason: scraped.reason,
+              description_text: null,
+            })
+            .eq("id", lead.id)
+            .eq("clerk_user_id", userId);
+          summary.dead_jobs_removed++;
+          continue;
+        }
+
+        if (scraped.kind !== "ok" || scraped.description.length < 200) {
           // If the existing description_text is also garbage, null it out so
           // the UI stops showing forwarded-email headers as the JD.
           if (isBadDescription(lead.description_text)) {
@@ -266,7 +284,10 @@ export async function POST() {
     }
 
     summary.remaining =
-      summary.considered - summary.stage1_filtered - summary.stage2_filtered;
+      summary.considered -
+      summary.stage1_filtered -
+      summary.stage2_filtered -
+      summary.dead_jobs_removed;
 
     return NextResponse.json({ ok: true, summary });
   } catch (err) {

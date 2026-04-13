@@ -40,6 +40,7 @@ interface ReprocessSummary {
   stage2_filtered: number;
   enrichment_failed: number;
   bad_descriptions_scrubbed: number;
+  dead_jobs_removed: number;
   remaining: number;
   hit_enrichment_cap: boolean;
 }
@@ -322,6 +323,10 @@ export function BullseyeForm() {
                 <p>
                   Bad descriptions scrubbed:{" "}
                   <span className="font-mono">{lastReprocess.bad_descriptions_scrubbed}</span>
+                </p>
+                <p>
+                  Dead jobs removed (404 / no longer available):{" "}
+                  <span className="font-mono">{lastReprocess.dead_jobs_removed}</span>
                 </p>
                 <p>
                   Remaining in review queue:{" "}
