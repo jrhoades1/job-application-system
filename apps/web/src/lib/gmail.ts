@@ -62,9 +62,11 @@ export async function getGmailTokens(
 
   // Refresh if expired or within 5 minutes of expiry
   if (Date.now() >= tokens.expiry - 5 * 60 * 1000) {
-    const refreshed = await refreshAccessToken(tokens.refresh_token);
-    if (!refreshed) {
-      // Token refresh failed — deactivate connection so status stays consistent
+    const result = await refreshAccessToken(tokens.refresh_token);
+
+    if (result.kind === "revoked") {
+      // Refresh token is permanently invalid — user must re-auth.
+      console.error("[gmail] refresh token revoked:", result.error);
       await supabase
         .from("email_connections")
         .update({ is_active: false })
@@ -72,7 +74,14 @@ export async function getGmailTokens(
       return null;
     }
 
-    tokens = { ...refreshed, refresh_token: tokens.refresh_token };
+    if (result.kind === "transient") {
+      // Transient failure (network, 5xx, timeout). Do NOT deactivate —
+      // keep the connection so the next request can retry.
+      console.warn("[gmail] transient refresh failure, preserving connection:", result.error);
+      return null;
+    }
+
+    tokens = { ...result.tokens, refresh_token: tokens.refresh_token };
 
     // Persist refreshed tokens
     await supabase
@@ -84,30 +93,64 @@ export async function getGmailTokens(
   return tokens;
 }
 
+export type RefreshResult =
+  | { kind: "ok"; tokens: Pick<GmailTokens, "access_token" | "expiry"> }
+  | { kind: "revoked"; error: string }
+  | { kind: "transient"; error: string };
+
 /**
  * Exchange a refresh token for a new access token via Google's token endpoint.
+ * Distinguishes permanent revocation (invalid_grant) from transient failures
+ * so callers can avoid nuking the connection on network blips.
  */
 export async function refreshAccessToken(
   refreshToken: string
-): Promise<Pick<GmailTokens, "access_token" | "expiry"> | null> {
-  const res = await fetch(GMAIL_TOKEN_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: process.env.GOOGLE_CLIENT_ID ?? "",
-      client_secret: process.env.GOOGLE_CLIENT_SECRET ?? "",
-      refresh_token: refreshToken,
-      grant_type: "refresh_token",
-    }),
-  });
+): Promise<RefreshResult> {
+  let res: Response;
+  try {
+    res = await fetch(GMAIL_TOKEN_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: process.env.GOOGLE_CLIENT_ID ?? "",
+        client_secret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+        refresh_token: refreshToken,
+        grant_type: "refresh_token",
+      }),
+    });
+  } catch (err) {
+    return { kind: "transient", error: `fetch failed: ${String(err)}` };
+  }
 
-  if (!res.ok) return null;
+  if (res.ok) {
+    const data = await res.json();
+    if (!data.access_token || typeof data.expires_in !== "number") {
+      return { kind: "transient", error: "malformed token response" };
+    }
+    return {
+      kind: "ok",
+      tokens: {
+        access_token: data.access_token,
+        expiry: Date.now() + data.expires_in * 1000,
+      },
+    };
+  }
 
-  const data = await res.json();
-  return {
-    access_token: data.access_token,
-    expiry: Date.now() + data.expires_in * 1000,
-  };
+  const body = await res.text().catch(() => "");
+
+  // Google returns 400 with {"error":"invalid_grant"} when the refresh token
+  // is revoked, expired, or was issued to a different client. Only these
+  // cases should deactivate the connection.
+  if (res.status === 400 || res.status === 401) {
+    const isInvalidGrant = /invalid_grant/i.test(body);
+    if (isInvalidGrant) {
+      return { kind: "revoked", error: `${res.status}: ${body}` };
+    }
+  }
+
+  // 5xx, 429, network errors, and anything else we can't classify as
+  // permanent — treat as transient and keep the connection.
+  return { kind: "transient", error: `${res.status}: ${body}` };
 }
 
 /**
