@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useGmailSync } from "@/hooks/use-gmail-sync";
@@ -308,13 +309,21 @@ function ActionSection({
   async function handleBulkSnooze() {
     setBulkActing(true);
     try {
-      await Promise.all(
+      const results = await Promise.all(
         dismissableActions.map((a) => {
           const appId = extractAppId(a.id)!;
           return fetch(`/api/applications/${appId}/snooze`, { method: "POST" });
         })
       );
+      const failed = results.filter((r) => !r.ok).length;
+      if (failed > 0) {
+        toast.error(`Snoozed ${results.length - failed}/${results.length} — ${failed} failed`);
+      } else {
+        toast.success(`Snoozed ${results.length} application${results.length !== 1 ? "s" : ""}`);
+      }
       await onRefresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Snooze failed");
     } finally {
       setBulkActing(false);
     }
@@ -324,12 +333,18 @@ function ActionSection({
     setBulkActing(true);
     try {
       const ids = dismissableActions.map((a) => extractAppId(a.id)!);
-      await fetch("/api/applications/bulk-status", {
+      const res = await fetch("/api/applications/bulk-status", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids, status: "withdrawn" }),
       });
+      if (!res.ok) {
+        throw new Error(`Archive failed (${res.status})`);
+      }
+      toast.success(`Archived ${ids.length} application${ids.length !== 1 ? "s" : ""}`);
       await onRefresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Archive failed");
     } finally {
       setBulkActing(false);
     }
@@ -417,21 +432,26 @@ function ActionCard({
     setActing(true);
     try {
       if (isInsight) {
-        // Dismiss insight via insights API
         const insightId = action.id.replace("insight-", "");
-        await fetch("/api/insights/notifications", {
+        const res = await fetch("/api/insights/notifications", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "dismiss", ids: [insightId] }),
         });
+        if (!res.ok) throw new Error(`Dismiss failed (${res.status})`);
+        toast.success("Insight dismissed");
       } else if (appId) {
-        await fetch("/api/applications/bulk-status", {
+        const res = await fetch("/api/applications/bulk-status", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ids: [appId], status: "withdrawn" }),
         });
+        if (!res.ok) throw new Error(`Archive failed (${res.status})`);
+        toast.success(`Archived ${action.company || "application"}`);
       }
       await onRefresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Archive failed");
     } finally {
       setActing(false);
     }
@@ -443,8 +463,12 @@ function ActionCard({
     if (!appId || acting) return;
     setActing(true);
     try {
-      await fetch(`/api/applications/${appId}/snooze`, { method: "POST" });
+      const res = await fetch(`/api/applications/${appId}/snooze`, { method: "POST" });
+      if (!res.ok) throw new Error(`Snooze failed (${res.status})`);
+      toast.success(`Snoozed ${action.company || "application"}`);
       await onRefresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Snooze failed");
     } finally {
       setActing(false);
     }
@@ -549,13 +573,16 @@ function InsightsSection({ onRefresh }: { onRefresh: () => Promise<void> }) {
   async function handleDismiss(id: string) {
     setActing(true);
     try {
-      await fetch("/api/insights/notifications", {
+      const res = await fetch("/api/insights/notifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "dismiss", ids: [id] }),
       });
+      if (!res.ok) throw new Error(`Dismiss failed (${res.status})`);
       await loadInsights();
       await onRefresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Dismiss failed");
     } finally {
       setActing(false);
     }
@@ -564,13 +591,17 @@ function InsightsSection({ onRefresh }: { onRefresh: () => Promise<void> }) {
   async function handleDismissAll() {
     setActing(true);
     try {
-      await fetch("/api/insights/notifications", {
+      const res = await fetch("/api/insights/notifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "dismiss_all" }),
       });
+      if (!res.ok) throw new Error(`Dismiss all failed (${res.status})`);
+      toast.success("All insights dismissed");
       await loadInsights();
       await onRefresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Dismiss all failed");
     } finally {
       setActing(false);
     }
@@ -579,13 +610,16 @@ function InsightsSection({ onRefresh }: { onRefresh: () => Promise<void> }) {
   async function handleRestore(id: string) {
     setActing(true);
     try {
-      await fetch("/api/insights/notifications", {
+      const res = await fetch("/api/insights/notifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "restore", ids: [id] }),
       });
+      if (!res.ok) throw new Error(`Restore failed (${res.status})`);
       await loadInsights();
       await onRefresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Restore failed");
     } finally {
       setActing(false);
     }
