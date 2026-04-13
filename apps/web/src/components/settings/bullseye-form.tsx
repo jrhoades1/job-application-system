@@ -39,6 +39,7 @@ interface ReprocessSummary {
   stage2_enriched: number;
   stage2_filtered: number;
   enrichment_failed: number;
+  bad_descriptions_scrubbed: number;
   remaining: number;
   hit_enrichment_cap: boolean;
 }
@@ -317,6 +318,10 @@ export function BullseyeForm() {
                 <p>
                   Enrichment failed (couldn&apos;t fetch JD):{" "}
                   <span className="font-mono">{lastReprocess.enrichment_failed}</span>
+                </p>
+                <p>
+                  Bad descriptions scrubbed:{" "}
+                  <span className="font-mono">{lastReprocess.bad_descriptions_scrubbed}</span>
                 </p>
                 <p>
                   Remaining in review queue:{" "}

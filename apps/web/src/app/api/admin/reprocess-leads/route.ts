@@ -37,8 +37,31 @@ interface ReprocessSummary {
   stage2_enriched: number;
   stage2_filtered: number;
   enrichment_failed: number;
+  bad_descriptions_scrubbed: number;
   remaining: number;
   hit_enrichment_cap: boolean;
+}
+
+/**
+ * Detect description_text that's clearly not a real JD — forwarded email
+ * headers, alert boilerplate, or too short to be scored. Legacy leads from
+ * before the email-header stripping fix have these stored.
+ */
+function isBadDescription(text: string | null | undefined): boolean {
+  if (!text) return true;
+  const t = text.trim();
+  if (t.length < 200) return true;
+  // Forwarded-header residue — From:/Sent:/Subject:/To: on separate lines
+  const headerLines = (t.match(/(?:^|\n)(?:From|Sent|To|Subject|Date|Cc):\s/gi) ?? []).length;
+  if (headerLines >= 3) return true;
+  // JD signal check — real JDs have responsibilities/requirements/etc.
+  const jdSignals = [
+    /responsibilit/i, /requirement/i, /qualificat/i, /experience/i,
+    /duties/i, /what you['']ll (?:do|bring)/i, /we['']re looking for/i,
+    /must have/i, /years? of/i, /bachelor|master|degree/i,
+  ];
+  const signalCount = jdSignals.filter((p) => p.test(t)).length;
+  return signalCount < 2;
 }
 
 export async function POST() {
@@ -98,6 +121,7 @@ export async function POST() {
       stage2_enriched: 0,
       stage2_filtered: 0,
       enrichment_failed: 0,
+      bad_descriptions_scrubbed: 0,
       remaining: 0,
       hit_enrichment_cap: false,
     };
@@ -132,10 +156,13 @@ export async function POST() {
       }
     }
 
-    // Stage 2 pass — enrich stub-scored survivors with a career_page_url
+    // Stage 2 pass — enrich stub-scored OR bad-description leads with a URL
     const enrichCandidates = stage1Survivors.filter((l) => {
+      if (!l.career_page_url) return false;
       const details = l.score_details as { score_source?: string } | null;
-      return details?.score_source !== "scored" && !!l.career_page_url;
+      if (details?.score_source !== "scored") return true; // stub — enrich
+      if (isBadDescription(l.description_text)) return true; // garbage JD — re-enrich
+      return false;
     });
 
     const toEnrich = enrichCandidates.slice(0, MAX_ENRICH_PER_RUN);
@@ -143,10 +170,36 @@ export async function POST() {
       summary.hit_enrichment_cap = true;
     }
 
+    // Also scrub bad descriptions from leads without a URL — we can't re-score
+    // but at least we clear the garbage so the UI doesn't show "From: LinkedIn"
+    // as the job description.
+    const scrubOnly = stage1Survivors.filter((l) => {
+      if (l.career_page_url) return false; // handled in enrichment loop
+      return isBadDescription(l.description_text);
+    });
+    for (const lead of scrubOnly) {
+      await supabase
+        .from("pipeline_leads")
+        .update({ description_text: null })
+        .eq("id", lead.id)
+        .eq("clerk_user_id", userId);
+      summary.bad_descriptions_scrubbed++;
+    }
+
     for (const lead of toEnrich) {
       try {
         const scraped = await scrapeJobDescription(lead.career_page_url!);
         if (!scraped || !scraped.description || scraped.description.length < 200) {
+          // If the existing description_text is also garbage, null it out so
+          // the UI stops showing forwarded-email headers as the JD.
+          if (isBadDescription(lead.description_text)) {
+            await supabase
+              .from("pipeline_leads")
+              .update({ description_text: null })
+              .eq("id", lead.id)
+              .eq("clerk_user_id", userId);
+            summary.bad_descriptions_scrubbed++;
+          }
           summary.enrichment_failed++;
           continue;
         }
