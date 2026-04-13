@@ -293,6 +293,12 @@ function stripEmailToJd(body: string): string | null {
     /_{3,}\s*\n(?:From:.*\n|Sent:.*\n|To:.*\n|Subject:.*\n|Cc:.*\n)*/gi,
     "\n"
   );
+  // Bare forwarded-header block without any leading delimiter. Common on iOS
+  // Mail / mobile forwards / copy-paste where people just paste the headers.
+  text = text.replace(
+    /(?:^|\n)(?:From|De):\s*[^\n]+\n(?:(?:Sent|Date|Envoy[ée]):\s*[^\n]+\n)?(?:(?:To|À|A):\s*[^\n]+\n)?(?:Cc:\s*[^\n]+\n)?(?:Subject|Objet):\s*[^\n]+\n/gi,
+    "\n"
+  );
 
   // 2. Remove tracking/redirect URLs (awstrack, brevo, mailchimp, etc.)
   text = text.replace(/<https?:\/\/[^\s>]*(?:awstrack|brevo|mailchimp|sendgrid|click\.|track\.|trk\.)[^\s>]*>/gi, "");
@@ -330,6 +336,15 @@ function stripEmailToJd(body: string): string | null {
 
   // If fewer than 2 JD signals and text is short, it's just a notification — no real JD
   if (signalCount < 2 && text.length < 500) {
+    return null;
+  }
+
+  // Even with length, if we saw basically no JD signals AND the content still
+  // has forwarded-header residue (From:/Sent:/Subject:/To: on separate lines),
+  // it's just an email shell, not a posting. Fail closed.
+  const headerResidue =
+    /(?:^|\n)(?:From|Sent|To|Subject|Date):\s/gi.test(text);
+  if (headerResidue && signalCount < 2) {
     return null;
   }
   if (signalCount < 1) {
