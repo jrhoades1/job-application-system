@@ -6,7 +6,7 @@
   "applied_date": "2025-12-24",
   "source": "Swooped",
   "source_url": "https://swooped.co/app/jobs-tracker/7c4fa437-870c-4c5d-91fd-c836030eadd2",
-  "status": "applied",
+  "status": "rejected",
   "follow_up_date": null,
   "contact": "",
   "resume_version": null,
@@ -28,7 +28,7 @@
   "interview_round": null,
   "interview_type": null,
   "interview_notes_file": null,
-  "rejection_date": null,
+  "rejection_date": "2026-04-09",
   "rejection_reason": null,
   "rejection_insights": null,
   "offer": {
