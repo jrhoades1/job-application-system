@@ -209,6 +209,21 @@ export default function JobsPage() {
     if (activeTab === "leads") fetchLeads();
   }, [activeTab, fetchLeads]);
 
+  // Keep the open lead-detail sheet in sync when the leads list refreshes
+  // (e.g. after the Chrome extension captures a JD in another tab).
+  useEffect(() => {
+    if (!selectedLead) return;
+    const fresh = leads.find((l) => l.id === selectedLead.id);
+    if (
+      fresh &&
+      (fresh.description_text !== selectedLead.description_text ||
+        fresh.score_match_percentage !== selectedLead.score_match_percentage ||
+        fresh.score_overall !== selectedLead.score_overall)
+    ) {
+      setSelectedLead(fresh);
+    }
+  }, [leads, selectedLead]);
+
   // Fetch applications when an application tab is active
   useEffect(() => {
     const tab = TABS.find((t) => t.value === activeTab);
@@ -662,6 +677,7 @@ export default function JobsPage() {
           handleLeadAction(id, "skip", "Not interested");
           setSelectedLead(null);
         }}
+        onRefresh={fetchLeads}
         onLeadUpdated={(id, updates) => {
           setLeads((prev) => prev.map((l) => l.id === id ? { ...l, ...updates } : l));
           if (selectedLead?.id === id) {
