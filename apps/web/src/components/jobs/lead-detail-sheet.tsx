@@ -11,8 +11,8 @@ import {
 } from "@/components/ui/sheet";
 import { SCORE_CONFIG } from "@/lib/constants";
 import type { PipelineLeadRow } from "@/types";
-import { ExternalLink, Plus } from "lucide-react";
-import { useMemo, useState, useCallback } from "react";
+import { ExternalLink, Plus, RefreshCw } from "lucide-react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import { toast } from "sonner";
 
 /** Parse score_details safely */
@@ -124,6 +124,7 @@ interface LeadDetailSheetProps {
   onPromote: (id: string) => void;
   onSkip: (id: string) => void;
   onLeadUpdated?: (id: string, updates: Partial<PipelineLeadRow>) => void;
+  onRefresh?: () => void | Promise<void>;
 }
 
 export function LeadDetailSheet({
@@ -137,6 +138,7 @@ export function LeadDetailSheet({
   onPromote,
   onSkip,
   onLeadUpdated,
+  onRefresh,
 }: LeadDetailSheetProps) {
   // Hooks must be called unconditionally — early return comes after
   const cleanedDescription = useMemo(
@@ -147,6 +149,36 @@ export function LeadDetailSheet({
   const [addingGap, setAddingGap] = useState<string | null>(null);
   const [addedGaps, setAddedGaps] = useState<Set<string>>(new Set());
   const [fetchingJd, setFetchingJd] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [markingDead, setMarkingDead] = useState(false);
+
+  const hasRealJd = cleanedDescription ? looksLikeRealJd(cleanedDescription) : false;
+
+  // When the panel is open with no real JD yet and the user returns to the tab
+  // (e.g. after using the Chrome extension to capture a JD from LinkedIn),
+  // refresh the lead list so the new description shows up automatically.
+  useEffect(() => {
+    if (!open || !lead || hasRealJd || !onRefresh) return;
+    const handler = () => {
+      if (document.visibilityState === "visible") void onRefresh();
+    };
+    document.addEventListener("visibilitychange", handler);
+    window.addEventListener("focus", handler);
+    return () => {
+      document.removeEventListener("visibilitychange", handler);
+      window.removeEventListener("focus", handler);
+    };
+  }, [open, lead, hasRealJd, onRefresh]);
+
+  const handleManualRefresh = useCallback(async () => {
+    if (!onRefresh) return;
+    setRefreshing(true);
+    try {
+      await onRefresh();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [onRefresh]);
 
   const handleAddToProfile = useCallback(async (gapText: string) => {
     setAddingGap(gapText);
@@ -228,6 +260,32 @@ export function LeadDetailSheet({
     }
     setFetchingJd(false);
   }, [lead?.id, lead?.career_page_url, onLeadUpdated]);
+
+  const handleMarkDead = useCallback(async () => {
+    if (!lead) return;
+    setMarkingDead(true);
+    try {
+      const res = await fetch("/api/pipeline/leads", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: lead.id,
+          action: "skip",
+          skip_reason: "Posting expired or removed (marked dead by user)",
+        }),
+      });
+      if (res.ok) {
+        toast.success("Marked as dead job");
+        onLeadUpdated?.(lead.id, { status: "skipped" });
+        onOpenChange(false);
+      } else {
+        toast.error("Failed to mark dead");
+      }
+    } catch {
+      toast.error("Something went wrong");
+    }
+    setMarkingDead(false);
+  }, [lead, onLeadUpdated, onOpenChange]);
 
   if (!lead) return null;
 
@@ -454,6 +512,18 @@ export function LeadDetailSheet({
                     Search LinkedIn
                   </Button>
                 </a>
+                {onRefresh && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleManualRefresh}
+                    disabled={refreshing}
+                    title="Reload this lead — use after capturing a JD with the extension"
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+                    {refreshing ? "Refreshing..." : "Refresh"}
+                  </Button>
+                )}
               </div>
             </div>
           )}
@@ -486,6 +556,14 @@ export function LeadDetailSheet({
                 </Button>
               )}
               <Button onClick={() => onPromote(lead.id)}>Promote</Button>
+              <Button
+                variant="outline"
+                onClick={handleMarkDead}
+                disabled={markingDead}
+                title="Posting is no longer available"
+              >
+                {markingDead ? "Marking..." : "Dead Job"}
+              </Button>
               <Button variant="outline" onClick={() => onSkip(lead.id)}>
                 Skip
               </Button>
