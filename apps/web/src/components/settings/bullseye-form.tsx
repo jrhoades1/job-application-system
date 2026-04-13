@@ -16,6 +16,17 @@ const REMOTE_OPTIONS = [
   { value: "onsite", label: "On-site only" },
 ] as const;
 
+const SENIORITY_OPTIONS = [
+  { value: "any", label: "Any level" },
+  { value: "mid", label: "Mid-level or above" },
+  { value: "senior", label: "Senior or above" },
+  { value: "lead", label: "Lead / Staff or above" },
+  { value: "manager", label: "Manager or above" },
+  { value: "director", label: "Director or above" },
+  { value: "vp", label: "VP or above" },
+  { value: "c_level", label: "C-Level only" },
+] as const;
+
 const FREQUENCY_OPTIONS = [
   { value: "daily", label: "Daily (every morning)" },
   { value: "weekly", label: "Weekly (Monday morning)" },
@@ -161,6 +172,77 @@ export function BullseyeForm() {
                 </option>
               ))}
             </select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Pipeline filters — Stage 1 knockouts + Stage 2 real-JD floor */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Pipeline Filters</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Auto-skip obvious mismatches before they reach your review queue.
+            Knockouts based on role title, location, and salary run at sync time.
+            The match-score floor only fires after the real JD is fetched.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="lead-filter-enabled"
+              checked={prefs.lead_filter_enabled ?? true}
+              onChange={(e) => update("lead_filter_enabled", e.target.checked)}
+              className="h-4 w-4"
+            />
+            <label htmlFor="lead-filter-enabled" className="text-sm font-medium">
+              Enable pipeline filtering
+            </label>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">Minimum match score</label>
+            <div className="flex items-center gap-4 mt-1">
+              <input
+                type="range"
+                min={20}
+                max={80}
+                step={5}
+                value={prefs.lead_filter_min_score ?? 40}
+                onChange={(e) =>
+                  update("lead_filter_min_score", Number(e.target.value))
+                }
+                className="flex-1"
+                disabled={!(prefs.lead_filter_enabled ?? true)}
+              />
+              <span className="w-12 text-right font-mono text-sm font-medium">
+                {prefs.lead_filter_min_score ?? 40}%
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Only applied to leads with a real JD (fail-open on stub scores so
+              good matches aren&apos;t lost).
+            </p>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">Minimum seniority</label>
+            <select
+              className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              value={prefs.min_role_level ?? "any"}
+              onChange={(e) => update("min_role_level", e.target.value)}
+              disabled={!(prefs.lead_filter_enabled ?? true)}
+            >
+              {SENIORITY_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-muted-foreground mt-1">
+              Leads with an explicit junior / intern title are skipped.
+              Ambiguous titles pass through.
+            </p>
           </div>
         </CardContent>
       </Card>
