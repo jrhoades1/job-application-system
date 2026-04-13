@@ -60,9 +60,15 @@ const SECTION_PATTERNS: Record<string, RegExp> = {
 const SKIP_INDICATORS = [
   /(?:no special physical demands|travel up to|office environment)/i,
   /(?:-- No answer|background check|drug screen|e-verify)/i,
-  /(?:salary|compensation|benefits|401|pto|paid time)/i,
+  /(?:salary|compensation|benefits|401|pto|paid time|rate of pay|starting rate)/i,
   /(?:equal (?:employment )?opportunity|affirmative action)/i,
   /(?:visa sponsorship|legally eligible)/i,
+  // Culture / values / benefits fluff that latched onto "requirements" section
+  /(?:because you care|great (?:health )?benefits|casual and friendly|leadership team|believes in)/i,
+  /(?:join us|we offer|we believe|our (?:team|mission|values|culture))/i,
+  /(?:thrive on ambiguity|guts to speak|engage brilliant minds|high[- ]growth)/i,
+  /(?:tough economic times|hiring decisions are|processed, please contact)/i,
+  /(?:data is processed|privacy policy|gdpr|ccpa)/i,
 ];
 
 const REQ_INDICATORS = [
@@ -154,7 +160,15 @@ export function extractRequirements(
       stripped.length > 15 &&
       stripped.length < 200
     ) {
-      if (!/^(?:Travel|Note|Image|About|Share)\b/.test(stripped)) {
+      // Non-bullet line inside a requirements section — only keep if it
+      // actually looks like a requirement. Prevents benefits/culture/comp
+      // paragraphs from bleeding into requirements when they follow the
+      // requirements section without a new header.
+      if (
+        !/^(?:Travel|Note|Image|About|Share)\b/.test(stripped) &&
+        !SKIP_INDICATORS.some((p) => p.test(stripped)) &&
+        isRequirement(stripped)
+      ) {
         hard_requirements.push(stripped);
       }
     } else if (
@@ -162,7 +176,11 @@ export function extractRequirements(
       stripped.length > 15 &&
       stripped.length < 200
     ) {
-      if (!/^(?:Travel|Note|Image|About|Share)\b/.test(stripped)) {
+      if (
+        !/^(?:Travel|Note|Image|About|Share)\b/.test(stripped) &&
+        !SKIP_INDICATORS.some((p) => p.test(stripped)) &&
+        (isRequirement(stripped) || isPreferred(stripped))
+      ) {
         preferred.push(stripped);
       }
     }

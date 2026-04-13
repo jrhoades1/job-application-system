@@ -16,6 +16,28 @@ const tailorSchema = z.object({
   application_id: z.string().uuid(),
 });
 
+/**
+ * Filter out "gaps" that clearly aren't real skill/experience requirements.
+ * Catches benefits boilerplate, culture fluff, and comp disclaimers that
+ * slip through extraction and end up being scored as gaps.
+ */
+const NON_REQUIREMENT_PHRASES = [
+  /rate of pay|starting rate|compensation|benefits|401\(?k\)?|pto|paid time/i,
+  /because you care|join us|we offer|we believe/i,
+  /great (?:health )?benefits|casual and friendly|leadership team|believes in/i,
+  /thrive on ambiguity|guts to speak|engage brilliant minds|high[- ]growth/i,
+  /tough economic times|hiring decisions|data is processed/i,
+  /equal (?:employment )?opportunity|affirmative action|visa sponsorship/i,
+  /work in such|makes sense to make|life, it only/i,
+];
+
+function isDisplayableGap(text: string): boolean {
+  if (!text || text.length < 5) return false;
+  if (text.length > 220) return false; // paragraphs aren't requirements
+  if (NON_REQUIREMENT_PHRASES.some((p) => p.test(text))) return false;
+  return true;
+}
+
 export async function POST(req: Request) {
   try {
     const { supabase, userId } = await getAuthenticatedClient();
@@ -168,7 +190,8 @@ export async function POST(req: Request) {
             resumeMatchPct = resumeScore.match_percentage;
             resumeGaps = resumeMatches
               .filter((m) => m.match_type === "gap")
-              .map((m) => m.requirement);
+              .map((m) => m.requirement)
+              .filter(isDisplayableGap);
           }
         }
 
