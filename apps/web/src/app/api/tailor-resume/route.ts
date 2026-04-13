@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import Anthropic from "@anthropic-ai/sdk";
 import { getAuthenticatedClient } from "@/lib/supabase";
 import { createTrackedMessage, ApplicationQuotaExceededError } from "@/lib/anthropic";
 import { buildTailorResumePrompt } from "@/ai/tailor-resume";
@@ -256,6 +257,13 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: "Application quota exceeded", used: err.used, cap: err.cap },
         { status: 429 }
+      );
+    }
+    if (err instanceof Anthropic.APIError && (err.status === 529 || err.status === 503)) {
+      console.warn("Anthropic overloaded during tailor-resume:", err.status);
+      return NextResponse.json(
+        { error: "Claude is overloaded right now. Please try again in a few minutes." },
+        { status: 503 }
       );
     }
     console.error("Tailor resume error:", err);
