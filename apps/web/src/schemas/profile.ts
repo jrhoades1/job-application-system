@@ -42,6 +42,9 @@ export const updateProfileSchema = z.object({
       digest_email: z.string().email().optional().or(z.literal("")).nullable(),
       digest_frequency: z.enum(["daily", "weekly", "off"]).optional(),
       auto_generate_materials: z.boolean().optional(),
+      // Pipeline lead filtering
+      lead_filter_enabled: z.boolean().optional(),
+      lead_filter_min_score: z.number().min(0).max(100).optional(),
     })
     .optional(),
 });

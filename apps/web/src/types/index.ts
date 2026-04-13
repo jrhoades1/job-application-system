@@ -95,6 +95,9 @@ export interface ProfileRow {
     digest_email?: string | null;
     digest_frequency?: "daily" | "weekly" | "off";
     auto_generate_materials?: boolean;
+    // Pipeline lead filtering
+    lead_filter_enabled?: boolean;
+    lead_filter_min_score?: number;
   };
   created_at: string;
   updated_at: string;
