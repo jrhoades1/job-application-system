@@ -24,6 +24,57 @@ STAGING_PARSED = os.path.join(PIPELINE_DIR, "staging", "parsed")
 CONFIG_PATH = os.path.join(SCRIPT_DIR, "pipeline_config.json")
 
 
+CANONICAL_SOURCES = {
+    "linkedin": "LinkedIn",
+    "indeed": "Indeed",
+    "greenhouse": "Greenhouse",
+    "lever": "Lever",
+    "workday": "Workday",
+    "glassdoor": "Glassdoor",
+    "ziprecruiter": "ZipRecruiter",
+    "dice": "Dice",
+    "wellfound": "Wellfound",
+    "angellist": "Wellfound",
+    "builtin": "Built In",
+    "swooped": "Swooped",
+    "ashby": "Ashby",
+    "smartrecruiters": "SmartRecruiters",
+    "handshake": "Handshake",
+    "ladders": "Ladders",
+}
+
+
+def canonical_source_from_domain(domain):
+    """Return a canonical platform name ONLY if the sender domain is a known
+    job board. Forwarders like hotmail/gmail/outlook return None — the caller
+    should fall back to body-URL detection or 'Unknown'."""
+    if not domain:
+        return None
+    key = domain.split(".")[0].lower()
+    return CANONICAL_SOURCES.get(key)
+
+
+def detect_source_from_body(text):
+    """Scan email body for known job-board URLs."""
+    if not text:
+        return None
+    lowered = text.lower()
+    for key, canonical in CANONICAL_SOURCES.items():
+        if key in lowered:
+            return canonical
+    return None
+
+
+def detect_source_platform(domain, body_text):
+    """Resolve the true source platform. Sender domain wins only if it's a
+    known job board; otherwise scan body for job-board URLs; else Unknown."""
+    return (
+        canonical_source_from_domain(domain)
+        or detect_source_from_body(body_text)
+        or "Unknown"
+    )
+
+
 # ---------------------------------------------------------------------------
 # HTML text extraction
 # ---------------------------------------------------------------------------
@@ -464,7 +515,7 @@ def parse_single_job_email(email_dict, sender_config, alias_map):
     return {
         "company": company or "Unknown",
         "role": role or "Unknown Role",
-        "source_platform": domain.split(".")[0].title() if domain else "Email",
+        "source_platform": detect_source_platform(domain, body_text),
         "confidence": round(confidence, 2),
     }
 
@@ -496,7 +547,7 @@ def parse_multi_job_email(email_dict, sender_config, alias_map):
         leads = _parse_generic_job_list(body_html, body_text)
 
     # Normalize all results
-    platform = domain.split(".")[0].title() if domain else "Email"
+    platform = detect_source_platform(domain, body_text)
     for lead in leads:
         lead["source_platform"] = platform
         if lead.get("company"):
