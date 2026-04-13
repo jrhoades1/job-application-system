@@ -70,6 +70,21 @@ function cleanDescription(raw: string): string {
     .replace(/<\/?(p|div|h[1-6]|li|tr)[^>]*>/gi, "\n")
     .replace(/<[^>]+>/g, "");
 
+  // Strip forwarded-email headers (delimiter-prefixed)
+  text = text.replace(
+    /-{3,}\s*Forwarded message\s*-{3,}\s*\n(?:From:.*\n|Date:.*\n|Subject:.*\n|To:.*\n)*/gi,
+    "\n"
+  );
+  text = text.replace(
+    /_{3,}\s*\n(?:From:.*\n|Sent:.*\n|To:.*\n|Subject:.*\n|Cc:.*\n)*/gi,
+    "\n"
+  );
+  // Bare forwarded-header blocks ("From: X / Sent: Y / To: Z / Subject: W")
+  text = text.replace(
+    /(?:^|\n)(?:From|De):\s*[^\n]+\n(?:(?:Sent|Date|Envoy[ée]):\s*[^\n]+\n)?(?:(?:To|À|A):\s*[^\n]+\n)?(?:Cc:\s*[^\n]+\n)?(?:Subject|Objet):\s*[^\n]+\n/gi,
+    "\n"
+  );
+
   // Remove long URLs (tracking links, etc.)
   text = text.replace(/https?:\/\/\S{80,}/g, "[link]");
 
@@ -79,6 +94,23 @@ function cleanDescription(raw: string): string {
   text = text.trim();
 
   return text;
+}
+
+/**
+ * Returns true if the cleaned description looks like a real JD, false if
+ * it's too short, mostly header residue, or missing JD signals. The UI
+ * should hide the panel entirely when this returns false.
+ */
+function looksLikeRealJd(text: string): boolean {
+  if (!text || text.length < 200) return false;
+  const headerLines = (text.match(/(?:^|\n)(?:From|Sent|To|Subject|Date|Cc):\s/gi) ?? []).length;
+  if (headerLines >= 3) return false;
+  const jdSignals = [
+    /responsibilit/i, /requirement/i, /qualificat/i, /experience/i,
+    /duties/i, /what you['']ll (?:do|bring)/i, /we['']re looking for/i,
+    /must have/i, /years? of/i, /bachelor|master|degree/i,
+  ];
+  return jdSignals.filter((p) => p.test(text)).length >= 2;
 }
 
 interface LeadDetailSheetProps {
@@ -386,7 +418,7 @@ export function LeadDetailSheet({
           ) : null}
 
           {/* Job description */}
-          {cleanedDescription && cleanedDescription.length > 200 ? (
+          {cleanedDescription && looksLikeRealJd(cleanedDescription) ? (
             <div>
               <h4 className="text-sm font-medium mb-2">Job Description</h4>
               <div className="rounded-lg border p-4 text-sm whitespace-pre-wrap leading-relaxed max-h-[50vh] overflow-y-auto">
