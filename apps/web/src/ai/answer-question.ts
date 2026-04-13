@@ -58,7 +58,7 @@ ${input.existingNotes ? `## Additional Context (candidate's notes)\n${input.exis
 3. **Connect the answer to this specific company and role.** Show why the candidate is a fit for THIS job, not any job.
 4. **If the question asks about a gap area**, frame it positively using adjacent experience or transferable skills. Never say "I don't have experience with X."
 5. **Tone:** Confident, specific, conversational but professional. First person. No buzzwords or filler phrases.
-6. **Length:** Match what the question calls for. Short questions get 2-3 sentences. "Tell us about..." or "Describe..." questions get 1-3 paragraphs. Never exceed 300 words unless the question explicitly asks for more.
+6. **Length:** Be concise. Short questions get 1-2 tight sentences. "Tell us about..." or "Describe..." questions get a single short paragraph (4-6 sentences max). Never exceed 120 words unless the question explicitly asks for more. Cut filler, hedging, and restatements of the question. Every sentence must add a concrete fact, number, or outcome.
 7. **Never use em dashes.** Use commas, periods, or semicolons instead.
 
 Output ONLY the answer text. No commentary, no "Here's a suggested answer:", no quotation marks wrapping the response.`;
