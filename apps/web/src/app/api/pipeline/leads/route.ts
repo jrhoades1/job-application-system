@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthenticatedClient } from "@/lib/supabase";
+import { normalizeSource } from "@/lib/scrape-helpers";
 
 const updateLeadSchema = z.object({
   id: z.string().uuid(),
@@ -147,7 +148,7 @@ export async function PATCH(req: Request) {
         company: lead.company,
         role: lead.role,
         location: lead.location,
-        source: lead.source_platform ?? "Email Pipeline",
+        source: normalizeSource(lead.source_platform) ?? "Email Pipeline",
         source_url: lead.career_page_url,
         job_description: descText,
         status: lead.score_overall === "strong" || lead.score_overall === "good" ? "ready_to_apply" : "evaluating",

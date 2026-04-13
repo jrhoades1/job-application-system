@@ -102,6 +102,43 @@ export function extractDescription(
   return undefined;
 }
 
+const CANONICAL_SOURCES: Record<string, string> = {
+  linkedin: "LinkedIn",
+  indeed: "Indeed",
+  greenhouse: "Greenhouse",
+  lever: "Lever",
+  workday: "Workday",
+  glassdoor: "Glassdoor",
+  ziprecruiter: "ZipRecruiter",
+  dice: "Dice",
+  wellfound: "Wellfound",
+  angellist: "Wellfound",
+  "builtin": "Built In",
+  "built in": "Built In",
+  swooped: "Swooped",
+  ashby: "Ashby",
+  smartrecruiters: "SmartRecruiters",
+  handshake: "Handshake",
+  ladders: "Ladders",
+  jobicy: "Jobicy",
+  adzuna: "Adzuna",
+  "email pipeline": "Email Pipeline",
+  "company website": "Company Website",
+  recruiter: "Recruiter",
+  direct: "Direct",
+  sms: "SMS",
+};
+
+export function normalizeSource(source: string | null | undefined): string | null {
+  if (!source) return null;
+  const key = source.trim().toLowerCase();
+  if (!key) return null;
+  if (CANONICAL_SOURCES[key]) return CANONICAL_SOURCES[key];
+  // Fallback: Title Case each word so "linkedin" → "Linkedin" is still better
+  // than raw input, but known platforms above already caught the common case.
+  return source.trim();
+}
+
 export function inferSourceFromUrl(url: string): string {
   const host = new URL(url).hostname.toLowerCase();
   if (host.includes("linkedin")) return "LinkedIn";

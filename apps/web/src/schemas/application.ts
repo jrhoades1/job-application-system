@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeSource } from "@/lib/scrape-helpers";
 
 export const interviewRoundSchema = z.object({
   round: z.number().int().positive(),
@@ -37,7 +38,10 @@ export const createApplicationSchema = z.object({
   location: z.string().optional(),
   compensation: z.string().optional(),
   applied_date: z.string().optional(),
-  source: z.string().optional(),
+  source: z
+    .string()
+    .optional()
+    .transform((v) => normalizeSource(v) ?? undefined),
   source_url: z.string().url().optional().or(z.literal("")),
   status: applicationStatusSchema.default("evaluating"),
   job_description: z.string().min(50, "Job description is required (minimum 50 characters)").max(50000),
