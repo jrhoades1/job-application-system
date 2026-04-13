@@ -33,11 +33,23 @@ const FREQUENCY_OPTIONS = [
   { value: "off", label: "Off (no digest)" },
 ] as const;
 
+interface ReprocessSummary {
+  considered: number;
+  stage1_filtered: number;
+  stage2_enriched: number;
+  stage2_filtered: number;
+  enrichment_failed: number;
+  remaining: number;
+  hit_enrichment_cap: boolean;
+}
+
 export function BullseyeForm() {
   const [prefs, setPrefs] = useState<BullseyePrefs>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [targetRolesRaw, setTargetRolesRaw] = useState("");
+  const [reprocessing, setReprocessing] = useState(false);
+  const [lastReprocess, setLastReprocess] = useState<ReprocessSummary | null>(null);
 
   useEffect(() => {
     fetch("/api/profile")
@@ -78,6 +90,28 @@ export function BullseyeForm() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handleReprocess() {
+    if (!(prefs.lead_filter_enabled ?? true)) {
+      toast.error("Enable pipeline filtering first, then save.");
+      return;
+    }
+    setReprocessing(true);
+    setLastReprocess(null);
+    try {
+      const res = await fetch("/api/admin/reprocess-leads", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error ?? "Reprocess failed");
+      } else {
+        setLastReprocess(data.summary as ReprocessSummary);
+        toast.success("Reprocess complete");
+      }
+    } catch {
+      toast.error("Something went wrong");
+    }
+    setReprocessing(false);
   }
 
   if (loading) return <p className="text-sm text-muted-foreground">Loading...</p>;
@@ -243,6 +277,60 @@ export function BullseyeForm() {
               Leads with an explicit junior / intern title are skipped.
               Ambiguous titles pass through.
             </p>
+          </div>
+
+          <div className="border-t pt-4">
+            <p className="text-sm font-medium mb-1">Reprocess existing leads</p>
+            <p className="text-xs text-muted-foreground mb-2">
+              Apply these filters retroactively to every lead currently in your
+              review queue. Stage 1 runs against all of them (free). Stage 2
+              fetches real JDs for up to 30 leads per click (uses AI credits,
+              ~$0.01/lead). Save your settings first if you just changed them.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleReprocess}
+              disabled={reprocessing || !(prefs.lead_filter_enabled ?? true)}
+            >
+              {reprocessing ? "Reprocessing..." : "Reprocess existing leads"}
+            </Button>
+            {lastReprocess && (
+              <div className="mt-3 rounded border bg-muted/40 p-3 text-xs space-y-1">
+                <p className="font-medium">Result</p>
+                <p>
+                  Considered: <span className="font-mono">{lastReprocess.considered}</span>
+                </p>
+                <p>
+                  Stage 1 filtered (role/location/salary):{" "}
+                  <span className="font-mono">{lastReprocess.stage1_filtered}</span>
+                </p>
+                <p>
+                  Stage 2 enriched with real JD:{" "}
+                  <span className="font-mono">{lastReprocess.stage2_enriched}</span>
+                </p>
+                <p>
+                  Stage 2 filtered (score below floor):{" "}
+                  <span className="font-mono">{lastReprocess.stage2_filtered}</span>
+                </p>
+                <p>
+                  Enrichment failed (couldn&apos;t fetch JD):{" "}
+                  <span className="font-mono">{lastReprocess.enrichment_failed}</span>
+                </p>
+                <p>
+                  Remaining in review queue:{" "}
+                  <span className="font-mono font-semibold">
+                    {lastReprocess.remaining}
+                  </span>
+                </p>
+                {lastReprocess.hit_enrichment_cap && (
+                  <p className="text-amber-700 pt-1">
+                    Hit the 30-lead enrichment cap — click again to continue.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
