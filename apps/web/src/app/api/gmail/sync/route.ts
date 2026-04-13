@@ -22,6 +22,7 @@ import {
   extractRequirementsWithAI,
   requirementsFromRoleTitle,
 } from "@/lib/extract-requirements-ai";
+import { evaluateStage1, evaluateStage2, type LeadFilterPrefs } from "@/lib/lead-filter";
 
 // Non-job email signals (ported from email_parse.py)
 const NON_JOB_PATTERNS = [
@@ -451,12 +452,20 @@ export async function POST(req: Request) {
       }
     }
 
-    // Load user achievements for scoring
+    // Load user achievements + filter prefs for scoring
     const { data: profile } = await supabase
       .from("profiles")
-      .select("achievements")
+      .select("achievements, preferences")
       .eq("clerk_user_id", userId)
       .single();
+
+    const filterPrefs: LeadFilterPrefs = {
+      lead_filter_enabled: profile?.preferences?.lead_filter_enabled ?? true,
+      lead_filter_min_score: profile?.preferences?.lead_filter_min_score ?? 40,
+      min_role_level: profile?.preferences?.min_role_level,
+      salary_min: profile?.preferences?.salary_min ?? null,
+      remote_preference: profile?.preferences?.remote_preference,
+    };
 
     const achievementsMap: Record<string, string[]> = {};
     const achievements = profile?.achievements ?? [];
@@ -726,8 +735,22 @@ export async function POST(req: Request) {
             leadText = `${job.role} at ${job.company}${job.location ? ` — ${job.location}` : ""}${compensation ? ` | ${compensation}` : ""}`;
           }
 
-          // Always treat multi-job platform leads as digest — email never has full JD
-          const leadScore = await scoreLead(leadText, job.role, job.company, { digestEmail: true });
+          // Stage 1 knockouts — deterministic mismatches on role/location/salary
+          const stage1 = evaluateStage1(
+            {
+              role: job.role,
+              company: job.company,
+              location: job.location ?? null,
+              compensation,
+              description_text: leadText,
+            },
+            filterPrefs
+          );
+
+          // Only score when Stage 1 passes — no point burning AI credits on knockouts
+          const leadScore = stage1.pass
+            ? await scoreLead(leadText, job.role, job.company, { digestEmail: true })
+            : null;
 
           await supabase.from("pipeline_leads").insert({
             clerk_user_id: userId,
@@ -741,16 +764,19 @@ export async function POST(req: Request) {
             description_text: leadText,
             career_page_url: careerPageUrl,
             compensation,
-            status: "pending_review",
-            score_overall: leadScore.score.overall,
-            score_match_percentage: leadScore.score.match_percentage,
-            score_details: {
-              strong_count: leadScore.score.strong_count,
-              partial_count: leadScore.score.partial_count,
-              gap_count: leadScore.score.gap_count,
-              score_source: leadScore.score.score_source,
-            },
-            red_flags: leadScore.red_flags,
+            status: stage1.pass ? "pending_review" : "auto_skipped",
+            skip_reason: stage1.pass ? null : stage1.reason,
+            score_overall: leadScore?.score.overall ?? null,
+            score_match_percentage: leadScore?.score.match_percentage ?? null,
+            score_details: leadScore
+              ? {
+                  strong_count: leadScore.score.strong_count,
+                  partial_count: leadScore.score.partial_count,
+                  gap_count: leadScore.score.gap_count,
+                  score_source: leadScore.score.score_source,
+                }
+              : { score_source: "estimated" },
+            red_flags: leadScore?.red_flags ?? [],
             created_at: new Date().toISOString(),
           });
 
@@ -811,6 +837,56 @@ export async function POST(req: Request) {
       // Skip leads where we can't determine company or role
       const URL_PROTOCOL = /^(https?|http|ftp|www)$/i;
       if (!finalCompany || !finalRole || /^(unknown|n\/a|none)$/i.test(finalCompany) || URL_PROTOCOL.test(finalCompany.trim())) {
+        existingUids.add(msg.id);
+        skipped++;
+        if (processedLabelId) labelMessage(tokens.access_token, msg.id, processedLabelId).catch(() => {});
+        continue;
+      }
+
+      // Stage 1 knockouts — same deterministic checks as multi-job path
+      const stage1Single = evaluateStage1(
+        {
+          role: finalRole,
+          company: finalCompany,
+          location: null,
+          compensation: null,
+          description_text: cleanedJd,
+        },
+        filterPrefs
+      );
+
+      // Stage 2 fires only when we have a real-JD score (score_source === "scored")
+      const stage2Single = evaluateStage2(
+        singleScore.score.match_percentage,
+        singleScore.score.score_source,
+        filterPrefs
+      );
+
+      if (!stage1Single.pass || !stage2Single.pass) {
+        const skipReason = !stage1Single.pass ? stage1Single.reason : stage2Single.reason;
+        // Auto-skipped — still store so the user can audit the filter
+        await supabase.from("pipeline_leads").insert({
+          clerk_user_id: userId,
+          company: finalCompany,
+          role: finalRole,
+          source_platform: platform,
+          email_uid: msg.id,
+          email_date: emailDate,
+          raw_subject: subject,
+          description_text: cleanedJd,
+          status: "auto_skipped",
+          skip_reason: skipReason,
+          score_overall: singleScore.score.overall,
+          score_match_percentage: singleScore.score.match_percentage,
+          score_details: {
+            strong_count: singleScore.score.strong_count,
+            partial_count: singleScore.score.partial_count,
+            gap_count: singleScore.score.gap_count,
+            score_source: singleScore.score.score_source,
+          },
+          red_flags: singleScore.red_flags,
+          created_at: new Date().toISOString(),
+        });
         existingUids.add(msg.id);
         skipped++;
         if (processedLabelId) labelMessage(tokens.access_token, msg.id, processedLabelId).catch(() => {});
