@@ -135,7 +135,18 @@ function DownloadButtons({ content, company, role, docType }: {
       <Button
         size="sm"
         variant="outline"
-        onClick={() => downloadPdf(content, base)}
+        onClick={async () => {
+          const t = toast.loading("Generating PDF...");
+          try {
+            await downloadPdf(content, base);
+            toast.success("PDF downloaded", { id: t });
+          } catch (e) {
+            toast.error(
+              `PDF export failed: ${e instanceof Error ? e.message : "unknown error"}`,
+              { id: t }
+            );
+          }
+        }}
       >
         .pdf
       </Button>
