@@ -107,6 +107,13 @@ export async function POST(req: Request) {
 
         return NextResponse.json({
           imported: false,
+          // duplicate + jd_updated are included for backward compat with older
+          // installed extension builds that only know those flags — they'll
+          // render a friendly "Already tracked — JD updated" toast instead of
+          // falling through to the error branch. New builds check lead_updated
+          // first and render a distinct "JD Updated" message.
+          duplicate: true,
+          jd_updated: true,
           lead_updated: true,
           lead_id: leadMatch.id,
           company: leadMatch.company ?? company,
