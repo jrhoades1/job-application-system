@@ -148,7 +148,6 @@ export function LeadDetailSheet({
 
   const [addingGap, setAddingGap] = useState<string | null>(null);
   const [addedGaps, setAddedGaps] = useState<Set<string>>(new Set());
-  const [fetchingJd, setFetchingJd] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [markingDead, setMarkingDead] = useState(false);
 
@@ -220,46 +219,19 @@ export function LeadDetailSheet({
     }
   }, []);
 
-  const handleFetchJd = useCallback(async () => {
+  // Opens the posting in a new tab so the Chrome extension can capture the JD
+  // from the rendered DOM of a logged-in session. Server-side scraping is a
+  // dead end for LinkedIn (sign-in wall) and violates the "JDs only from
+  // extension DOM capture" rule. The visibilitychange listener above
+  // auto-refreshes the lead when the user returns to this tab.
+  const handleCaptureViaExtension = useCallback(() => {
     if (!lead?.career_page_url) return;
-    setFetchingJd(true);
-    try {
-      // Scrape the career page for the full JD
-      const scrapeRes = await fetch("/api/scrape-job", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: lead.career_page_url }),
-      });
-      if (!scrapeRes.ok) {
-        toast.error("Failed to fetch job description");
-        setFetchingJd(false);
-        return;
-      }
-      const scraped = await scrapeRes.json();
-      const jdText = scraped.job_description || scraped.description;
-      if (!jdText || jdText.length < 100) {
-        toast.error("Could not extract a full job description from that page");
-        setFetchingJd(false);
-        return;
-      }
-
-      // Update the lead in the database
-      const updateRes = await fetch("/api/pipeline/leads", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: lead.id, description_text: jdText }),
-      });
-      if (updateRes.ok) {
-        onLeadUpdated?.(lead.id, { description_text: jdText });
-        toast.success(`Fetched full JD (${jdText.length.toLocaleString()} chars) — rescore for accurate match`);
-      } else {
-        toast.error("Fetched JD but failed to save");
-      }
-    } catch {
-      toast.error("Failed to fetch job description");
-    }
-    setFetchingJd(false);
-  }, [lead?.id, lead?.career_page_url, onLeadUpdated]);
+    window.open(lead.career_page_url, "_blank", "noopener,noreferrer");
+    toast.info(
+      "Opening posting — click 'Import Job' from the extension, then return here to refresh.",
+      { duration: 8000 }
+    );
+  }, [lead?.career_page_url]);
 
   const handleMarkDead = useCallback(async () => {
     if (!lead) return;
@@ -490,17 +462,13 @@ export function LeadDetailSheet({
               </p>
               <p className="text-xs text-amber-700">
                 {cleanedDescription
-                  ? "Only a summary was captured from the email digest. Fetch the full job description to get an accurate score."
-                  : "No job description was captured. Fetch it from the original posting or find it on LinkedIn."}
+                  ? "Only a summary was captured from the email digest. Open the posting and capture the full JD with the Chrome extension."
+                  : "No job description was captured. Open the posting and capture the full JD with the Chrome extension."}
               </p>
               <div className="flex gap-2">
                 {lead.career_page_url ? (
-                  <Button
-                    size="sm"
-                    onClick={handleFetchJd}
-                    disabled={fetchingJd}
-                  >
-                    {fetchingJd ? "Fetching..." : "Fetch Full JD"}
+                  <Button size="sm" onClick={handleCaptureViaExtension}>
+                    Capture via Extension
                   </Button>
                 ) : null}
                 <a
