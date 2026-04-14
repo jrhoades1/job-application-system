@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useGmailSync } from "@/hooks/use-gmail-sync";
+import { AppliedVelocityCard } from "@/components/dashboard/applied-velocity-card";
 
 interface DigestLead {
   id: string;
@@ -207,6 +208,9 @@ export default function DashboardPage() {
 
       {/* Insights section */}
       <InsightsSection onRefresh={refreshActions} />
+
+      {/* Applied velocity */}
+      <AppliedVelocityCard />
 
       {/* Compact stats bar */}
       <div className="grid grid-cols-4 gap-3">
