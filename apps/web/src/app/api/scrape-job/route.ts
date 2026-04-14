@@ -13,6 +13,20 @@ import {
   isPrivateUrl,
 } from "@/lib/scrape-helpers";
 
+// Mirrors looksLikeRealJd in lead-detail-sheet.tsx. Rejects text that is too
+// short or lacks JD signals (login walls, CAPTCHA pages, 404s).
+function looksLikeRealJd(text: string): boolean {
+  if (!text || text.length < 200) return false;
+  const headerLines = (text.match(/(?:^|\n)(?:From|Sent|To|Subject|Date|Cc):\s/gi) ?? []).length;
+  if (headerLines >= 3) return false;
+  const jdSignals = [
+    /responsibilit/i, /requirement/i, /qualificat/i, /experience/i,
+    /duties/i, /what you['']ll (?:do|bring)/i, /we['']re looking for/i,
+    /must have/i, /years? of/i, /bachelor|master|degree/i,
+  ];
+  return jdSignals.filter((p) => p.test(text)).length >= 2;
+}
+
 const scrapeRequestSchema = z.object({
   url: z.string().url("Invalid URL"),
 });
@@ -40,6 +54,26 @@ export async function POST(req: Request) {
         { error: "URL not allowed" },
         { status: 400 }
       );
+    }
+
+    // LinkedIn blocks unauthenticated bots and returns a sign-in wall instead of
+    // the real JD. Any "successful" scrape would just be login-page boilerplate,
+    // which then poisons description_text and the score. Force the Chrome
+    // extension path for LinkedIn — it captures the rendered DOM from a logged-in
+    // session.
+    try {
+      const host = new URL(url).hostname.toLowerCase();
+      if (host === "linkedin.com" || host.endsWith(".linkedin.com")) {
+        return NextResponse.json(
+          {
+            error:
+              "LinkedIn JDs must be captured via the Chrome extension. Open the posting and use Import Job.",
+          },
+          { status: 422 }
+        );
+      }
+    } catch {
+      // URL already validated by zod; unreachable
     }
 
     const response = await fetch(url, {
@@ -89,6 +123,19 @@ export async function POST(req: Request) {
     const cleanDescription = description
       ? cheerio.load(description).text().trim()
       : undefined;
+
+    // Sanity check: reject output that doesn't look like a real JD. Sites that
+    // block scrapers often return login walls or CAPTCHA pages that are >100
+    // chars but contain zero JD signals. Saving that text poisons description_text.
+    if (cleanDescription && !looksLikeRealJd(cleanDescription)) {
+      return NextResponse.json(
+        {
+          error:
+            "The page returned content that doesn't look like a job description (likely a login wall or anti-bot page). Capture it via the Chrome extension instead.",
+        },
+        { status: 422 }
+      );
+    }
 
     return NextResponse.json({
       company: company || "",
