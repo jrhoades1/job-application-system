@@ -143,11 +143,23 @@ function isConfirmationEmail(subject: string, body: string): boolean {
 }
 
 /** Extract company name from a confirmation email sender/subject/body */
-function extractConfirmationCompany(from: string, subject: string, body: string): string | null {
+function extractConfirmationCompany(
+  from: string,
+  subject: string,
+  body: string,
+  userFullName: string | null
+): string | null {
   // Try "from" field first — most confirmation emails come from the company
   // Format: "Company Name <noreply@company.com>" or "noreply@company.com"
   const senderName = from.replace(/<.*>/, "").replace(/"/g, "").trim();
-  if (senderName && !/^(no-?reply|notifications?|careers?|jobs?|talent|recruiting|hr)$/i.test(senderName)) {
+  const isOwnName =
+    !!userFullName &&
+    senderName.toLowerCase() === userFullName.toLowerCase();
+  if (
+    senderName &&
+    !isOwnName &&
+    !/^(no-?reply|notifications?|careers?|jobs?|talent|recruiting|hr)$/i.test(senderName)
+  ) {
     return senderName;
   }
 
@@ -160,8 +172,8 @@ function extractConfirmationCompany(from: string, subject: string, body: string)
     }
   }
 
-  // Try subject: "Your application to [Company]" or "at [Company]"
-  const atMatch = subject.match(/(?:at|to|for|with)\s+([A-Z][A-Za-z0-9 &.,'-]+)/);
+  // Try subject: "Your application to [Company]", "at [Company]", or "in [Company]"
+  const atMatch = subject.match(/(?:at|to|for|with|in)\s+([A-Z][A-Za-z0-9 &.,'-]+?)(?:\s*[,!?.]|$)/);
   if (atMatch) return atMatch[1].trim();
 
   return null;
@@ -471,9 +483,11 @@ export async function POST(req: Request) {
     // Load user achievements + filter prefs for scoring
     const { data: profile } = await supabase
       .from("profiles")
-      .select("achievements, preferences")
+      .select("achievements, preferences, full_name")
       .eq("clerk_user_id", userId)
       .single();
+
+    const userFullName: string | null = profile?.full_name ?? null;
 
     const filterPrefs: LeadFilterPrefs = {
       lead_filter_enabled: profile?.preferences?.lead_filter_enabled ?? true,
@@ -626,7 +640,7 @@ export async function POST(req: Request) {
 
       // Check for application confirmation emails BEFORE job/rejection filtering
       if (isConfirmationEmail(subject, body)) {
-        const confirmCompany = extractConfirmationCompany(from, subject, body);
+        const confirmCompany = extractConfirmationCompany(from, subject, body, userFullName);
         if (confirmCompany && openApps && openApps.length > 0) {
           const normalized = normalizeCompany(confirmCompany);
           // Find matching application by company name
@@ -834,7 +848,13 @@ export async function POST(req: Request) {
       const senderName = from.replace(/<.*>/, "").replace(/"/g, "").trim();
       // Reject platform names and generic senders — these are not real company names
       const PLATFORM_OR_GENERIC = /^(linkedin|indeed|glassdoor|ziprecruiter|dice|monster|hired|wellfound|angellist|greenhouse|lever|workday|smartrecruiters|no-?reply|notifications?|careers?|jobs?|talent|recruiting|hr|job\s*alerts?)$/i;
-      const validSenderCompany = senderName && !PLATFORM_OR_GENERIC.test(senderName) ? senderName : null;
+      // Also reject the user's own name (common on forwarded emails, where sender = user)
+      const senderIsOwnName =
+        !!userFullName && senderName.toLowerCase() === userFullName.toLowerCase();
+      const validSenderCompany =
+        senderName && !senderIsOwnName && !PLATFORM_OR_GENERIC.test(senderName)
+          ? senderName
+          : null;
       // Strip "Team | Company" pipe format — take the last segment as company
       const rawCompany = extracted?.company || validSenderCompany || null;
       const finalCompany = rawCompany?.includes("|") ? rawCompany.split("|").pop()!.trim() : rawCompany;
