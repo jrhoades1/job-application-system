@@ -63,13 +63,25 @@ export async function getGmailTokens(
   // Refresh if expired or within 5 minutes of expiry
   if (Date.now() >= tokens.expiry - 5 * 60 * 1000) {
     const result = await refreshAccessToken(tokens.refresh_token);
+    const nowIso = new Date().toISOString();
 
     if (result.kind === "revoked") {
       // Refresh token is permanently invalid — user must re-auth.
       console.error("[gmail] refresh token revoked:", result.error);
+      const { data: current } = await supabase
+        .from("email_connections")
+        .select("refresh_failure_count")
+        .eq("clerk_user_id", userId)
+        .single();
       await supabase
         .from("email_connections")
-        .update({ is_active: false })
+        .update({
+          is_active: false,
+          last_refresh_error: result.error.slice(0, 2000),
+          last_refresh_error_kind: "revoked",
+          last_refresh_error_at: nowIso,
+          refresh_failure_count: (current?.refresh_failure_count ?? 0) + 1,
+        })
         .eq("clerk_user_id", userId);
       return null;
     }
@@ -78,15 +90,35 @@ export async function getGmailTokens(
       // Transient failure (network, 5xx, timeout). Do NOT deactivate —
       // keep the connection so the next request can retry.
       console.warn("[gmail] transient refresh failure, preserving connection:", result.error);
+      const { data: current } = await supabase
+        .from("email_connections")
+        .select("refresh_failure_count")
+        .eq("clerk_user_id", userId)
+        .single();
+      await supabase
+        .from("email_connections")
+        .update({
+          last_refresh_error: result.error.slice(0, 2000),
+          last_refresh_error_kind: "transient",
+          last_refresh_error_at: nowIso,
+          refresh_failure_count: (current?.refresh_failure_count ?? 0) + 1,
+        })
+        .eq("clerk_user_id", userId);
       return null;
     }
 
     tokens = { ...result.tokens, refresh_token: tokens.refresh_token };
 
-    // Persist refreshed tokens
+    // Persist refreshed tokens and clear any prior error state
     await supabase
       .from("email_connections")
-      .update({ oauth_token: JSON.stringify(tokens) })
+      .update({
+        oauth_token: JSON.stringify(tokens),
+        last_refresh_error: null,
+        last_refresh_error_kind: null,
+        last_refresh_error_at: null,
+        refresh_failure_count: 0,
+      })
       .eq("clerk_user_id", userId);
   }
 
@@ -138,19 +170,28 @@ export async function refreshAccessToken(
 
   const body = await res.text().catch(() => "");
 
+  // Parse Google's JSON error envelope so we capture `error_description`
+  // (e.g. "Token has been expired or revoked.") in diagnostics.
+  let parsed: { error?: string; error_description?: string } | null = null;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    parsed = null;
+  }
+  const errorCode = parsed?.error ?? "";
+  const errorDescription = parsed?.error_description ?? "";
+  const summary = `${res.status} ${errorCode}${errorDescription ? `: ${errorDescription}` : ""}`.trim();
+
   // Google returns 400 with {"error":"invalid_grant"} when the refresh token
   // is revoked, expired, or was issued to a different client. Only these
   // cases should deactivate the connection.
-  if (res.status === 400 || res.status === 401) {
-    const isInvalidGrant = /invalid_grant/i.test(body);
-    if (isInvalidGrant) {
-      return { kind: "revoked", error: `${res.status}: ${body}` };
-    }
+  if ((res.status === 400 || res.status === 401) && /invalid_grant/i.test(errorCode || body)) {
+    return { kind: "revoked", error: summary || `${res.status}: ${body}` };
   }
 
   // 5xx, 429, network errors, and anything else we can't classify as
   // permanent — treat as transient and keep the connection.
-  return { kind: "transient", error: `${res.status}: ${body}` };
+  return { kind: "transient", error: summary || `${res.status}: ${body}` };
 }
 
 /**
