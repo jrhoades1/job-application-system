@@ -28,17 +28,27 @@ const JD_EXTRACTORS: {
       ".jobs-description",
     ],
     titleSelectors: [
+      // Panel view (search results with right-hand JD panel)
+      ".job-details-jobs-unified-top-card__job-title h1",
+      ".job-details-jobs-unified-top-card__job-title a",
       ".job-details-jobs-unified-top-card__job-title",
+      ".jobs-details__main-content h1",
+      ".jobs-details__main-content .t-24",
+      ".scaffold-layout__detail h1",
+      // Legacy / full-page layout
       ".jobs-unified-top-card__job-title",
       "h1.t-24",
+      "[class*='top-card'] h1",
+      "[class*='job-title']",
       "h1 a",
-      "h1",
     ],
     companySelectors: [
+      ".job-details-jobs-unified-top-card__company-name a",
       ".job-details-jobs-unified-top-card__company-name",
       ".jobs-unified-top-card__company-name",
       ".jobs-unified-top-card__subtitle-primary-grouping a",
       "a[data-tracking-control-name*='company']",
+      "[class*='top-card'] [class*='company']",
       "[class*='company-name']",
     ],
   },
