@@ -58,7 +58,8 @@ export type Discipline =
   | "legal"
   | "operations"
   | "support"
-  | "medical";
+  | "medical"
+  | "content";
 
 // Disciplines a software engineer is categorically not a candidate for.
 // Reject-list approach: anything not in this set passes through.
@@ -71,6 +72,7 @@ const REJECTED_DISCIPLINES: ReadonlySet<Discipline> = new Set([
   "operations",
   "support",
   "medical",
+  "content",
 ]);
 
 /**
@@ -81,8 +83,10 @@ export function detectDiscipline(roleTitle: string): Discipline | null {
   if (!roleTitle) return null;
   const t = roleTitle.toLowerCase();
 
-  // Sales — check before generic "account"/"business" terms
-  if (/\b(sales|account\s+executive|business\s+development|bdr|sdr|revenue|go[- ]to[- ]market|gtm)\b/.test(t)) return "sales";
+  // Sales — check before generic "account"/"business" terms. Matches common
+  // enterprise-sales titles like "Key Account Director", "Strategic Account
+  // Manager", "Enterprise Account Executive", etc.
+  if (/\b(sales|(key|strategic|enterprise|global|regional|national|named)\s+account|account\s+(executive|manager|director|lead)|business\s+development|bdr|sdr|revenue|go[- ]to[- ]market|gtm)\b/.test(t)) return "sales";
   // Marketing
   if (/\b(marketing|brand|growth\s+marketer|seo|content\s+strateg|communications|pr\s+manager|demand\s+gen)\b/.test(t)) return "marketing";
   // HR / People
@@ -93,10 +97,16 @@ export function detectDiscipline(roleTitle: string): Discipline | null {
   if (/\b(legal|attorney|counsel|paralegal|compliance\s+officer)\b/.test(t)) return "legal";
   // Medical / Clinical
   if (/\b(nurse|physician|doctor|clinical|medical\s+assistant|pharmacist|therapist|dentist)\b/.test(t)) return "medical";
+  // Content / creator / host (Twitch-style roles — streamers, language hosts,
+  // notebook associates, copywriters). Distinct from "content strategy"
+  // (marketing) which is caught above.
+  if (/\b(streamer|copywriter|notebook\s+associate|content\s+(creator|producer|contractor|associate)|(spanish|english|french|german|portuguese|japanese|korean|mandarin|cantonese|chinese|italian|russian|arabic|hindi|native|language)\s+hosts?)\b/.test(t)) return "content";
   // Customer support
   if (/\b(customer\s+(support|success|service)|support\s+(agent|representative|specialist)|help\s+desk)\b/.test(t)) return "support";
-  // Operations (generic — only match clear ops titles, not "engineering operations")
-  if (/\b(operations\s+(manager|director|lead)|supply\s+chain|logistics|warehouse|facilities)\b/.test(t)) return "operations";
+  // Operations / procurement (only clear ops/procurement titles, not
+  // "engineering operations"). Includes strategic sourcing, category mgmt,
+  // procurement, purchasing.
+  if (/\b(operations\s+(manager|director|lead)|supply\s+chain|logistics|warehouse|facilities|strategic\s+sourcing|category\s+management|procurement|purchasing|sourcing\s+(manager|director|lead))\b/.test(t)) return "operations";
 
   // Engineering / technical — broad catch for anything that should pass
   if (/\b(engineer|developer|programmer|architect|sre|devops|platform|infrastructure|full[- ]?stack|backend|frontend|software|technology|technical|cto|cio|vp\s+of\s+engineering|head\s+of\s+engineering)\b/.test(t)) return "engineering";
