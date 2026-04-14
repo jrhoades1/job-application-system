@@ -33,16 +33,21 @@ export async function POST(req: Request) {
   const html = buildPdfHtml(content, safeFilename);
 
   const isLocal = process.env.NODE_ENV === "development";
-  const browser = await puppeteer.launch({
-    args: isLocal ? ["--no-sandbox"] : chromium.args,
-    executablePath: isLocal
-      ? process.env.PUPPETEER_EXECUTABLE_PATH ||
-        "C:/Program Files/Google/Chrome/Application/chrome.exe"
-      : await chromium.executablePath(),
-    headless: true,
-  });
+  let browser: Awaited<ReturnType<typeof puppeteer.launch>> | null = null;
 
   try {
+    const executablePath = isLocal
+      ? process.env.PUPPETEER_EXECUTABLE_PATH ||
+        "C:/Program Files/Google/Chrome/Application/chrome.exe"
+      : await chromium.executablePath();
+
+    browser = await puppeteer.launch({
+      args: isLocal ? ["--no-sandbox"] : chromium.args,
+      defaultViewport: isLocal ? undefined : chromium.defaultViewport,
+      executablePath,
+      headless: true,
+    });
+
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle0" });
     const pdf = await page.pdf({
@@ -59,7 +64,14 @@ export async function POST(req: Request) {
         "Cache-Control": "no-store",
       },
     });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[export-pdf] failed:", err);
+    return NextResponse.json(
+      { error: `PDF generation failed: ${message}` },
+      { status: 500 }
+    );
   } finally {
-    await browser.close();
+    if (browser) await browser.close().catch(() => {});
   }
 }
