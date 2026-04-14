@@ -45,6 +45,29 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // Newest sort: re-bucket by day, then tier-break within each day by
+    // score so a "Good" lead on the same day outranks a "Stretch" lead.
+    // email_date is a full timestamp so SQL secondary sort alone doesn't
+    // bucket same-day leads.
+    if (sort === "newest" && data) {
+      const TIER_RANK: Record<string, number> = {
+        strong: 0,
+        good: 1,
+        stretch: 2,
+        long_shot: 3,
+      };
+      const dayBucket = (iso: string | null): string =>
+        iso ? iso.slice(0, 10) : "";
+      data.sort((a, b) => {
+        const dayDiff = dayBucket(b.email_date).localeCompare(dayBucket(a.email_date));
+        if (dayDiff !== 0) return dayDiff;
+        const tierDiff =
+          (TIER_RANK[a.score_overall] ?? 99) - (TIER_RANK[b.score_overall] ?? 99);
+        if (tierDiff !== 0) return tierDiff;
+        return (b.score_match_percentage ?? 0) - (a.score_match_percentage ?? 0);
+      });
+    }
+
     return NextResponse.json(data ?? []);
   } catch {
     return NextResponse.json(
