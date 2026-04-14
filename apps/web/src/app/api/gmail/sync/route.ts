@@ -583,15 +583,34 @@ export async function POST(req: Request) {
       .is("deleted_at", null)
       .in("status", ["evaluating", "pending_review", "ready_to_apply"]);
 
-    // Load ALL applications for duplicate detection (company + role)
-    const { data: allApps } = await supabase
-      .from("applications")
-      .select("company, role")
-      .eq("clerk_user_id", userId)
-      .is("deleted_at", null);
-    const knownCompanyRoles = new Set(
-      (allApps ?? []).map((a) => `${normalizeCompany(a.company)}::${normalizeCompany(a.role)}`)
-    );
+    // Load ALL applications + active pipeline leads for duplicate detection
+    // (company + role). Seeding from pipeline_leads prevents the same posting
+    // from re-landing as a new lead on subsequent syncs (LinkedIn digests
+    // often re-surface the same job for days).
+    const [{ data: allApps }, { data: activeLeads }] = await Promise.all([
+      supabase
+        .from("applications")
+        .select("company, role")
+        .eq("clerk_user_id", userId)
+        .is("deleted_at", null),
+      supabase
+        .from("pipeline_leads")
+        .select("company, role")
+        .eq("clerk_user_id", userId)
+        .is("deleted_at", null)
+        .in("status", ["pending_review", "promoted"]),
+    ]);
+    const knownCompanyRoles = new Set<string>();
+    for (const a of allApps ?? []) {
+      if (a.company && a.role) {
+        knownCompanyRoles.add(`${normalizeCompany(a.company)}::${normalizeCompany(a.role)}`);
+      }
+    }
+    for (const l of activeLeads ?? []) {
+      if (l.company && l.role) {
+        knownCompanyRoles.add(`${normalizeCompany(l.company)}::${normalizeCompany(l.role)}`);
+      }
+    }
 
     function isDuplicateLead(company: string, role: string): boolean {
       const normCompany = normalizeCompany(company);
@@ -813,6 +832,9 @@ export async function POST(req: Request) {
           });
 
           existingUids.add(leadUid);
+          knownCompanyRoles.add(
+            `${normalizeCompany(job.company)}::${normalizeCompany(job.role)}`
+          );
           inserted++;
         }
 

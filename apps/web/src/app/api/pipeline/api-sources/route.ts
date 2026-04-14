@@ -259,6 +259,30 @@ export async function POST(req: Request) {
     (existingLeads ?? []).map((l) => l.email_uid).filter(Boolean)
   );
 
+  // Also dedup by company+role across ALL active leads + applications so a
+  // Jobicy/Adzuna result doesn't land as a duplicate of an email-sourced lead.
+  const [{ data: allApps }, { data: allActiveLeads }] = await Promise.all([
+    supabase
+      .from("applications")
+      .select("company, role")
+      .eq("clerk_user_id", userId)
+      .is("deleted_at", null),
+    supabase
+      .from("pipeline_leads")
+      .select("company, role")
+      .eq("clerk_user_id", userId)
+      .is("deleted_at", null)
+      .in("status", ["pending_review", "promoted"]),
+  ]);
+  const normalizeKey = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+  const knownCompanyRoles = new Set<string>();
+  for (const a of allApps ?? []) {
+    if (a.company && a.role) knownCompanyRoles.add(`${normalizeKey(a.company)}::${normalizeKey(a.role)}`);
+  }
+  for (const l of allActiveLeads ?? []) {
+    if (l.company && l.role) knownCompanyRoles.add(`${normalizeKey(l.company)}::${normalizeKey(l.role)}`);
+  }
+
   // Fetch from both sources for each target role (deduplicated across roles)
   const adzunaAppId = process.env.ADZUNA_APP_ID;
   const adzunaAppKey = process.env.ADZUNA_APP_KEY;
@@ -301,6 +325,12 @@ export async function POST(req: Request) {
       continue;
     }
 
+    const crKey = `${normalizeKey(job.company)}::${normalizeKey(job.role)}`;
+    if (knownCompanyRoles.has(crKey)) {
+      skipped++;
+      continue;
+    }
+
     try {
       const { score, redFlags } = await scoreJob(
         job.description,
@@ -334,6 +364,7 @@ export async function POST(req: Request) {
       });
 
       existingUids.add(job.uid);
+      knownCompanyRoles.add(crKey);
       inserted++;
     } catch (err) {
       console.error(`[api-sources] Failed to insert lead ${job.uid}:`, err);
