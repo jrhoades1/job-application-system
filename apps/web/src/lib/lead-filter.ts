@@ -46,6 +46,70 @@ export const SENIORITY_LABELS: Record<SeniorityLevel, string> = {
   c_level: "C-Level",
 };
 
+export type Discipline =
+  | "engineering"
+  | "product"
+  | "design"
+  | "data"
+  | "sales"
+  | "marketing"
+  | "hr"
+  | "finance"
+  | "legal"
+  | "operations"
+  | "support"
+  | "medical";
+
+// Disciplines a software engineer is categorically not a candidate for.
+// Reject-list approach: anything not in this set passes through.
+const REJECTED_DISCIPLINES: ReadonlySet<Discipline> = new Set([
+  "sales",
+  "marketing",
+  "hr",
+  "finance",
+  "legal",
+  "operations",
+  "support",
+  "medical",
+]);
+
+/**
+ * Detect the functional discipline from a role title. Returns null when
+ * ambiguous so callers can fail-open.
+ */
+export function detectDiscipline(roleTitle: string): Discipline | null {
+  if (!roleTitle) return null;
+  const t = roleTitle.toLowerCase();
+
+  // Sales — check before generic "account"/"business" terms
+  if (/\b(sales|account\s+executive|business\s+development|bdr|sdr|revenue|go[- ]to[- ]market|gtm)\b/.test(t)) return "sales";
+  // Marketing
+  if (/\b(marketing|brand|growth\s+marketer|seo|content\s+strateg|communications|pr\s+manager|demand\s+gen)\b/.test(t)) return "marketing";
+  // HR / People
+  if (/\b(human\s+resources|hr\b|people\s+operations|talent\s+acquisition|recruit(er|ing)|people\s+partner)\b/.test(t)) return "hr";
+  // Finance / Accounting
+  if (/\b(accountant|accounting|finance|financial\s+analyst|controller|treasurer|bookkeep|auditor|tax)\b/.test(t)) return "finance";
+  // Legal
+  if (/\b(legal|attorney|counsel|paralegal|compliance\s+officer)\b/.test(t)) return "legal";
+  // Medical / Clinical
+  if (/\b(nurse|physician|doctor|clinical|medical\s+assistant|pharmacist|therapist|dentist)\b/.test(t)) return "medical";
+  // Customer support
+  if (/\b(customer\s+(support|success|service)|support\s+(agent|representative|specialist)|help\s+desk)\b/.test(t)) return "support";
+  // Operations (generic — only match clear ops titles, not "engineering operations")
+  if (/\b(operations\s+(manager|director|lead)|supply\s+chain|logistics|warehouse|facilities)\b/.test(t)) return "operations";
+
+  // Engineering / technical — broad catch for anything that should pass
+  if (/\b(engineer|developer|programmer|architect|sre|devops|platform|infrastructure|full[- ]?stack|backend|frontend|software|technology|technical|cto|cio|vp\s+of\s+engineering|head\s+of\s+engineering)\b/.test(t)) return "engineering";
+  // Product
+  if (/\b(product\s+manager|product\s+owner|product\s+lead|cpo|head\s+of\s+product)\b/.test(t)) return "product";
+  // Design
+  if (/\b(designer|ux|ui|user\s+experience|creative\s+director)\b/.test(t)) return "design";
+  // Data / ML
+  if (/\b(data\s+(scientist|analyst|engineer)|machine\s+learning|ml\s+engineer|ai\s+engineer|analytics)\b/.test(t)) return "data";
+
+  return null;
+}
+
 /**
  * Classify a role title into a seniority bucket. Returns null when the title
  * is too ambiguous to classify — callers should fail-open on null.
@@ -128,6 +192,16 @@ export function evaluateStage1(
   prefs: LeadFilterPrefs
 ): Stage1Result {
   if (!prefs.lead_filter_enabled) return { pass: true };
+
+  // Discipline knockout — reject roles categorically outside software engineering.
+  // Fail-open on null (ambiguous titles pass through).
+  const discipline = detectDiscipline(lead.role);
+  if (discipline !== null && REJECTED_DISCIPLINES.has(discipline)) {
+    return {
+      pass: false,
+      reason: `Discipline mismatch: ${discipline} role, engineering preferred`,
+    };
+  }
 
   // Seniority knockout
   if (prefs.min_role_level && prefs.min_role_level !== "any") {
