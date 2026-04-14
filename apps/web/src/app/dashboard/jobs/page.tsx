@@ -342,7 +342,11 @@ export default function JobsPage() {
       fetchLeads();
       setRefreshKey((k) => k + 1);
     } else {
-      toast.error("Action failed");
+      const errMsg = await res
+        .json()
+        .then((d: { error?: string }) => d?.error)
+        .catch(() => null);
+      toast.error(errMsg ?? "Action failed");
     }
   }
 
