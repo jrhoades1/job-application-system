@@ -72,6 +72,48 @@ export async function POST(req: Request) {
     }
 
     const { url, job_description, role, company, location } = parsed.data;
+    const key = canonicalJobKey(url);
+
+    // If this URL matches a lead the user is still triaging (pending_review),
+    // treat this as a "fix the JD on the open lead" flow: update the lead in
+    // place and leave it in New Leads. No app is created, no promotion. The
+    // lead sheet's visibilitychange listener picks up the new JD on return.
+    // Only match by URL (exact or canonical key) — never fuzzy company+role —
+    // to avoid hijacking an unrelated lead.
+    {
+      const { data: pendingLeads } = await supabase
+        .from("pipeline_leads")
+        .select("id, company, role, career_page_url")
+        .eq("clerk_user_id", userId)
+        .eq("status", "pending_review")
+        .is("deleted_at", null)
+        .limit(500);
+
+      const leadMatch = (pendingLeads ?? []).find((l) => {
+        if (l.career_page_url === url) return true;
+        if (!key || !l.career_page_url) return false;
+        return canonicalJobKey(l.career_page_url) === key;
+      });
+
+      if (leadMatch) {
+        await supabase
+          .from("pipeline_leads")
+          .update({
+            description_text: job_description,
+            career_page_url: url,
+          })
+          .eq("id", leadMatch.id);
+        await rescoreLead(supabase, leadMatch.id, job_description, userId);
+
+        return NextResponse.json({
+          imported: false,
+          lead_updated: true,
+          lead_id: leadMatch.id,
+          company: leadMatch.company ?? company,
+          role: leadMatch.role ?? role,
+        });
+      }
+    }
 
     // Check for duplicate: first by exact source_url, then by canonical job key
     // (so LinkedIn /comm/jobs/view/X and /jobs/view/X collapse to one app).
@@ -83,7 +125,6 @@ export async function POST(req: Request) {
       .is("deleted_at", null)
       .maybeSingle();
 
-    const key = canonicalJobKey(url);
     if (!existing && key) {
       const { data: candidates } = await supabase
         .from("applications")
