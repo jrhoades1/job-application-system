@@ -78,6 +78,8 @@ export default function JobsPage() {
   const router = useRouter();
   const initialTab = searchParams.get("tab") ?? "leads";
   const [activeTab, setActiveTab] = useState(initialTab);
+  const appliedFrom = searchParams.get("from");
+  const appliedTo = searchParams.get("to");
 
   // Pipeline leads state
   const [leads, setLeads] = useState<PipelineLeadRow[]>([]);
@@ -238,6 +240,8 @@ export default function JobsPage() {
       if (debouncedSearch) params.set("search", debouncedSearch);
       params.set("sort", sortColumn);
       params.set("order", sortOrder);
+      if (activeTab === "applied" && appliedFrom) params.set("from", appliedFrom);
+      if (activeTab === "applied" && appliedTo) params.set("to", appliedTo);
       try {
         const res = await fetch(`/api/applications?${params}`);
         const json = await res.json();
@@ -253,7 +257,7 @@ export default function JobsPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, debouncedSearch, sortColumn, sortOrder, refreshKey]);
+  }, [activeTab, debouncedSearch, sortColumn, sortOrder, refreshKey, appliedFrom, appliedTo]);
 
   // Clear selection on tab/data change
   useEffect(() => {
@@ -584,13 +588,33 @@ export default function JobsPage() {
             {activeTab === tab.value && (
               <>
                 {/* Search + filters */}
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center flex-wrap">
                   <Input
                     placeholder="Search company or role..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-64"
                   />
+                  {tab.value === "applied" && (appliedFrom || appliedTo) && (
+                    <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-1 text-xs">
+                      <span>
+                        Applied {appliedFrom ?? "—"} → {appliedTo ?? "—"}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 px-2 text-xs"
+                        onClick={() => {
+                          const next = new URLSearchParams(searchParams.toString());
+                          next.delete("from");
+                          next.delete("to");
+                          router.replace(`/dashboard/jobs?${next.toString()}`);
+                        }}
+                      >
+                        Clear
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Bulk actions bar */}

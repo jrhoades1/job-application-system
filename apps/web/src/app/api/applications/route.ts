@@ -10,10 +10,16 @@ export async function GET(req: Request) {
     const status = searchParams.get("status");
     const source = searchParams.get("source");
     const search = searchParams.get("search");
+    const appliedFrom = searchParams.get("from"); // inclusive (YYYY-MM-DD)
+    const appliedTo = searchParams.get("to"); // exclusive (YYYY-MM-DD)
     const sortBy = searchParams.get("sort") ?? "created_at";
     const sortOrder = searchParams.get("order") ?? "desc";
     const limit = parseInt(searchParams.get("limit") ?? "50");
     const offset = parseInt(searchParams.get("offset") ?? "0");
+
+    const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+    const safeFrom = appliedFrom && dateRe.test(appliedFrom) ? appliedFrom : null;
+    const safeTo = appliedTo && dateRe.test(appliedTo) ? appliedTo : null;
 
     const allowedSortColumns = ["company", "role", "status", "source", "applied_date", "created_at"];
     const safeSort = allowedSortColumns.includes(sortBy) ? sortBy : "created_at";
@@ -40,6 +46,12 @@ export async function GET(req: Request) {
     }
     if (source) {
       query = query.eq("source", source);
+    }
+    if (safeFrom) {
+      query = query.gte("applied_date", safeFrom);
+    }
+    if (safeTo) {
+      query = query.lt("applied_date", safeTo);
     }
 
     const { data, error, count } = await query;
