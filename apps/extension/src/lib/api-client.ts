@@ -142,7 +142,9 @@ export interface ImportJobResult {
   imported: boolean;
   duplicate?: boolean;
   jd_updated?: boolean;
-  application_id: string;
+  lead_updated?: boolean;
+  lead_id?: string;
+  application_id?: string;
   company: string;
   role: string;
   source?: string;

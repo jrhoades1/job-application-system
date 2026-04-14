@@ -322,6 +322,11 @@ function injectImportButton(captured: CapturedData): void {
       btn.style.borderColor = "#22c55e";
       btn.style.opacity = "1";
       showToast(`Imported: ${response.company} — ${response.role}`, "success");
+    } else if (response?.lead_updated) {
+      btn.innerHTML = `<span style="font-size: 16px; color: #22c55e;">&#10003;</span><div><div style="font-weight: 600; color: #22c55e;">JD Updated!</div><div style="font-size: 11px; color: #888;">${response.company} — ${response.role}</div></div>`;
+      btn.style.borderColor = "#22c55e";
+      btn.style.opacity = "1";
+      showToast(`Lead updated: ${response.company} — ${response.role}`, "success");
     } else if (response?.duplicate) {
       btn.innerHTML = `<span style="font-size: 16px; color: #eab308;">&#8226;</span><div><div style="font-weight: 600; color: #eab308;">Already tracked</div><div style="font-size: 11px; color: #888;">${response.company} — ${response.role}</div></div>`;
       btn.style.borderColor = "#eab308";

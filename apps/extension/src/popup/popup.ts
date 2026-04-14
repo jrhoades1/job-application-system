@@ -147,6 +147,11 @@ async function init() {
       status.style.color = "#22c55e";
       status.classList.remove("hidden");
       btn.textContent = "Imported!";
+    } else if (response?.lead_updated) {
+      status.textContent = `Lead updated: ${response.company} — ${response.role}`;
+      status.style.color = "#22c55e";
+      status.classList.remove("hidden");
+      btn.textContent = "JD Updated!";
     } else if (response?.duplicate) {
       status.textContent = `Already tracked: ${response.company} — ${response.role}`;
       status.style.color = "#eab308";
