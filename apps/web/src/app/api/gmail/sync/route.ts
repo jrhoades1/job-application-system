@@ -380,6 +380,8 @@ const NOTIFICATION_SUBJECT_PATTERNS = [
   /profile\s+(?:just\s+)?posted/i,
   /you\s+have\s+\d+\s+new/i,
   /job\s+recommendations?/i,
+  /jobs?\s+from\s+our\s+\d+\s+job\s+board\s+partners/i,
+  /^all\s+.*\bjobs?\b/i,
 ];
 
 function isNotificationSubject(subject: string): boolean {

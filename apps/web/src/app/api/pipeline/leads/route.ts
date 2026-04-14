@@ -3,6 +3,19 @@ import { z } from "zod";
 import { getAuthenticatedClient } from "@/lib/supabase";
 import { normalizeSource } from "@/lib/scrape-helpers";
 
+const JUNK_ROLE_PATTERNS = [
+  /jobs?\s+from\s+our\s+\d+\s+job\s+board\s+partners/i,
+  /^all\s+.*\bjobs?\b/i,
+  /new\s+opportunit(?:y|ies)\s+alert/i,
+  /job\s+alert/i,
+  /job\s+recommendations?/i,
+];
+
+function isJunkRoleTitle(role: string | null | undefined): boolean {
+  if (!role) return false;
+  return JUNK_ROLE_PATTERNS.some((p) => p.test(role));
+}
+
 const updateLeadSchema = z.object({
   id: z.string().uuid(),
   action: z.enum(["promote", "skip", "update_description"]).optional(),
@@ -137,6 +150,14 @@ export async function PATCH(req: Request) {
 
     if (!lead) {
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+    }
+
+    // Reject digest/notification subjects that got misparsed as a role title
+    if (isJunkRoleTitle(lead.role)) {
+      return NextResponse.json(
+        { error: "Cannot promote: this lead's role looks like a digest email subject, not a real job title. Skip it or capture the real posting." },
+        { status: 400 }
+      );
     }
 
     // Job description is required — refuse to promote without a real JD
