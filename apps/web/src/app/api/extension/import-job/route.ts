@@ -13,6 +13,46 @@ const importSchema = z.object({
   salary: z.string().max(200).optional(),
 });
 
+/**
+ * Extract a stable platform+job-id key so variants of the same job URL
+ * dedupe to one application. Returns null for URLs we don't recognize.
+ *
+ * Why: LinkedIn email links use `/comm/jobs/view/{id}`, normal links use
+ * `/jobs/view/{id}`, and both carry volatile tracking params. Without
+ * normalization, the extension creates a duplicate app on capture.
+ */
+function canonicalJobKey(rawUrl: string): string | null {
+  try {
+    const u = new URL(rawUrl);
+    const host = u.hostname.toLowerCase();
+    const path = u.pathname;
+
+    if (host.includes("linkedin")) {
+      const m = path.match(/\/jobs\/view\/(\d+)/);
+      if (m) return `linkedin:${m[1]}`;
+    }
+    if (host.includes("indeed")) {
+      const jk = u.searchParams.get("jk");
+      if (jk) return `indeed:${jk}`;
+    }
+    if (host.includes("greenhouse")) {
+      const m = path.match(/\/jobs\/(\d+)/);
+      if (m) return `greenhouse:${host}:${m[1]}`;
+    }
+    if (host.includes("lever.co")) {
+      const m = path.match(/\/([^/]+)\/([0-9a-f-]{8,})/i);
+      if (m) return `lever:${m[1]}:${m[2]}`;
+    }
+    if (host.includes("ashbyhq") || host.includes("ashby")) {
+      const m = path.match(/\/([0-9a-f-]{8,})/i);
+      if (m) return `ashby:${m[1]}`;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 /** Score a JD and update lead score fields */
 async function rescoreLead(
   supabase: SupabaseClient,
@@ -82,14 +122,37 @@ export async function POST(req: Request) {
 
     const { url, job_description, role, company, location } = parsed.data;
 
-    // Check for duplicate by source_url
-    const { data: existing } = await supabase
+    // Check for duplicate: first by exact source_url, then by canonical job key
+    // (so LinkedIn /comm/jobs/view/X and /jobs/view/X collapse to one app).
+    let { data: existing } = await supabase
       .from("applications")
       .select("id, company, role, status")
       .eq("clerk_user_id", userId)
       .eq("source_url", url)
       .is("deleted_at", null)
       .maybeSingle();
+
+    const key = canonicalJobKey(url);
+    if (!existing && key) {
+      const { data: candidates } = await supabase
+        .from("applications")
+        .select("id, company, role, status, source_url")
+        .eq("clerk_user_id", userId)
+        .is("deleted_at", null)
+        .not("source_url", "is", null)
+        .limit(500);
+      const match = (candidates ?? []).find(
+        (c) => c.source_url && canonicalJobKey(c.source_url) === key,
+      );
+      if (match) {
+        existing = {
+          id: match.id,
+          company: match.company,
+          role: match.role,
+          status: match.status,
+        };
+      }
+    }
 
     if (existing) {
       // Always update JD on the existing app
