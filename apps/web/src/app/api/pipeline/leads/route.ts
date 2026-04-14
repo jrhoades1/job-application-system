@@ -149,7 +149,11 @@ export async function PATCH(req: Request) {
       );
     }
 
-    // Dedup: skip if an active application already exists for same company+role
+    // Dedup: if an active application already exists for same company+role,
+    // treat the promote as idempotent — heal the lead status and return the
+    // existing application id so the client can route to it. This covers the
+    // case where a prior promote created the app but failed to flip the lead
+    // status, leaving the lead stuck in pending_review.
     const { data: existingApp } = await supabase
       .from("applications")
       .select("id")
@@ -161,7 +165,16 @@ export async function PATCH(req: Request) {
       .maybeSingle();
 
     if (existingApp) {
-      return NextResponse.json({ error: `Application already exists for ${lead.company} — ${lead.role}` }, { status: 409 });
+      await supabase
+        .from("pipeline_leads")
+        .update({ status: "promoted" })
+        .eq("id", id)
+        .eq("clerk_user_id", userId);
+      return NextResponse.json({
+        success: true,
+        application_id: existingApp.id,
+        already_existed: true,
+      });
     }
 
     const { data: app, error: appError } = await supabase
@@ -211,7 +224,8 @@ export async function PATCH(req: Request) {
     await supabase
       .from("pipeline_leads")
       .update({ status: "promoted" })
-      .eq("id", id);
+      .eq("id", id)
+      .eq("clerk_user_id", userId);
 
     return NextResponse.json({ success: true, application_id: app.id });
   } catch {
