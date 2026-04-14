@@ -100,6 +100,7 @@ const CONFIRMATION_SUBJECT_PATTERNS = [
   /we('ve| have) received your application/i,
   /thank you for applying/i,
   /thanks for (your )?application/i,
+  /thank(s| you) for your interest in /i,
   /your application (to|for|has been)/i,
   /application (acknowledgement|confirmation)/i,
 ];
@@ -108,7 +109,7 @@ const CONFIRMATION_BODY_PATTERNS = [
   /we('ve| have) received your application/i,
   /your application (for|to) .{1,80}(has been |was )?(received|submitted|recorded)/i,
   /thank you for (your interest|applying|submitting)/i,
-  /thanks for applying/i,
+  /thanks for (your interest|applying|submitting)/i,
   /application.{0,30}(successfully|has been) (submitted|received)/i,
   /we('ll| will) (review|carefully review) your (application|qualifications|resume)/i,
   /your (resume|application) (is|has been) (now )?in our system/i,
