@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getExtensionClient } from "@/lib/extension-auth";
+import { rescoreLead } from "@/lib/rescore-lead";
 import { z } from "zod";
 
 const captureSchema = z.object({
@@ -77,6 +78,7 @@ export async function POST(req: Request) {
           role: updatedRole,
         })
         .eq("id", urlMatch.id);
+      await rescoreLead(supabase, urlMatch.id, description, userId);
 
       return NextResponse.json({
         matched: true,
@@ -98,6 +100,7 @@ export async function POST(req: Request) {
           .from("pipeline_leads")
           .update({ description_text: description, career_page_url: url })
           .eq("id", match.id);
+        await rescoreLead(supabase, match.id, description, userId);
 
         return NextResponse.json({
           matched: true,
@@ -118,6 +121,7 @@ export async function POST(req: Request) {
           .from("pipeline_leads")
           .update({ description_text: description, career_page_url: url })
           .eq("id", match.id);
+        await rescoreLead(supabase, match.id, description, userId);
 
         return NextResponse.json({
           matched: true,
@@ -146,6 +150,10 @@ export async function POST(req: Request) {
       })
       .select("id, company, role")
       .single();
+
+    if (newLead?.id) {
+      await rescoreLead(supabase, newLead.id, description, userId);
+    }
 
     return NextResponse.json({
       matched: true,
