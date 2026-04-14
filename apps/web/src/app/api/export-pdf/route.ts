@@ -43,7 +43,6 @@ export async function POST(req: Request) {
 
     browser = await puppeteer.launch({
       args: isLocal ? ["--no-sandbox"] : chromium.args,
-      defaultViewport: isLocal ? undefined : chromium.defaultViewport,
       executablePath,
       headless: true,
     });
