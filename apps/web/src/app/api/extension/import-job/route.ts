@@ -132,7 +132,11 @@ export async function POST(req: Request) {
         for (const lead of matching) {
           await supabase
             .from("pipeline_leads")
-            .update({ description_text: job_description, career_page_url: url })
+            .update({
+              description_text: job_description,
+              career_page_url: url,
+              status: "promoted",
+            })
             .eq("id", lead.id);
           await rescoreLead(supabase, lead.id, job_description, userId);
         }
@@ -174,6 +178,7 @@ export async function POST(req: Request) {
           .update({
             description_text: job_description,
             career_page_url: url,
+            status: "promoted",
           })
           .eq("id", lead.id);
         await rescoreLead(supabase, lead.id, job_description, userId);
