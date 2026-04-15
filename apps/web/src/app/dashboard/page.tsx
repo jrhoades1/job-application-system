@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useGmailSync } from "@/hooks/use-gmail-sync";
 import { AppliedVelocityCard } from "@/components/dashboard/applied-velocity-card";
+import { GmailHealthBanner } from "@/components/dashboard/gmail-health-banner";
 
 interface DigestLead {
   id: string;
@@ -162,6 +163,9 @@ export default function DashboardPage() {
           </Button>
         )}
       </div>
+
+      {/* Gmail health warning — only renders when connection is unhealthy */}
+      <GmailHealthBanner />
 
       {/* Morning digest banner */}
       {digest && digest.above_threshold > 0 && (
