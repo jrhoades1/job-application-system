@@ -24,6 +24,34 @@ import {
   type JobListing,
   type AtsVendor,
 } from "@/career-scan";
+import { evaluateStage1, type LeadFilterPrefs } from "@/lib/lead-filter";
+
+// Cache prefs per user per run — a single cron pass usually hits only one user
+// but multi-tenant still benefits from a local memo.
+async function loadUserPrefs(
+  supabase: ReturnType<typeof getServiceRoleClient>,
+  cache: Map<string, LeadFilterPrefs>,
+  clerkUserId: string
+): Promise<LeadFilterPrefs> {
+  const cached = cache.get(clerkUserId);
+  if (cached) return cached;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("preferences")
+    .eq("clerk_user_id", clerkUserId)
+    .single();
+
+  const prefs: LeadFilterPrefs = {
+    lead_filter_enabled: profile?.preferences?.lead_filter_enabled ?? true,
+    lead_filter_min_score: profile?.preferences?.lead_filter_min_score ?? 40,
+    min_role_level: profile?.preferences?.min_role_level,
+    salary_min: profile?.preferences?.salary_min ?? null,
+    remote_preference: profile?.preferences?.remote_preference,
+  };
+  cache.set(clerkUserId, prefs);
+  return prefs;
+}
 
 export const maxDuration = 300;
 
@@ -37,6 +65,8 @@ interface CompanyResult {
   status: "success" | "failed";
   jobsFound: number;
   jobsNew: number;
+  leadsCreated: number;
+  leadsFilteredOut: number;
   jobsRemoved: number;
   error?: string;
 }
@@ -69,6 +99,7 @@ export async function GET(req: Request) {
   }
 
   const results: CompanyResult[] = [];
+  const prefsCache = new Map<string, LeadFilterPrefs>();
 
   for (const target of targets ?? []) {
     const { data: runInsert } = await supabase
@@ -86,6 +117,8 @@ export async function GET(req: Request) {
       status: "success",
       jobsFound: 0,
       jobsNew: 0,
+      leadsCreated: 0,
+      leadsFilteredOut: 0,
       jobsRemoved: 0,
     };
 
@@ -109,6 +142,8 @@ export async function GET(req: Request) {
       const nowIso = new Date().toISOString();
 
       if (diff.new.length > 0) {
+        // Always record the snapshot — keeps diff accurate so filtered-out
+        // roles aren't re-seen next run.
         const snapshotRows = diff.new.map((j) => ({
           target_company_id: target.id,
           job_external_id: j.externalId,
@@ -121,20 +156,48 @@ export async function GET(req: Request) {
         }));
         await supabase.from("company_job_snapshots").insert(snapshotRows);
 
-        const leadRows = diff.new.map((j) => ({
-          clerk_user_id: target.clerk_user_id,
-          company: target.company_name,
-          role: j.title,
-          source_platform: "career_scan",
-          career_page_url: j.url,
-          ats_type: target.ats_vendor,
-          location: j.location ?? null,
-          status: "pending_review" as const,
-          score_details: { score_source: "estimated" },
-          confidence: 1.0,
-          pipeline_batch: `career_scan_${nowIso.slice(0, 10)}`,
-        }));
-        await supabase.from("pipeline_leads").insert(leadRows);
+        // Stage 1 knockout filter — discipline/seniority/location/salary.
+        // Only roles that pass become pipeline_leads. No JD needed — title
+        // and location are enough for the knockout tier. Real-JD scoring
+        // still happens later via enrich-leads cron.
+        const prefs = await loadUserPrefs(
+          supabase,
+          prefsCache,
+          target.clerk_user_id
+        );
+
+        const passing: JobListing[] = [];
+        for (const j of diff.new) {
+          const verdict = evaluateStage1(
+            {
+              role: j.title,
+              company: target.company_name,
+              location: j.location ?? null,
+            },
+            prefs
+          );
+          if (verdict.pass) passing.push(j);
+        }
+
+        result.leadsCreated = passing.length;
+        result.leadsFilteredOut = diff.new.length - passing.length;
+
+        if (passing.length > 0) {
+          const leadRows = passing.map((j) => ({
+            clerk_user_id: target.clerk_user_id,
+            company: target.company_name,
+            role: j.title,
+            source_platform: "career_scan",
+            career_page_url: j.url,
+            ats_type: target.ats_vendor,
+            location: j.location ?? null,
+            status: "pending_review" as const,
+            score_details: { score_source: "estimated" },
+            confidence: 1.0,
+            pipeline_batch: `career_scan_${nowIso.slice(0, 10)}`,
+          }));
+          await supabase.from("pipeline_leads").insert(leadRows);
+        }
       }
 
       if (diff.stillPresent.length > 0) {
@@ -163,7 +226,7 @@ export async function GET(req: Request) {
           .update({
             finished_at: nowIso,
             jobs_found: result.jobsFound,
-            jobs_new: result.jobsNew,
+            jobs_new: result.leadsCreated,
             jobs_removed: result.jobsRemoved,
             status: "success",
           })
