@@ -153,9 +153,11 @@ export function LeadDetailSheet({
 
   const hasRealJd = cleanedDescription ? looksLikeRealJd(cleanedDescription) : false;
 
-  // When the panel is open with no real JD yet and the user returns to the tab
-  // (e.g. after using the Chrome extension to capture a JD from LinkedIn),
-  // refresh the lead list so the new description shows up automatically.
+  // When the panel is open with no real JD yet, watch for the Chrome extension
+  // to capture one. Two paths: (1) visibilitychange/focus when the user returns
+  // to the tab — fast but unreliable when both windows are side-by-side and
+  // never lose visibility; (2) a 3s poll as a fallback so the JD always shows
+  // up within a few seconds of capture regardless of window arrangement.
   useEffect(() => {
     if (!open || !lead || hasRealJd || !onRefresh) return;
     const handler = () => {
@@ -163,9 +165,13 @@ export function LeadDetailSheet({
     };
     document.addEventListener("visibilitychange", handler);
     window.addEventListener("focus", handler);
+    const interval = window.setInterval(() => {
+      void onRefresh();
+    }, 3000);
     return () => {
       document.removeEventListener("visibilitychange", handler);
       window.removeEventListener("focus", handler);
+      window.clearInterval(interval);
     };
   }, [open, lead, hasRealJd, onRefresh]);
 
