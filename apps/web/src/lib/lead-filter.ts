@@ -108,8 +108,10 @@ export function detectDiscipline(roleTitle: string): Discipline | null {
   // procurement, purchasing.
   if (/\b(operations\s+(manager|director|lead)|supply\s+chain|logistics|warehouse|facilities|strategic\s+sourcing|category\s+management|procurement|purchasing|sourcing\s+(manager|director|lead))\b/.test(t)) return "operations";
 
-  // Engineering / technical — broad catch for anything that should pass
-  if (/\b(engineer|developer|programmer|architect|sre|devops|platform|infrastructure|full[- ]?stack|backend|frontend|software|technology|technical|cto|cio|vp\s+of\s+engineering|head\s+of\s+engineering)\b/.test(t)) return "engineering";
+  // Engineering / technical — broad catch for anything that should pass.
+  // Uses engineer(ing)? so both "Engineer" and "Engineering" match; covers
+  // "Director of Engineering", "Head of Platform Engineering", etc.
+  if (/\b(engineer(ing)?|developer|programmer|architect|sre|devops|platform|infrastructure|full[- ]?stack|backend|frontend|software|technology|technical|cto|cio)\b/.test(t)) return "engineering";
   // Product
   if (/\b(product\s+manager|product\s+owner|product\s+lead|cpo|head\s+of\s+product)\b/.test(t)) return "product";
   // Design
@@ -193,33 +195,75 @@ export interface Stage1Result {
   reason?: string;
 }
 
+export interface Stage1Options {
+  /**
+   * Strict mode for career-scan: fail-closed on ambiguous titles.
+   *
+   * - Discipline must be explicitly engineering/product/data (null → reject)
+   * - Seniority must be explicitly detected and meet min_role_level
+   *   (null → reject)
+   *
+   * Email-pipeline callers leave this off to preserve fail-open behavior
+   * on noisy digest data.
+   */
+  strict?: boolean;
+}
+
+const STRICT_ALLOWED_DISCIPLINES: ReadonlySet<Discipline> = new Set([
+  "engineering",
+  "product",
+  "data",
+]);
+
 /**
  * Stage 1: deterministic knockouts. Only rejects on high-confidence mismatches.
  * Fail-open on ambiguity — a null seniority classification passes through.
  */
 export function evaluateStage1(
   lead: Stage1Input,
-  prefs: LeadFilterPrefs
+  prefs: LeadFilterPrefs,
+  options: Stage1Options = {}
 ): Stage1Result {
   if (!prefs.lead_filter_enabled) return { pass: true };
+  const strict = options.strict === true;
 
-  // Discipline knockout — reject roles categorically outside software engineering.
-  // Fail-open on null (ambiguous titles pass through).
+  // Discipline knockout.
+  // - Normal mode: reject only if discipline is explicitly in the reject-list
+  //   (fail-open on null — good for noisy email digest titles).
+  // - Strict mode: require discipline to be explicitly engineering/product/
+  //   data. Null or outside the allow-list → reject.
   const discipline = detectDiscipline(lead.role);
-  if (discipline !== null && REJECTED_DISCIPLINES.has(discipline)) {
+  if (strict) {
+    if (discipline === null || !STRICT_ALLOWED_DISCIPLINES.has(discipline)) {
+      return {
+        pass: false,
+        reason: `Ambiguous or non-technical title: "${lead.role}"`,
+      };
+    }
+  } else if (discipline !== null && REJECTED_DISCIPLINES.has(discipline)) {
     return {
       pass: false,
       reason: `Discipline mismatch: ${discipline} role, engineering preferred`,
     };
   }
 
-  // Seniority knockout
+  // Seniority knockout.
+  // - Normal mode: fail-open on null detection.
+  // - Strict mode: null detection is a rejection — we want an explicit
+  //   match for career-scan results.
   if (prefs.min_role_level && prefs.min_role_level !== "any") {
     const minLevel = prefs.min_role_level as SeniorityLevel;
     const minIdx = SENIORITY_ORDER.indexOf(minLevel);
     if (minIdx >= 0) {
       const detected = detectSeniority(lead.role);
-      if (detected !== null) {
+      if (detected === null) {
+        if (strict) {
+          return {
+            pass: false,
+            reason: `Seniority unclear: "${lead.role}" — explicit level required`,
+          };
+        }
+      } else {
         const detectedIdx = SENIORITY_ORDER.indexOf(detected);
         if (detectedIdx < minIdx) {
           return {

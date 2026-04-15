@@ -174,7 +174,8 @@ export async function GET(req: Request) {
               company: target.company_name,
               location: j.location ?? null,
             },
-            prefs
+            prefs,
+            { strict: true }
           );
           if (verdict.pass) passing.push(j);
         }
