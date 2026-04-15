@@ -105,10 +105,16 @@ function looksLikeRealJd(text: string): boolean {
   if (!text || text.length < 200) return false;
   const headerLines = (text.match(/(?:^|\n)(?:From|Sent|To|Subject|Date|Cc):\s/gi) ?? []).length;
   if (headerLines >= 3) return false;
+  // Long captures from the extension are real JDs even if the wording avoids
+  // the canonical "responsibilities/qualifications" keywords (e.g. exec search
+  // listings written as prose). Length is a strong enough signal on its own.
+  if (text.length >= 800) return true;
   const jdSignals = [
     /responsibilit/i, /requirement/i, /qualificat/i, /experience/i,
     /duties/i, /what you['']ll (?:do|bring)/i, /we['']re looking for/i,
     /must have/i, /years? of/i, /bachelor|master|degree/i,
+    /leader(?:ship)?/i, /team/i, /role (?:will|involves|requires)/i,
+    /the role/i, /you['']ll (?:be|have|own|lead|build|drive)/i,
   ];
   return jdSignals.filter((p) => p.test(text)).length >= 2;
 }
