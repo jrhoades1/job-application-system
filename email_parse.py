@@ -1,6 +1,12 @@
 """
 Email Pipeline — Step 2: Parse
 
+LEAD INTAKE ONLY. This parser extracts company/role/source metadata
+from job alert emails to seed pipeline leads. It MUST NOT be used as
+a source of job descriptions — real JDs come exclusively from the
+Chrome extension's DOM capture on the live job posting. Never
+synthesize or reconstruct a JD from email body text.
+
 Reads raw email JSON files from staging/raw/ and extracts structured
 job leads: company name, role title, source platform, confidence.
 

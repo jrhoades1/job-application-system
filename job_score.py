@@ -1,6 +1,13 @@
 """
 Email Pipeline — Step 4: Score & Rank
 
+DEPRECATED (2026-04-15): The authoritative scoring engine is now the
+TypeScript implementation at apps/web/src/scoring/ (6 modules, 33 Vitest
+tests). This Python engine is kept only for legacy CLI workflows and
+should not be extended. New scoring rules go in
+packages/scoring-rules/scoring-rules.yaml and the TS modules. When the
+web scorer fully owns all scoring surfaces, delete this file.
+
 Scores each sourced job description against master/achievements.md
 using the same criteria as the job-intake skill, then produces a
 ranked review queue.
