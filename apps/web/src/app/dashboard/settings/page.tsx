@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { ProfileForm } from "@/components/settings/profile-form";
 import { CostUsage } from "@/components/settings/cost-usage";
 import { BullseyeForm } from "@/components/settings/bullseye-form";
+import { TargetCompaniesForm } from "@/components/settings/target-companies-form";
 
 interface EmailConnection {
   email_address: string;
@@ -84,6 +85,7 @@ export default function SettingsPage() {
         <TabsList>
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="bullseye">Bullseye</TabsTrigger>
+          <TabsTrigger value="targets">Targets</TabsTrigger>
           <TabsTrigger value="gmail">Gmail</TabsTrigger>
           <TabsTrigger value="extension">Extension</TabsTrigger>
           <TabsTrigger value="costs">Cost & Usage</TabsTrigger>
@@ -102,6 +104,10 @@ export default function SettingsPage() {
             </p>
             <BullseyeForm />
           </div>
+        </TabsContent>
+
+        <TabsContent value="targets">
+          <TargetCompaniesForm />
         </TabsContent>
 
         <TabsContent value="gmail">
