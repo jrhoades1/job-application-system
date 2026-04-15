@@ -15,6 +15,13 @@ const PREFS_MID: LeadFilterPrefs = {
   salary_min: null,
 };
 
+const PREFS_MANAGER: LeadFilterPrefs = {
+  lead_filter_enabled: true,
+  min_role_level: "manager",
+  remote_preference: "remote",
+  salary_min: null,
+};
+
 function stage1(role: string, prefs = PREFS, strict = true, location?: string) {
   return evaluateStage1(
     { role, company: "FakeCo", location: location ?? null },
@@ -22,6 +29,34 @@ function stage1(role: string, prefs = PREFS, strict = true, location?: string) {
     { strict }
   );
 }
+
+describe("evaluateStage1 — strict mode engineering-only", () => {
+  it("rejects Senior Product Manager (product is not engineering)", () => {
+    expect(stage1("Senior Product Manager, Fraud & Trust").pass).toBe(false);
+  });
+
+  it("rejects Principal Product Manager", () => {
+    expect(stage1("Principal Product Manager, Agentic Commerce").pass).toBe(
+      false
+    );
+  });
+
+  it("rejects Senior Technical Project Manager", () => {
+    expect(stage1("Senior Technical Project Manager").pass).toBe(false);
+  });
+
+  it("allows Data Engineering Manager when min=manager (engineering via 'engineering' keyword)", () => {
+    expect(
+      stage1("Data Engineering Manager, Core Experience", PREFS_MANAGER).pass
+    ).toBe(true);
+  });
+
+  it("allows ML Engineering Manager when min=manager", () => {
+    expect(
+      stage1("Engineering Manager, Machine Learning", PREFS_MANAGER).pass
+    ).toBe(true);
+  });
+});
 
 describe("evaluateStage1 — strict mode discipline rejections", () => {
   it("rejects ambiguous administrative titles", () => {

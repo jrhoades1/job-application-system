@@ -209,10 +209,13 @@ export interface Stage1Options {
   strict?: boolean;
 }
 
+// Strict mode is engineering-only by design — it's used by career-scan for
+// a user targeting engineering leadership roles. Product Manager titles ("PM",
+// "Product Lead") would otherwise pass through and swamp the feed with IC
+// product roles, which are a distinct career track. Data scientist / ML
+// engineer titles already match the `engineering` regex via "engineer".
 const STRICT_ALLOWED_DISCIPLINES: ReadonlySet<Discipline> = new Set([
   "engineering",
-  "product",
-  "data",
 ]);
 
 /**
