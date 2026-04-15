@@ -218,6 +218,22 @@ const STRICT_ALLOWED_DISCIPLINES: ReadonlySet<Discipline> = new Set([
   "engineering",
 ]);
 
+// Compound non-engineering titles that would otherwise slip past the engineering
+// classifier because the discipline regex is greedy on "technical" / "technology".
+// These are coordination / customer-facing / partnerships roles — real jobs, but
+// not engineering leadership. Applied only in strict mode.
+const STRICT_TITLE_REJECT_PATTERNS: RegExp[] = [
+  // Project / Program Manager (including "Senior Technical Project Manager")
+  /\b(technical\s+)?(project|program)\s+manager\b/i,
+  // Technical Account / Partner / Support Manager — customer-facing, not eng
+  /\btechnical\s+(account|partner|support|solutions)\s+(manager|lead|director)\b/i,
+  // Generic partnerships titles — business development, not engineering
+  /\b(partnerships?\s+(manager|lead|director|head)|partner\s+manager)\b/i,
+  /\btechnology\s+partnerships?\b/i,
+  // Technical writer / documentation
+  /\btechnical\s+writer\b/i,
+];
+
 /**
  * Stage 1: deterministic knockouts. Only rejects on high-confidence mismatches.
  * Fail-open on ambiguity — a null seniority classification passes through.
@@ -242,6 +258,16 @@ export function evaluateStage1(
         pass: false,
         reason: `Ambiguous or non-technical title: "${lead.role}"`,
       };
+    }
+    // Second-pass: reject compound non-engineering leadership titles that
+    // match the engineering discipline regex via "technical" / "technology".
+    for (const pattern of STRICT_TITLE_REJECT_PATTERNS) {
+      if (pattern.test(lead.role)) {
+        return {
+          pass: false,
+          reason: `Non-engineering leadership title: "${lead.role}"`,
+        };
+      }
     }
   } else if (discipline !== null && REJECTED_DISCIPLINES.has(discipline)) {
     return {

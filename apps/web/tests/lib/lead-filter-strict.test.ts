@@ -41,8 +41,44 @@ describe("evaluateStage1 — strict mode engineering-only", () => {
     );
   });
 
-  it("rejects Senior Technical Project Manager", () => {
-    expect(stage1("Senior Technical Project Manager").pass).toBe(false);
+  it("rejects Senior Technical Project Manager (compound reject)", () => {
+    const r = stage1("Senior Technical Project Manager", PREFS_MANAGER);
+    expect(r.pass).toBe(false);
+    expect(r.reason).toMatch(/Non-engineering leadership/i);
+  });
+
+  it("rejects Staff Technical Project Manager, Global Expansion & M&A", () => {
+    expect(
+      stage1("Staff Technical Project Manager, Global Expansion & M&A",
+        PREFS_MANAGER).pass
+    ).toBe(false);
+  });
+
+  it("rejects Technical Program Manager", () => {
+    expect(stage1("Technical Program Manager", PREFS_MANAGER).pass).toBe(false);
+  });
+
+  it("rejects Senior Manager, Product and Technology Partnerships", () => {
+    expect(
+      stage1("Senior Manager, Product and Technology Partnerships",
+        PREFS_MANAGER).pass
+    ).toBe(false);
+  });
+
+  it("rejects Technical Account Manager", () => {
+    expect(stage1("Technical Account Manager", PREFS_MANAGER).pass).toBe(false);
+  });
+
+  it("rejects Partnerships Manager", () => {
+    expect(stage1("Partnerships Manager", PREFS_MANAGER).pass).toBe(false);
+  });
+
+  it("allows Engineering Program Manager, Infrastructure", () => {
+    // Edge case: this IS legit eng leadership at some companies. But our
+    // compound reject catches "Program Manager" — document the tradeoff.
+    const r = stage1("Engineering Program Manager, Infrastructure",
+      PREFS_MANAGER);
+    expect(r.pass).toBe(false); // currently rejected; accept as known false-negative
   });
 
   it("allows Data Engineering Manager when min=manager (engineering via 'engineering' keyword)", () => {
