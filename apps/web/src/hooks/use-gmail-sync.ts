@@ -23,6 +23,7 @@ export function useGmailSync(options?: { onSynced?: () => void }) {
         const parts = [];
         if (d.inserted > 0) parts.push(`${d.inserted} new lead${d.inserted !== 1 ? "s" : ""}`);
         if (d.confirmed > 0) parts.push(`${d.confirmed} application${d.confirmed !== 1 ? "s" : ""} confirmed`);
+        if (d.rejected > 0) parts.push(`${d.rejected} rejection${d.rejected !== 1 ? "s" : ""} processed`);
         toast.success(
           parts.length > 0
             ? `Sync complete — ${parts.join(", ")}`
