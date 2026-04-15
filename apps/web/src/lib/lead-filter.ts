@@ -223,6 +223,11 @@ const STRICT_ALLOWED_DISCIPLINES: ReadonlySet<Discipline> = new Set([
 // These are coordination / customer-facing / partnerships roles — real jobs, but
 // not engineering leadership. Applied only in strict mode.
 const STRICT_TITLE_REJECT_PATTERNS: RegExp[] = [
+  // Product Manager (inc. "Technical Product Manager", "Senior Product Manager,
+  // Data Integration Platform"). Product is a distinct career track from
+  // engineering leadership. Detected here because "technical"/"platform"/etc.
+  // in the surrounding title trigger the engineering discipline regex first.
+  /\bproduct\s+manager\b/i,
   // Project / Program Manager (including "Senior Technical Project Manager")
   /\b(technical\s+)?(project|program)\s+manager\b/i,
   // Technical Account / Partner / Support Manager — customer-facing, not eng

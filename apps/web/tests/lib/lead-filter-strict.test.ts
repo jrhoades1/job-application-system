@@ -58,6 +58,22 @@ describe("evaluateStage1 — strict mode engineering-only", () => {
     expect(stage1("Technical Program Manager", PREFS_MANAGER).pass).toBe(false);
   });
 
+  it("rejects Technical Product Manager (slipped past discipline via 'technical')", () => {
+    const r = stage1("Technical Product Manager – IAM/Access Management",
+      PREFS_MANAGER);
+    expect(r.pass).toBe(false);
+    expect(r.reason).toMatch(/Non-engineering leadership/i);
+  });
+
+  it("rejects Senior Product Manager, Data Integration Platform", () => {
+    // "platform" matches engineering regex, "Senior Product Manager" must be
+    // caught by compound reject instead.
+    expect(
+      stage1("Senior Product Manager, Data Integration Platform",
+        PREFS_MANAGER).pass
+    ).toBe(false);
+  });
+
   it("rejects Senior Manager, Product and Technology Partnerships", () => {
     expect(
       stage1("Senior Manager, Product and Technology Partnerships",
