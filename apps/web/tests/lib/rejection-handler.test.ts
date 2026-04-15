@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   matchRejectionToApp,
   extractRejectionReason,
+  extractForwardedSender,
   normalizeName,
   type AppliedAppRef,
 } from "../../src/lib/rejection-handler";
@@ -190,5 +191,73 @@ describe("extractRejectionReason", () => {
       "Hi Jimmy, here is a totally unrelated note with no rejection phrasing in it at all."
     );
     expect(reason).toMatch(/generic decline|no body/i);
+  });
+});
+
+describe("extractForwardedSender", () => {
+  it("extracts the display name from a Gmail-forwarded block", () => {
+    const body = `
+Hey, thought you should see this.
+
+---------- Forwarded message ---------
+From: MosaicHealthWorkday <verawholehealth@myworkday.com>
+Date: Wed, Apr 15, 2026 at 8:15 AM
+Subject: Update on your application for Associate Director Engineering at Mosaic Health
+To: jimmyrhoades1@gmail.com
+
+Thank you for your time applying...
+    `;
+    expect(extractForwardedSender(body)).toBe("MosaicHealth");
+  });
+
+  it("extracts from a bare From header (NIKE myworkday tenant)", () => {
+    const body = `
+---------- Forwarded message ---------
+From: NIKE <nike@myworkday.com>
+Date: Thu, 9 Apr 2026 07:06:21 +0000
+Subject: NIKE - Application Update
+To: jimmyrhoades1@gmail.com
+
+Hello Jimmy, We appreciate your interest in joining NIKE...
+    `;
+    expect(extractForwardedSender(body)).toBe("NIKE");
+  });
+
+  it("extracts from domain when display name is a noreply alias", () => {
+    const body = `
+---------- Forwarded message ---------
+From: no-reply@smithrx.com
+Date: Fri, 3 Apr 2026 00:38:02 +0000
+Subject: Update on your application for Manager, Software Engineering with SmithRx
+To: jimmyrhoades1@gmail.com
+
+Hi Jimmy, Thank you for applying for the Manager, Software Engineering role at SmithRx.
+    `;
+    expect(extractForwardedSender(body)).toBe("Smithrx");
+  });
+
+  it("returns null when no forwarded marker is present", () => {
+    expect(extractForwardedSender("Just a normal email, not forwarded.")).toBeNull();
+  });
+
+  it("returns null when the forwarded block has no From header", () => {
+    const body = `
+---------- Forwarded message ---------
+Date: Fri, 3 Apr 2026 00:38:02 +0000
+Subject: Something
+
+No from header here.
+    `;
+    expect(extractForwardedSender(body)).toBeNull();
+  });
+
+  it("skips generic mail domains", () => {
+    const body = `
+---------- Forwarded message ---------
+From: somebody@gmail.com
+Date: Fri, 3 Apr 2026 00:38:02 +0000
+Subject: Nothing useful
+    `;
+    expect(extractForwardedSender(body)).toBeNull();
   });
 });

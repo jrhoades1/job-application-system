@@ -16,6 +16,7 @@ import {
 import {
   matchRejectionToApp,
   extractRejectionReason,
+  extractForwardedSender,
   type AppliedAppRef,
 } from "@/lib/rejection-handler";
 import {
@@ -735,12 +736,26 @@ export async function POST(req: Request) {
       // Only high-confidence matches are auto-applied — ambiguous ones fall
       // through to the existing pipeline so the user can triage manually.
       if (isRejectionEmail(subject, body) && appliedApps.length > 0) {
-        const candidateCompany = extractConfirmationCompany(
+        // Direct rejections have the employer in the From: header.
+        let candidateCompany = extractConfirmationCompany(
           from,
           subject,
           body,
           userFullName
         );
+
+        // Forwarded rejections have the USER in the outer From:, so fall back
+        // to parsing the embedded "---- Forwarded message ----" header block
+        // for the original sender. We trigger the fallback when the subject
+        // is a Fwd/Fw OR when the initial extraction resolved to the user.
+        const isForwarded = /^(fw|fwd)\s*:/i.test(subject.trim());
+        if (isForwarded || !candidateCompany) {
+          const forwarded = extractForwardedSender(body);
+          if (forwarded) {
+            candidateCompany = forwarded;
+          }
+        }
+
         const match = matchRejectionToApp(
           candidateCompany,
           subject,

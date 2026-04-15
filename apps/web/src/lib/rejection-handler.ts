@@ -152,6 +152,90 @@ export function matchRejectionToApp(
 }
 
 /**
+ * Extract the original sender (company name) from a forwarded email body.
+ *
+ * Gmail-forwarded messages embed a "---------- Forwarded message ---------"
+ * block followed by a `From: "Display Name" <addr@domain>` header that names
+ * the real sender. When the outer From: is the user themselves, this is the
+ * only reliable way to learn who the email was actually from.
+ *
+ * Returns the best candidate company name (prefer display name when it looks
+ * like a company; fall back to domain) or null if nothing parseable is found.
+ */
+export function extractForwardedSender(body: string): string | null {
+  if (!body) return null;
+
+  // Find the forwarded-header block.
+  const markerMatch = body.match(/---+\s*Forwarded message\s*---+/i);
+  if (!markerMatch) return null;
+
+  const after = body.slice(markerMatch.index! + markerMatch[0].length);
+  const headerBlock = after.slice(0, 1500);
+
+  // Grab the inner "From: ..." line.
+  const fromLine = headerBlock.match(/^\s*From:\s*(.+?)$/m);
+  if (!fromLine) return null;
+  const fromRaw = fromLine[1].trim();
+
+  // Separate display name from address.
+  const angleMatch = fromRaw.match(/^"?([^"<]+?)"?\s*<([^>]+)>\s*$/);
+  let displayName = "";
+  let address = "";
+  if (angleMatch) {
+    displayName = angleMatch[1].trim();
+    address = angleMatch[2].trim();
+  } else {
+    // Bare address or bare name
+    if (/@/.test(fromRaw)) {
+      address = fromRaw;
+    } else {
+      displayName = fromRaw;
+    }
+  }
+
+  // Prefer display name if it looks like a company (not a noreply/generic bot).
+  const NOISY_NAMES =
+    /^(no-?reply|notifications?|careers?|jobs?|talent|recruiting|hr|workday|mail)$/i;
+  if (displayName && !NOISY_NAMES.test(displayName.replace(/\s+/g, ""))) {
+    // Strip common "Workday" suffix from things like "NikeWorkday"
+    const cleaned = displayName.replace(/\s*Workday\s*$/i, "").trim();
+    if (cleaned.length >= 2) return cleaned;
+  }
+
+  // Fall back to domain name, stripped of TLD.
+  const domainMatch = address.match(/@([a-zA-Z0-9.-]+)/);
+  if (domainMatch) {
+    const host = domainMatch[1].toLowerCase();
+    // Skip generic mail/consumer domains and Workday tenant subdomains.
+    if (/^(gmail|outlook|yahoo|hotmail|icloud|aol|proton|mail)\./.test(host + ".")) {
+      return null;
+    }
+    // myworkday.com tenants look like foo@companyname.myworkday.com —
+    // wait, actually they're structured as foo@myworkday.com with the tenant
+    // baked into the localpart. For "nike@myworkday.com" the domain is
+    // "myworkday.com" so we can't get the company from it; fall through.
+    if (/myworkday\.com$/i.test(host)) {
+      // Try localpart — "nike@myworkday.com" → "nike"
+      const localpart = address.split("@")[0];
+      if (localpart && localpart.length >= 2 && !NOISY_NAMES.test(localpart)) {
+        return localpart.charAt(0).toUpperCase() + localpart.slice(1);
+      }
+      return null;
+    }
+    // Strip TLD: "smithrx.com" → "smithrx"
+    const base = host.replace(/\.(com|org|io|co|net|ai|us|app|health|health)$/i, "");
+    // Handle subdomains: "careers.company.com" → "company"
+    const parts = base.split(".");
+    const core = parts[parts.length - 1];
+    if (core && core.length >= 2) {
+      return core.charAt(0).toUpperCase() + core.slice(1);
+    }
+  }
+
+  return null;
+}
+
+/**
  * Extract a short, human-readable rejection reason from the email body. Grabs
  * the sentence containing the strongest rejection phrase, trims boilerplate,
  * caps length. Falls back to a generic label if nothing specific is found.
