@@ -42,7 +42,8 @@ export async function GET(req: Request) {
         .order("email_date", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false });
     } else {
-      // Best Match: sort by match percentage descending (highest first)
+      // Best Match: SQL pre-sort; final ordering applied in JS below so the
+      // tier (score_overall) takes precedence over raw match percentage.
       query = query
         .order("score_match_percentage", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false });
@@ -58,27 +59,49 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Newest sort: re-bucket by day, then tier-break within each day by
-    // score so a "Good" lead on the same day outranks a "Stretch" lead.
-    // email_date is a full timestamp so SQL secondary sort alone doesn't
-    // bucket same-day leads.
-    if (sort === "newest" && data) {
-      const TIER_RANK: Record<string, number> = {
-        strong: 0,
-        good: 1,
-        stretch: 2,
-        long_shot: 3,
-      };
-      const dayBucket = (iso: string | null): string =>
-        iso ? iso.slice(0, 10) : "";
-      data.sort((a, b) => {
-        const dayDiff = dayBucket(b.email_date).localeCompare(dayBucket(a.email_date));
-        if (dayDiff !== 0) return dayDiff;
-        const tierDiff =
-          (TIER_RANK[a.score_overall] ?? 99) - (TIER_RANK[b.score_overall] ?? 99);
-        if (tierDiff !== 0) return tierDiff;
-        return (b.score_match_percentage ?? 0) - (a.score_match_percentage ?? 0);
-      });
+    const TIER_RANK: Record<string, number> = {
+      strong: 0,
+      good: 1,
+      stretch: 2,
+      long_shot: 3,
+    };
+
+    if (data) {
+      if (sort === "newest") {
+        // Re-bucket by day, then tier-break within each day so a "Good" lead
+        // on the same day outranks a "Stretch" lead. email_date is a full
+        // timestamp so SQL secondary sort alone doesn't bucket same-day leads.
+        const dayBucket = (iso: string | null): string =>
+          iso ? iso.slice(0, 10) : "";
+        data.sort((a, b) => {
+          const dayDiff = dayBucket(b.email_date).localeCompare(
+            dayBucket(a.email_date)
+          );
+          if (dayDiff !== 0) return dayDiff;
+          const tierDiff =
+            (TIER_RANK[a.score_overall] ?? 99) -
+            (TIER_RANK[b.score_overall] ?? 99);
+          if (tierDiff !== 0) return tierDiff;
+          return (b.score_match_percentage ?? 0) - (a.score_match_percentage ?? 0);
+        });
+      } else {
+        // Best Match: tier first (strong → good → stretch → long_shot),
+        // then match percentage within tier, then created_at. This ensures a
+        // Good lead always outranks any Long Shot regardless of raw %.
+        data.sort((a, b) => {
+          const tierDiff =
+            (TIER_RANK[a.score_overall] ?? 99) -
+            (TIER_RANK[b.score_overall] ?? 99);
+          if (tierDiff !== 0) return tierDiff;
+          const pctDiff =
+            (b.score_match_percentage ?? -1) - (a.score_match_percentage ?? -1);
+          if (pctDiff !== 0) return pctDiff;
+          return (
+            new Date(b.created_at ?? 0).getTime() -
+            new Date(a.created_at ?? 0).getTime()
+          );
+        });
+      }
     }
 
     return NextResponse.json(data ?? []);
