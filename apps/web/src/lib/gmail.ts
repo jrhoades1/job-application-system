@@ -412,6 +412,34 @@ export async function labelMessage(
 }
 
 /**
+ * Archive a Gmail message by removing the INBOX label. Optionally apply one or
+ * more labels in the same modify call so the message lands in "All Mail" with
+ * the supplied labels attached. Requires the gmail.modify scope, which the
+ * project already requests during OAuth connect.
+ */
+export async function archiveMessage(
+  accessToken: string,
+  messageId: string,
+  addLabelIds: string[] = []
+): Promise<boolean> {
+  const res = await fetch(
+    `${GMAIL_API}/users/me/messages/${messageId}/modify`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        removeLabelIds: ["INBOX"],
+        addLabelIds,
+      }),
+    }
+  );
+  return res.ok;
+}
+
+/**
  * SHA-256 fingerprint of an email for deduplication.
  */
 export async function computeEmailFingerprint(
