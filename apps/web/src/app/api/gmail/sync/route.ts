@@ -11,7 +11,13 @@ import {
   computeEmailFingerprint,
   getOrCreateLabel,
   labelMessage,
+  archiveMessage,
 } from "@/lib/gmail";
+import {
+  matchRejectionToApp,
+  extractRejectionReason,
+  type AppliedAppRef,
+} from "@/lib/rejection-handler";
 import {
   extractRequirements,
   scoreRequirement,
@@ -583,6 +589,16 @@ export async function POST(req: Request) {
       .is("deleted_at", null)
       .in("status", ["evaluating", "pending_review", "ready_to_apply"]);
 
+    // Load applied/interviewing applications for rejection matching. These are
+    // the only rows we'll consider flipping to `rejected` during this sync.
+    const { data: appliedAppsData } = await supabase
+      .from("applications")
+      .select("id, company, role, status")
+      .eq("clerk_user_id", userId)
+      .is("deleted_at", null)
+      .in("status", ["applied", "interviewing"]);
+    const appliedApps: AppliedAppRef[] = (appliedAppsData ?? []) as AppliedAppRef[];
+
     // Load ALL applications + active pipeline leads for duplicate detection
     // (company + role). Seeding from pipeline_leads prevents the same posting
     // from re-landing as a new lead on subsequent syncs (LinkedIn digests
@@ -634,6 +650,9 @@ export async function POST(req: Request) {
     // Resolve Gmail labels for tagging processed messages
     const processedLabelId = await getOrCreateLabel(tokens.access_token, "pipeline/processed");
     const notJobLabelId = await getOrCreateLabel(tokens.access_token, "pipeline/not-job");
+    const rejectedLabelId = await getOrCreateLabel(tokens.access_token, "pipeline/rejected");
+
+    let rejectionsProcessed = 0;
 
     for (const msg of messages) {
       // Skip if base email ID or any multi-job variant already exists
@@ -708,6 +727,69 @@ export async function POST(req: Request) {
         skipped++;
         if (processedLabelId) labelMessage(tokens.access_token, msg.id, processedLabelId).catch(() => {});
         continue;
+      }
+
+      // Rejection auto-processing: if the email looks like a rejection AND we
+      // can confidently match it to an applied/interviewing row, flip that row
+      // to `rejected`, archive the email, and log a status history entry.
+      // Only high-confidence matches are auto-applied — ambiguous ones fall
+      // through to the existing pipeline so the user can triage manually.
+      if (isRejectionEmail(subject, body) && appliedApps.length > 0) {
+        const candidateCompany = extractConfirmationCompany(
+          from,
+          subject,
+          body,
+          userFullName
+        );
+        const match = matchRejectionToApp(
+          candidateCompany,
+          subject,
+          body,
+          appliedApps
+        );
+
+        if (match && match.confidence === "high") {
+          const rejectionDate = emailDate.slice(0, 10);
+          const reason = extractRejectionReason(body);
+          const matchedRow = appliedApps.find((a) => a.id === match.appId);
+
+          const { error: updateErr } = await supabase
+            .from("applications")
+            .update({
+              status: "rejected",
+              rejection_date: rejectionDate,
+              rejection_reason: reason,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", match.appId)
+            .eq("clerk_user_id", userId);
+
+          if (!updateErr) {
+            await supabase.from("application_status_history").insert({
+              application_id: match.appId,
+              clerk_user_id: userId,
+              from_status: matchedRow?.status ?? "applied",
+              to_status: "rejected",
+              source: "email_detection",
+            });
+
+            // Archive + label the email so it leaves the inbox.
+            const extraLabels = rejectedLabelId ? [rejectedLabelId] : [];
+            archiveMessage(tokens.access_token, msg.id, extraLabels).catch(
+              () => {}
+            );
+
+            // Drop from the in-memory list so we don't match the same row
+            // again in this sync (two rejection emails from the same company).
+            const idx = appliedApps.findIndex((a) => a.id === match.appId);
+            if (idx !== -1) appliedApps.splice(idx, 1);
+
+            existingUids.add(msg.id);
+            rejectionsProcessed++;
+            continue;
+          }
+        }
+        // No confident match — fall through to normal handling below.
       }
 
       if (!isJobEmail(from, subject, body)) {
@@ -1015,7 +1097,8 @@ export async function POST(req: Request) {
       found: messages.length,
       inserted,
       confirmed,
-      skipped: messages.length - inserted - confirmed,
+      rejected: rejectionsProcessed,
+      skipped: messages.length - inserted - confirmed - rejectionsProcessed,
     });
   } catch (err) {
     console.error("Gmail sync error:", err);
