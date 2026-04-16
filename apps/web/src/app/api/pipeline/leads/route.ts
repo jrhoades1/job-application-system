@@ -21,6 +21,7 @@ const updateLeadSchema = z.object({
   action: z.enum(["promote", "skip", "update_description"]).optional(),
   skip_reason: z.string().max(500).optional(),
   description_text: z.string().max(50000).optional(),
+  career_page_url: z.string().url().max(2000).optional(),
 });
 
 // GET — list pipeline leads with optional status filter
@@ -129,7 +130,22 @@ export async function PATCH(req: Request) {
       );
     }
 
-    const { id, action, skip_reason, description_text } = parsed.data;
+    const { id, action, skip_reason, description_text, career_page_url } = parsed.data;
+
+    // Update career_page_url — lets the user paste a URL when the email
+    // digest didn't include one, so the "Capture via Extension" path works.
+    if (!action && career_page_url) {
+      const { error } = await supabase
+        .from("pipeline_leads")
+        .update({ career_page_url })
+        .eq("id", id)
+        .eq("clerk_user_id", userId);
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+      return NextResponse.json({ success: true });
+    }
 
     // Update description (after fetching full JD)
     if (action === "update_description" || (!action && description_text)) {
