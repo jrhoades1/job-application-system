@@ -110,7 +110,30 @@ const JD_EXTRACTORS: {
     ],
   },
   {
-    // Generic job boards — Greenhouse, Lever, Workday, etc.
+    // Workday job detail pages (myworkdayjobs.com or myworkdaysite.com)
+    pattern: /myworkday(?:jobs|site)\.com/i,
+    selectors: [
+      "[data-automation-id='jobPostingDescription']",
+      "[data-automation-id='job-posting-description']",
+      ".css-cygeeu", // common Workday JD container class
+      "[data-automation-id='jobPostingPage'] [class*='richText']",
+      "[data-automation-id='jobPostingPage'] [class*='description']",
+      "[class*='jobDescription']",
+      "[class*='job-description']",
+    ],
+    titleSelectors: [
+      "[data-automation-id='jobPostingHeader'] h2",
+      "[data-automation-id='jobPostingHeader']",
+      "h2[class*='title']",
+      "h1",
+    ],
+    companySelectors: [
+      "[data-automation-id='jobPostingCompany']",
+      "[class*='company']",
+    ],
+  },
+  {
+    // Generic job boards — Greenhouse, Lever, etc.
     pattern: /\/(jobs?|careers?|positions?|openings?|apply)\//i,
     selectors: [
       "#content .content-intro + div",
@@ -145,13 +168,42 @@ function shouldSkip(url: string): boolean {
   return SKIP_PATTERNS.some((p) => p.test(url));
 }
 
+/** Get clean text from an element, stripping script/style/svg noise */
+function cleanTextContent(el: Element): string {
+  const clone = el.cloneNode(true) as Element;
+  for (const tag of clone.querySelectorAll("script, style, svg, noscript")) {
+    tag.remove();
+  }
+  return clone.textContent?.trim() ?? "";
+}
+
+/** Detect if text looks like code/markup rather than a real JD */
+function looksLikeCode(text: string): boolean {
+  const codePatterns = [
+    /function\s*\(/g,
+    /\bvar\s+\w/g,
+    /=>\s*\{/g,
+    /\bconst\s+\w/g,
+    /\bwindow\.\w/g,
+    /document\.(?:get|query|create)/g,
+    /\}\s*\)\s*;/g,
+  ];
+  let hits = 0;
+  for (const p of codePatterns) {
+    const matches = text.match(p);
+    if (matches) hits += matches.length;
+  }
+  // If code patterns appear frequently relative to text length, it's code
+  return hits > 5 && hits / (text.length / 1000) > 2;
+}
+
 function extractText(selectors: string[]): string | null {
   // Try explicit selectors first
   for (const selector of selectors) {
     const els = document.querySelectorAll(selector);
     for (const el of els) {
-      const text = el.textContent?.trim() ?? "";
-      if (text.length > 100) return text;
+      const text = cleanTextContent(el);
+      if (text.length > 100 && !looksLikeCode(text)) return text;
     }
   }
 
@@ -166,8 +218,8 @@ function extractText(selectors: string[]): string | null {
       // Walk up to find a meaningful container, then grab everything after
       let container = el.parentElement;
       for (let i = 0; i < 5 && container; i++) {
-        const content = container.textContent?.trim() ?? "";
-        if (content.length > 200) return content;
+        const content = cleanTextContent(container);
+        if (content.length > 200 && !looksLikeCode(content)) return content;
         container = container.parentElement;
       }
     }
@@ -183,9 +235,9 @@ function extractText(selectors: string[]): string | null {
     if (["nav", "header", "footer"].includes(tag)) continue;
     if (["navigation", "banner", "complementary"].includes(role)) continue;
 
-    const text = block.textContent?.trim() ?? "";
+    const text = cleanTextContent(block);
     // Only consider blocks with substantial text that aren't the whole page
-    if (text.length > 200 && text.length < 20000) {
+    if (text.length > 200 && text.length < 20000 && !looksLikeCode(text)) {
       candidates.push({ el: block, length: text.length });
     }
   }
@@ -193,7 +245,7 @@ function extractText(selectors: string[]): string | null {
   // Sort by length descending, pick the largest that's likely a JD
   candidates.sort((a, b) => b.length - a.length);
   for (const c of candidates) {
-    const text = c.el.textContent?.trim() ?? "";
+    const text = cleanTextContent(c.el);
     // Check if it looks like a job description (has JD-like keywords)
     const lower = text.toLowerCase();
     if (
