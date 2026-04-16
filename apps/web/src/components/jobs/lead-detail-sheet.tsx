@@ -2,6 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
@@ -156,6 +157,8 @@ export function LeadDetailSheet({
   const [addedGaps, setAddedGaps] = useState<Set<string>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
   const [markingDead, setMarkingDead] = useState(false);
+  const [urlInput, setUrlInput] = useState("");
+  const [savingUrl, setSavingUrl] = useState(false);
 
   const hasRealJd = cleanedDescription ? looksLikeRealJd(cleanedDescription) : false;
 
@@ -244,6 +247,37 @@ export function LeadDetailSheet({
       { duration: 8000 }
     );
   }, [lead?.career_page_url]);
+
+  const handleSaveCareerUrl = useCallback(async () => {
+    if (!lead) return;
+    const trimmed = urlInput.trim();
+    try {
+      // Validate shape before hitting the API
+      new URL(trimmed);
+    } catch {
+      toast.error("Please enter a valid URL (e.g. https://...)");
+      return;
+    }
+    setSavingUrl(true);
+    try {
+      const res = await fetch("/api/pipeline/leads", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: lead.id, career_page_url: trimmed }),
+      });
+      if (res.ok) {
+        onLeadUpdated?.(lead.id, { career_page_url: trimmed });
+        setUrlInput("");
+        toast.success("URL saved — now click Capture via Extension");
+      } else {
+        const data = await res.json().catch(() => null);
+        toast.error(data?.error ?? "Failed to save URL");
+      }
+    } catch {
+      toast.error("Something went wrong");
+    }
+    setSavingUrl(false);
+  }, [lead, urlInput, onLeadUpdated]);
 
   const handleMarkDead = useCallback(async () => {
     if (!lead) return;
@@ -477,6 +511,31 @@ export function LeadDetailSheet({
                   ? "Only a summary was captured from the email digest. Open the posting and capture the full JD with the Chrome extension."
                   : "No job description was captured. Open the posting and capture the full JD with the Chrome extension."}
               </p>
+              {!lead.career_page_url && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-amber-800">
+                    Paste the posting URL
+                  </label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="url"
+                      inputMode="url"
+                      placeholder="https://www.linkedin.com/jobs/view/..."
+                      value={urlInput}
+                      onChange={(e) => setUrlInput(e.target.value)}
+                      disabled={savingUrl}
+                      className="bg-white"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={handleSaveCareerUrl}
+                      disabled={savingUrl || !urlInput.trim()}
+                    >
+                      {savingUrl ? "Saving..." : "Save URL"}
+                    </Button>
+                  </div>
+                </div>
+              )}
               <div className="flex gap-2">
                 {lead.career_page_url ? (
                   <Button size="sm" onClick={handleCaptureViaExtension}>
