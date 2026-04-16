@@ -881,6 +881,8 @@ export default function ApplicationDetailPage() {
           company={app.company}
           role={app.role}
           contact={app.contact}
+          appliedDate={app.applied_date}
+          matchScore={score ?? null}
           referralStatus={app.referral_status}
           onStatusChanged={(status) => setApp({ ...app, referral_status: status })}
         />
