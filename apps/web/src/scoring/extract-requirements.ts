@@ -125,14 +125,21 @@ export function extractRequirements(
     const lower = stripped.toLowerCase();
     const isBullet = /^[-•*]\s/.test(stripped) || /^\d+[.)]\s/.test(stripped);
 
-    // Detect section headers (only non-bullet lines)
+    // Detect section headers (only non-bullet lines).
+    // If a line matches a section header, treat it purely as a header and
+    // skip requirement extraction on that same line — otherwise the header
+    // text itself (e.g. "Must have experience with the following:") gets
+    // pushed as a requirement because it matches REQ_INDICATORS.
     if (!isBullet) {
+      let matchedAsHeader = false;
       for (const [section, pattern] of Object.entries(SECTION_PATTERNS)) {
         if (pattern.test(lower) && stripped.length < 80) {
           currentSection = section;
+          matchedAsHeader = true;
           break;
         }
       }
+      if (matchedAsHeader) continue;
     }
 
     // Extract bullet points
@@ -164,7 +171,10 @@ export function extractRequirements(
       // actually looks like a requirement. Prevents benefits/culture/comp
       // paragraphs from bleeding into requirements when they follow the
       // requirements section without a new header.
+      // Also skip label-like lines ending in ':' — those are sub-headers,
+      // not requirements.
       if (
+        !/:\s*$/.test(stripped) &&
         !/^(?:Travel|Note|Image|About|Share)\b/.test(stripped) &&
         !SKIP_INDICATORS.some((p) => p.test(stripped)) &&
         isRequirement(stripped)
@@ -177,6 +187,7 @@ export function extractRequirements(
       stripped.length < 200
     ) {
       if (
+        !/:\s*$/.test(stripped) &&
         !/^(?:Travel|Note|Image|About|Share)\b/.test(stripped) &&
         !SKIP_INDICATORS.some((p) => p.test(stripped)) &&
         (isRequirement(stripped) || isPreferred(stripped))

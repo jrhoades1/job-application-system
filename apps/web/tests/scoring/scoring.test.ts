@@ -220,4 +220,34 @@ Responsibilities:
     expect(result.hard_requirements).toEqual([]);
     expect(result.preferred).toEqual([]);
   });
+
+  it("does not treat a section header as a requirement", () => {
+    // Regression: "Must have experience with the following:" was being
+    // pushed as a hard requirement because it matches REQ_INDICATORS
+    // via "must" — producing a 1-item list that tanked resume match to 0%.
+    const desc = `
+Senior Manager, Software Engineering
+
+Must have experience with the following:
+- 10+ years of software engineering leadership
+- Experience with cloud platforms (AWS, Azure)
+- Strong background in agile methodologies
+`;
+    const result = extractRequirements(desc);
+    expect(result.hard_requirements).not.toContain(
+      "Must have experience with the following:"
+    );
+    expect(result.hard_requirements.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("skips label-like lines ending in ':' inside a requirements section", () => {
+    const desc = `
+Requirements:
+Technical skills:
+- 5+ years of Python experience
+- Experience with PostgreSQL
+`;
+    const result = extractRequirements(desc);
+    expect(result.hard_requirements).not.toContain("Technical skills:");
+  });
 });

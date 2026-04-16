@@ -162,12 +162,25 @@ def extract_requirements(job_description):
         if not stripped:
             continue
 
-        # Detect section headers
-        lower = stripped.lower()
-        for section, pattern in section_patterns.items():
-            if re.search(pattern, lower) and len(stripped) < 80:
-                current_section = section
-                break
+        is_bullet = bool(re.match(r'^[-•*]\s', stripped) or re.match(r'^\d+[.)]\s', stripped))
+
+        # Detect section headers (only on non-bullet lines — otherwise a
+        # bullet whose text happens to match a section pattern, e.g.
+        # "- 10+ years of experience", gets misread as a header).
+        # If a line matches a section header, treat it purely as a header
+        # and skip requirement extraction on that same line — otherwise the
+        # header text itself (e.g. "Must have experience with the following:")
+        # gets pushed as a requirement.
+        if not is_bullet:
+            lower = stripped.lower()
+            matched_as_header = False
+            for section, pattern in section_patterns.items():
+                if re.search(pattern, lower) and len(stripped) < 80:
+                    current_section = section
+                    matched_as_header = True
+                    break
+            if matched_as_header:
+                continue
 
         # Extract bullet points
         bullet_match = re.match(r'^[-•*]\s*(.+)$', stripped)
@@ -193,11 +206,12 @@ def extract_requirements(job_description):
                 else:
                     responsibilities.append(item)
         elif current_section == "requirements" and len(stripped) > 15 and len(stripped) < 200:
-            # Non-bullet lines in a requirements section (plain text requirements)
-            if not re.match(r'^(?:Travel|Note|Image|About|Share)\b', stripped):
+            # Non-bullet lines in a requirements section (plain text requirements).
+            # Skip label-like lines ending in ':' — those are sub-headers.
+            if not stripped.rstrip().endswith(':') and not re.match(r'^(?:Travel|Note|Image|About|Share)\b', stripped):
                 hard_requirements.append(stripped)
         elif current_section == "preferred" and len(stripped) > 15 and len(stripped) < 200:
-            if not re.match(r'^(?:Travel|Note|Image|About|Share)\b', stripped):
+            if not stripped.rstrip().endswith(':') and not re.match(r'^(?:Travel|Note|Image|About|Share)\b', stripped):
                 preferred.append(stripped)
 
     # Extract keywords (use original for broader keyword detection)
