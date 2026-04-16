@@ -177,7 +177,7 @@ describe("evaluateStage1 — strict vs fail-open parity", () => {
     expect(r.pass).toBe(true);
   });
 
-  it("strict mode rejects remote-onsite mismatch same as non-strict", () => {
+  it("strict mode rejects non-South-Florida onsite same as non-strict", () => {
     const r = stage1(
       "Director of Engineering",
       PREFS,
@@ -186,5 +186,83 @@ describe("evaluateStage1 — strict vs fail-open parity", () => {
     );
     expect(r.pass).toBe(false);
     expect(r.reason).toMatch(/Location/i);
+  });
+});
+
+describe("evaluateStage1 — location filter (South Florida or remote)", () => {
+  // Remote / hybrid — always pass
+  it("allows remote jobs", () => {
+    expect(stage1("Director of Engineering", PREFS, true, "Remote").pass).toBe(true);
+  });
+
+  it("allows remote + city combo", () => {
+    expect(stage1("Director of Engineering", PREFS, true, "Remote - San Francisco, CA").pass).toBe(true);
+  });
+
+  it("allows hybrid jobs", () => {
+    expect(stage1("Director of Engineering", PREFS, true, "Hybrid").pass).toBe(true);
+  });
+
+  // South Florida — pass
+  it("allows West Palm Beach", () => {
+    expect(stage1("Director of Engineering", PREFS, true, "West Palm Beach, FL").pass).toBe(true);
+  });
+
+  it("allows Boca Raton", () => {
+    expect(stage1("Director of Engineering", PREFS, true, "Boca Raton, FL").pass).toBe(true);
+  });
+
+  it("allows Fort Lauderdale", () => {
+    expect(stage1("Director of Engineering", PREFS, true, "Fort Lauderdale, FL").pass).toBe(true);
+  });
+
+  it("allows Miami", () => {
+    expect(stage1("Director of Engineering", PREFS, true, "Miami, FL").pass).toBe(true);
+  });
+
+  it("allows Jupiter", () => {
+    expect(stage1("Director of Engineering", PREFS, true, "Jupiter, FL").pass).toBe(true);
+  });
+
+  it("allows Palm Beach Gardens", () => {
+    expect(stage1("Director of Engineering", PREFS, true, "Palm Beach Gardens, FL").pass).toBe(true);
+  });
+
+  // Not South Florida — reject
+  it("rejects New York", () => {
+    const r = stage1("Director of Engineering", PREFS, true, "New York, NY");
+    expect(r.pass).toBe(false);
+    expect(r.reason).toMatch(/not South Florida/i);
+  });
+
+  it("rejects San Francisco", () => {
+    expect(stage1("Director of Engineering", PREFS, true, "San Francisco, CA").pass).toBe(false);
+  });
+
+  it("rejects international locations (India)", () => {
+    const r = stage1("Director of Engineering", PREFS, true, "Hyderabad, Telangana, India");
+    expect(r.pass).toBe(false);
+    expect(r.reason).toMatch(/not South Florida/i);
+  });
+
+  it("rejects international locations (UK)", () => {
+    expect(stage1("Director of Engineering", PREFS, true, "London, UK").pass).toBe(false);
+  });
+
+  it("rejects Tampa (too far north)", () => {
+    expect(stage1("Director of Engineering", PREFS, true, "Tampa, FL").pass).toBe(false);
+  });
+
+  it("rejects Orlando (too far north)", () => {
+    expect(stage1("Director of Engineering", PREFS, true, "Orlando, FL").pass).toBe(false);
+  });
+
+  // Null / empty location — fail-open
+  it("allows null location (fail-open)", () => {
+    expect(stage1("Director of Engineering", PREFS, true, undefined).pass).toBe(true);
+  });
+
+  it("allows empty location (fail-open)", () => {
+    expect(stage1("Director of Engineering", PREFS, true, "").pass).toBe(true);
   });
 });

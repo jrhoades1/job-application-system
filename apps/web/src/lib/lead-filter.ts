@@ -239,6 +239,56 @@ const STRICT_TITLE_REJECT_PATTERNS: RegExp[] = [
   /\btechnical\s+writer\b/i,
 ];
 
+// South Florida cities within ~1 hour of West Palm Beach.
+const SOUTH_FLORIDA_PATTERNS: RegExp[] = [
+  /\bwest\s+palm\s+beach\b/,
+  /\bpalm\s+beach\b/,
+  /\bboca\s+raton\b/,
+  /\bfort\s+lauderdale\b/,
+  /\bft\.?\s+lauderdale\b/,
+  /\bdelray\s+beach\b/,
+  /\bboynton\s+beach\b/,
+  /\bjupiter\b/,
+  /\bstuart\b/,
+  /\bport\s+st\.?\s+lucie\b/,
+  /\bdeerfield\s+beach\b/,
+  /\bpompano\s+beach\b/,
+  /\bcoconut\s+creek\b/,
+  /\bcoral\s+springs\b/,
+  /\bplantation\b/,
+  /\bsunrise\b/,
+  /\bdavie\b/,
+  /\bparkland\b/,
+  /\bweston\b/,
+  /\bmiramar\b/,
+  /\bhollywood,?\s+fl\b/,
+  /\bmiami\b/,
+  /\bhialeah\b/,
+  /\bhomestead\b/,
+  /\bpalm\s+beach\s+gardens\b/,
+  /\broyal\s+palm\s+beach\b/,
+  /\bwellington,?\s+fl\b/,
+  /\blake\s+worth\b/,
+  /\briviera\s+beach\b/,
+  /\bpalm\s+city\b/,
+  /\bvero\s+beach\b/,
+  // Broader FL matches — catch "South Florida", "Southeast Florida", "FL" with
+  // a South FL context. We intentionally exclude Tampa/Orlando/Jacksonville.
+  /\bsouth\s+florida\b/,
+  /\bsoutheast\s+florida\b/,
+  /\bsfl\b/,
+  /\bbroward\b/,
+  /\bpalm\s+beach\s+county\b/,
+  /\bmiami[- ]dade\b/,
+  /\bmartin\s+county\b/,
+];
+
+/** Returns true if the location string refers to South Florida (~1 hr of WPB). */
+export function isSouthFlorida(location: string): boolean {
+  const loc = location.toLowerCase();
+  return SOUTH_FLORIDA_PATTERNS.some((p) => p.test(loc));
+}
+
 /**
  * Stage 1: deterministic knockouts. Only rejects on high-confidence mismatches.
  * Fail-open on ambiguity — a null seniority classification passes through.
@@ -309,19 +359,24 @@ export function evaluateStage1(
     }
   }
 
-  // Location knockout (only when user wants remote and lead is explicitly onsite)
-  if (prefs.remote_preference === "remote") {
+  // Location knockout — two checks:
+  // 1. If it mentions remote/hybrid, it passes (regardless of other location text).
+  // 2. If it has a physical location, it must be in South Florida (~1 hr of West Palm Beach).
+  // 3. Null/empty location fails open — don't reject what we can't classify.
+  {
     const locText = (lead.location ?? "").toLowerCase();
     const descText = (lead.description_text ?? "").toLowerCase();
     const combined = `${locText} ${descText}`;
-    const isExplicitOnsite =
-      /\b(on[- ]?site|in[- ]?office|in[- ]?person)\b/.test(combined) &&
-      !/\b(remote|work from home|work from anywhere|hybrid)\b/.test(combined);
-    if (isExplicitOnsite) {
-      return {
-        pass: false,
-        reason: `Location mismatch: onsite role, remote preferred`,
-      };
+    const isRemoteOrHybrid = /\b(remote|work from home|work from anywhere|hybrid|telecommute|distributed)\b/.test(combined);
+
+    if (!isRemoteOrHybrid && locText.length > 0) {
+      // Check for South Florida (within ~1 hr of West Palm Beach)
+      if (!isSouthFlorida(locText)) {
+        return {
+          pass: false,
+          reason: `Location mismatch: "${lead.location}" — not South Florida or remote`,
+        };
+      }
     }
   }
 
