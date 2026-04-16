@@ -161,17 +161,23 @@ export async function POST(req: Request) {
 
     if (app.job_description) {
       try {
-        // Extract requirements from JD
+        // Extract requirements from JD. If the algorithmic extractor returns
+        // too few reqs on a sufficiently long JD, fall back to the AI
+        // extractor — a threshold of <3 catches cases where a single junk
+        // header line slips through and tanks the match score to 0%.
         const reqs = extractRequirements(app.job_description);
         let allReqs = [...reqs.hard_requirements, ...reqs.preferred];
 
-        if (allReqs.length === 0 && app.job_description.length > 200) {
+        if (allReqs.length < 3 && app.job_description.length > 500) {
           const aiReqs = await extractRequirementsWithAI(
             app.job_description,
             app.role ?? "",
             app.company ?? ""
           );
-          allReqs = [...aiReqs.hard_requirements, ...aiReqs.preferred];
+          const aiAll = [...aiReqs.hard_requirements, ...aiReqs.preferred];
+          if (aiAll.length > allReqs.length) {
+            allReqs = aiAll;
+          }
         }
 
         if (allReqs.length > 0) {
