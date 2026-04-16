@@ -71,11 +71,13 @@ export async function GET(req: Request) {
         // Re-bucket by day, then tier-break within each day so a "Good" lead
         // on the same day outranks a "Stretch" lead. email_date is a full
         // timestamp so SQL secondary sort alone doesn't bucket same-day leads.
+        // Fall back to created_at for career_scan leads (no email_date) so
+        // they bucket alongside same-day email-sourced leads.
         const dayBucket = (iso: string | null): string =>
           iso ? iso.slice(0, 10) : "";
         data.sort((a, b) => {
-          const dayDiff = dayBucket(b.email_date).localeCompare(
-            dayBucket(a.email_date)
+          const dayDiff = dayBucket(b.email_date ?? b.created_at).localeCompare(
+            dayBucket(a.email_date ?? a.created_at)
           );
           if (dayDiff !== 0) return dayDiff;
           const tierDiff =
