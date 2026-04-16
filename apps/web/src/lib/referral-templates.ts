@@ -79,22 +79,60 @@ export function buildLinkedInUrls(company: string, role: string): Record<TargetT
 
 // Pull the user's strongest requirement hit and turn it into a pitch line.
 // Returns null if we have nothing to say, so the UI can prompt for a manual pitch.
+//
+// Tolerates both shapes that actually exist in the match_scores table:
+//   - Legacy: string[]                                   (just the requirement name)
+//   - Current: { requirement, evidence?, category? }[]   (structured)
+// Despite the TypeScript type claiming only the structured shape.
 export function derivePitch(role: string, score: MatchScoreRow | null | undefined): string | null {
   if (!score) return null;
   const raw = score.requirements_matched;
-  const matched = Array.isArray(raw) ? raw : [];
-  if (matched.length === 0) return null;
+  if (!Array.isArray(raw) || raw.length === 0) return null;
 
-  // Prefer entries with explicit evidence -- those are the ones with a real
-  // achievement behind them rather than a keyword coincidence.
-  const withEvidence = matched.find((m) => m.evidence && m.evidence.length > 0);
-  const top = withEvidence ?? matched[0];
+  // Normalize every entry to the structured shape so the rest of the fn is simple.
+  const entries = raw
+    .map((m) => normalizeMatchEntry(m))
+    .filter((m): m is { requirement: string; evidence?: string } => m !== null);
+  if (entries.length === 0) return null;
+
+  // Prefer entries with explicit evidence -- those have a real achievement
+  // behind them rather than a keyword coincidence.
+  const withEvidence = entries.find((m) => m.evidence && m.evidence.length > 0);
+  const top = withEvidence ?? entries[0];
 
   if (top.evidence && top.evidence.length > 0) {
     return trimPitch(top.evidence);
   }
-  // Fall back to rephrasing the requirement itself.
   return trimPitch(`My background maps directly to ${top.requirement.toLowerCase()}.`);
+}
+
+function normalizeMatchEntry(
+  m: unknown
+): { requirement: string; evidence?: string } | null {
+  if (typeof m === "string") {
+    return normalizeRequirementString(m, undefined);
+  }
+  if (m && typeof m === "object" && "requirement" in m) {
+    const obj = m as { requirement?: unknown; evidence?: unknown };
+    if (typeof obj.requirement !== "string") return null;
+    const evidence = typeof obj.evidence === "string" ? obj.evidence : undefined;
+    return normalizeRequirementString(obj.requirement, evidence);
+  }
+  return null;
+}
+
+function normalizeRequirementString(
+  req: string,
+  evidence: string | undefined
+): { requirement: string; evidence?: string } | null {
+  const trimmed = req.trim();
+  if (trimmed.length === 0) return null;
+  // Filter section headers (e.g. "Must have experience with the following:") —
+  // legacy rows predate the scoring fix in c8e2dd6. Colon-terminated lines and
+  // very short stubs are almost never real requirements.
+  if (trimmed.endsWith(":")) return null;
+  if (trimmed.length < 10) return null;
+  return evidence ? { requirement: trimmed, evidence } : { requirement: trimmed };
 }
 
 function trimPitch(text: string): string {
