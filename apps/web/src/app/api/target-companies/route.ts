@@ -53,24 +53,31 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error:
-            "Unrecognized careers URL. Supported today: Greenhouse. More vendors coming soon.",
+            "Unrecognized careers URL. Supported: Greenhouse, Workday. More vendors coming soon.",
         },
         { status: 400 }
       );
     }
 
-    if (detection.vendor !== "greenhouse") {
+    const supportedVendors = new Set(["greenhouse", "workday"]);
+    if (!supportedVendors.has(detection.vendor)) {
       return NextResponse.json(
         {
-          error: `Vendor '${detection.vendor}' detected but not yet implemented. Today only Greenhouse is supported.`,
+          error: `Vendor '${detection.vendor}' detected but not yet implemented. Supported: Greenhouse, Workday.`,
         },
         { status: 400 }
       );
     }
 
+    // For Workday, derive a readable name from the tenant slug (first part of
+    // the 3-part identifier). For Greenhouse, use the whole identifier.
+    const slugForName =
+      detection.vendor === "workday"
+        ? detection.identifier.split("/")[0]
+        : detection.identifier;
     const companyName =
       parsed.data.companyName?.trim() ||
-      detection.identifier.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      slugForName.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
     const { data, error } = await supabase
       .from("target_companies")

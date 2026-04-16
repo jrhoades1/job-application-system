@@ -21,10 +21,16 @@ import { getServiceRoleClient } from "@/lib/supabase";
 import {
   scanCompany,
   diffSnapshots,
+  WorkdayAuthError,
+  WorkdayRateLimitError,
   type JobListing,
   type AtsVendor,
+  type ScanContext,
 } from "@/career-scan";
 import { evaluateStage1, type LeadFilterPrefs } from "@/lib/lead-filter";
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const WORKDAY_INTER_CALL_MS = 1500;
 
 // Cache prefs per user per run — a single cron pass usually hits only one user
 // but multi-tenant still benefits from a local memo.
@@ -85,7 +91,7 @@ export async function GET(req: Request) {
 
   const { data: targets, error: targetsErr } = await supabase
     .from("target_companies")
-    .select("id, clerk_user_id, company_name, ats_vendor, ats_identifier, last_scanned_at")
+    .select("id, clerk_user_id, company_name, ats_vendor, ats_identifier, last_scanned_at, allow_llm_fallback")
     .eq("active", true)
     .or(`last_scanned_at.is.null,last_scanned_at.lt.${staleCutoff}`)
     .order("last_scanned_at", { ascending: true, nullsFirst: true })
@@ -100,8 +106,28 @@ export async function GET(req: Request) {
 
   const results: CompanyResult[] = [];
   const prefsCache = new Map<string, LeadFilterPrefs>();
+  const throttledTenants = new Set<string>();
 
   for (const target of targets ?? []) {
+    // Skip Workday tenants that already 429'd this run
+    if (target.ats_vendor === "workday") {
+      const tenant = target.ats_identifier.split("/")[0];
+      if (throttledTenants.has(tenant)) {
+        results.push({
+          targetCompanyId: target.id,
+          company: target.company_name,
+          vendor: target.ats_vendor as AtsVendor,
+          status: "failed",
+          jobsFound: 0,
+          jobsNew: 0,
+          leadsCreated: 0,
+          leadsFilteredOut: 0,
+          jobsRemoved: 0,
+          error: "Skipped: tenant rate limited earlier in this run",
+        });
+        continue;
+      }
+    }
     const { data: runInsert } = await supabase
       .from("career_scan_runs")
       .insert({ target_company_id: target.id, status: "running" })
@@ -123,9 +149,19 @@ export async function GET(req: Request) {
     };
 
     try {
+      const scanContext: ScanContext | undefined =
+        target.ats_vendor === "workday"
+          ? {
+              supabase,
+              userId: target.clerk_user_id,
+              allowLlmFallback: target.allow_llm_fallback ?? true,
+            }
+          : undefined;
+
       const fresh: JobListing[] = await scanCompany(
         target.ats_vendor as AtsVendor,
-        target.ats_identifier
+        target.ats_identifier,
+        scanContext
       );
       result.jobsFound = fresh.length;
 
@@ -234,7 +270,18 @@ export async function GET(req: Request) {
           .eq("id", runId);
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      if (
+        err instanceof WorkdayRateLimitError &&
+        target.ats_vendor === "workday"
+      ) {
+        throttledTenants.add(target.ats_identifier.split("/")[0]);
+      }
+      const message =
+        err instanceof WorkdayAuthError
+          ? "Auth required -- remove this target"
+          : err instanceof Error
+            ? err.message
+            : String(err);
       result.status = "failed";
       result.error = message;
 
@@ -264,6 +311,11 @@ export async function GET(req: Request) {
     }
 
     results.push(result);
+
+    // Rate-limit courtesy delay between Workday calls
+    if (target.ats_vendor === "workday") {
+      await sleep(WORKDAY_INTER_CALL_MS);
+    }
   }
 
   return NextResponse.json({ ok: true, processed: results.length, results });

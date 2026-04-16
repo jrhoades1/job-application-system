@@ -28,3 +28,13 @@ export interface VendorScanError extends Error {
   vendor: AtsVendor;
   identifier: string;
 }
+
+/**
+ * Optional context passed to vendor scanners that need DB access (Workday
+ * LLM fallback) or cost-cap checking. Greenhouse doesn't need it.
+ */
+export interface ScanContext {
+  supabase: import("@supabase/supabase-js").SupabaseClient;
+  userId: string;
+  allowLlmFallback: boolean;
+}

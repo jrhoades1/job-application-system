@@ -42,10 +42,36 @@ describe("detectVendor", () => {
     ).toEqual({ vendor: "smartrecruiters", identifier: "bosch" });
   });
 
-  it("detects Workday URL", () => {
+  it("detects Workday legacy URL with tenant/wdN/site", () => {
+    expect(
+      detectVendor("https://humana.wd5.myworkdayjobs.com/Humana_External_Career_Site")
+    ).toEqual({
+      vendor: "workday",
+      identifier: "humana/wd5/Humana_External_Career_Site",
+    });
+  });
+
+  it("detects Workday localized URL (en-US prefix)", () => {
     expect(
       detectVendor("https://merck.wd5.myworkdayjobs.com/en-US/SearchJobs")
-    ).toEqual({ vendor: "workday", identifier: "merck" });
+    ).toEqual({ vendor: "workday", identifier: "merck/wd5/SearchJobs" });
+  });
+
+  it("detects Workday myworkdaysite.com URL", () => {
+    expect(
+      detectVendor(
+        "https://wd5.myworkdaysite.com/recruiting/humana/Humana_External_Career_Site/jobs"
+      )
+    ).toEqual({
+      vendor: "workday",
+      identifier: "humana/wd5/Humana_External_Career_Site",
+    });
+  });
+
+  it("returns null for Workday URL without site segment", () => {
+    expect(
+      detectVendor("https://humana.wd5.myworkdayjobs.com/")
+    ).toBeNull();
   });
 
   it("detects iCIMS URL", () => {
