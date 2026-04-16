@@ -809,9 +809,10 @@ export async function POST(req: Request) {
 
       if (!isJobEmail(from, subject, body)) {
         // Store as auto_skipped so user can see what was caught — not silently dropped
+        const skipSenderName = from.replace(/<.*>/, "").replace(/"/g, "").trim();
         await supabase.from("pipeline_leads").insert({
           clerk_user_id: userId,
-          company: from,
+          company: skipSenderName || from,
           role: subject,
           email_uid: msg.id,
           email_date: emailDate,
@@ -852,7 +853,7 @@ export async function POST(req: Request) {
       if (isMultiJobPlatform(from, subject, body)) {
         let jobs: ExtractedJob[] = [];
         try {
-          jobs = await extractJobsFromEmail(body, subject, platform);
+          jobs = await extractJobsFromEmail(body, subject, platform, userFullName);
         } catch (err) {
           console.error("AI job extraction failed, falling back to subject:", err);
         }
@@ -946,13 +947,24 @@ export async function POST(req: Request) {
       // If subject parsing failed or returned a bad company, use AI extraction
       if (!extracted || BAD_COMPANY.test(extracted.company.trim())) {
         try {
-          const aiJobs = await extractJobsFromEmail(body, subject, platform);
+          const aiJobs = await extractJobsFromEmail(body, subject, platform, userFullName);
           if (aiJobs.length > 0) {
             extracted = { company: aiJobs[0].company, role: aiJobs[0].role };
           }
         } catch (err) {
           console.error("AI extraction fallback failed for single email:", err);
         }
+      }
+
+      // If AI returned the user's own name as company (common on forwarded emails
+      // where the body contains "From: <user>"), discard it so the fallback below
+      // has a chance to find a real sender-based company.
+      if (
+        extracted &&
+        userFullName &&
+        extracted.company.trim().toLowerCase() === userFullName.toLowerCase()
+      ) {
+        extracted = null;
       }
 
       // Strip email boilerplate — only keep body as JD if it looks like a real posting.

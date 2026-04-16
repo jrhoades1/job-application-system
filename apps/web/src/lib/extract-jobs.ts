@@ -16,7 +16,8 @@ export interface ExtractedJob {
 export async function extractJobsFromEmail(
   body: string,
   subject: string,
-  platform: string | null
+  platform: string | null,
+  userFullName: string | null = null
 ): Promise<ExtractedJob[]> {
   const truncatedBody = body.slice(0, 16000); // Allow more content for full digest extraction
 
@@ -70,12 +71,14 @@ If you cannot extract any jobs with real company names, return an empty array: [
     if (!Array.isArray(parsed)) return [];
     const BAD_NAMES = /^(unknown|n\/a|company|none|not specified|-|https?|http|ftp|www|linkedin|indeed|glassdoor|ziprecruiter|dice|monster|hired|wellfound|angellist|greenhouse|lever|workday|smartrecruiters)$/i;
     const URL_LIKE = /^(https?:\/\/|www\.)|[/:].*\.(com|org|net|io)\b/i;
+    const ownNameLower = userFullName?.trim().toLowerCase() ?? null;
     return parsed.filter(
       (j: Record<string, unknown>) =>
         typeof j.company === "string" &&
         j.company.length > 0 &&
         !BAD_NAMES.test(j.company.trim()) &&
         !URL_LIKE.test(j.company.trim()) &&
+        (!ownNameLower || j.company.trim().toLowerCase() !== ownNameLower) &&
         typeof j.role === "string" &&
         j.role.length > 0
     );
