@@ -23,12 +23,16 @@ export interface TemplateData {
 
 const LINKEDIN_PEOPLE_SEARCH = "https://www.linkedin.com/search/results/people/";
 
-// LinkedIn's advanced filters (currentCompany, schoolFilter) require URN IDs
-// that we cannot resolve from a plain company name. The keyword-based fallback
-// quotes the company and combines it with role-tier vocabulary, which gets us
-// ~90% of the precision without an enrichment step.
-function buildKeywordSearch(keywords: string, extraParams: Record<string, string> = {}): string {
+// LinkedIn's `company=` param accepts a plain company name and filters to
+// current employees -- no URN ID required. That gives us precise company
+// scoping, leaving `keywords=` free for just the role/target vocabulary.
+function buildPeopleSearch(
+  company: string,
+  keywords: string,
+  extraParams: Record<string, string> = {}
+): string {
   const params = new URLSearchParams({
+    company,
     keywords,
     origin: "GLOBAL_SEARCH_HEADER",
     ...extraParams,
@@ -50,26 +54,23 @@ function roleTier(role: string): "ic" | "manager" | "director" | "exec" {
 function hiringTeamKeywords(role: string): string {
   switch (roleTier(role)) {
     case "exec":
-      return '("chief" OR "svp" OR "senior vice president" OR "board")';
+      return "chief OR SVP OR board";
     case "director":
-      return '("vp" OR "vice president" OR "director" OR "head of")';
+      return "VP OR director OR head";
     case "manager":
-      return '("director" OR "senior manager" OR "head of")';
+      return "director OR senior manager OR head";
     case "ic":
     default:
-      return '("engineering manager" OR "manager" OR "director" OR "head of")';
+      return "engineering manager OR director OR head";
   }
 }
 
 export function buildLinkedInUrls(company: string, role: string): Record<TargetType, string> {
-  const companyTerm = `"${company}"`;
   return {
-    hiring_team: buildKeywordSearch(`${companyTerm} AND ${hiringTeamKeywords(role)}`),
-    recruiter: buildKeywordSearch(
-      `${companyTerm} AND ("recruiter" OR "talent acquisition" OR "sourcer" OR "technical recruiter")`
-    ),
+    hiring_team: buildPeopleSearch(company, hiringTeamKeywords(role)),
+    recruiter: buildPeopleSearch(company, "recruiter OR talent acquisition OR sourcer"),
     // network=["F","S"] filters to 1st- and 2nd-degree connections.
-    mutuals: buildKeywordSearch(companyTerm, { network: '["F","S"]' }),
+    mutuals: buildPeopleSearch(company, "", { network: '["F","S"]' }),
   };
 }
 
