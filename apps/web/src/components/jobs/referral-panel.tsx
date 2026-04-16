@@ -23,7 +23,7 @@ interface ReferralPanelProps {
   applicationId: string;
   company: string;
   role: string;
-  contact: string;
+  contact: string | null;
   appliedDate: string | null;
   matchScore: MatchScoreRow | null;
   referralStatus: "pending" | "contacted" | "connected" | "skipped" | null;
@@ -58,8 +58,11 @@ const STATUS_CONFIG = {
 };
 
 // Pull a first name out of the free-text contact field. "Jane Doe (Director)"
-// and "jane@x.com" both collapse to "Jane" / "jane". Empty input → empty string.
-function extractFirstName(contact: string): string {
+// and "jane@x.com" both collapse to "Jane" / "jane". Empty/null input → empty string.
+// Note: `contact` is typed as `string` in ApplicationRow but the DB column is nullable,
+// so we defensively handle null/undefined here.
+function extractFirstName(contact: string | null | undefined): string {
+  if (!contact) return "";
   const trimmed = contact.trim();
   if (!trimmed) return "";
   // Email: use the local-part

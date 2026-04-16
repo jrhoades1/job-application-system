@@ -81,7 +81,8 @@ export function buildLinkedInUrls(company: string, role: string): Record<TargetT
 // Returns null if we have nothing to say, so the UI can prompt for a manual pitch.
 export function derivePitch(role: string, score: MatchScoreRow | null | undefined): string | null {
   if (!score) return null;
-  const matched = score.requirements_matched ?? [];
+  const raw = score.requirements_matched;
+  const matched = Array.isArray(raw) ? raw : [];
   if (matched.length === 0) return null;
 
   // Prefer entries with explicit evidence -- those are the ones with a real
