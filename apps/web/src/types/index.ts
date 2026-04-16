@@ -63,6 +63,7 @@ export interface ApplicationRow {
   offer_accepted: boolean | null;
   learning_flags: string[];
   referral_status: "pending" | "contacted" | "connected" | "skipped" | null;
+  referral_template_type: "referral" | "recruiter_ping" | "warm_intro" | null;
   skip_date: string | null;
   skip_reason: string | null;
   created_at: string;

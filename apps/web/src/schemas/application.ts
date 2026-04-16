@@ -78,6 +78,7 @@ export const updateApplicationSchema = createApplicationSchema.partial().extend(
   resources: z.array(resourceLinkSchema).optional(),
   learning_flags: z.array(z.string()).optional(),
   referral_status: z.enum(["pending", "contacted", "connected", "skipped"]).optional().nullable(),
+  referral_template_type: z.enum(["referral", "recruiter_ping", "warm_intro"]).optional().nullable(),
   skip_date: z.string().optional().nullable(),
   skip_reason: z.string().optional().nullable(),
 });
