@@ -72,7 +72,7 @@ If you cannot extract any jobs with real company names, return an empty array: [
     const BAD_NAMES = /^(unknown|n\/a|company|none|not specified|-|https?|http|ftp|www|linkedin|indeed|glassdoor|ziprecruiter|dice|monster|hired|wellfound|angellist|greenhouse|lever|workday|smartrecruiters)$/i;
     const URL_LIKE = /^(https?:\/\/|www\.)|[/:].*\.(com|org|net|io)\b/i;
     const ownNameLower = userFullName?.trim().toLowerCase() ?? null;
-    return parsed.filter(
+    const filtered: ExtractedJob[] = parsed.filter(
       (j: Record<string, unknown>) =>
         typeof j.company === "string" &&
         j.company.length > 0 &&
@@ -81,8 +81,65 @@ If you cannot extract any jobs with real company names, return an empty array: [
         (!ownNameLower || j.company.trim().toLowerCase() !== ownNameLower) &&
         typeof j.role === "string" &&
         j.role.length > 0
-    );
+    ) as ExtractedJob[];
+
+    return enrichJobUrls(filtered, body);
   } catch {
     return [];
   }
+}
+
+// LinkedIn and Jobicy per-job URL patterns. Search/landing URLs are explicitly
+// not matched — we only want direct "view job" links that uniquely identify
+// a posting.
+const LINKEDIN_VIEW_URL = /https?:\/\/(?:www\.)?linkedin\.com\/(?:comm\/)?jobs\/view\/(\d+)[^\s<>")]*/gi;
+const JOBICY_VIEW_URL = /https?:\/\/(?:www\.)?jobicy\.com\/jobs\/\d+[a-z0-9-]*/gi;
+const LINKEDIN_SEARCH_URL = /linkedin\.com\/(?:comm\/)?jobs\/search/i;
+const LINKEDIN_CURRENT_JOB_ID = /[?&]currentJobId=(\d+)/i;
+
+/**
+ * Fix up URLs on LLM-extracted jobs. Haiku marks `url` optional and pairs
+ * per-job URLs inconsistently on LinkedIn digest plaintext (same tracking
+ * prefix, many URLs per page) — this pass:
+ *   1. Rescues LinkedIn search URLs by extracting `currentJobId` into a
+ *      direct /jobs/view/<id>/ link.
+ *   2. Nulls out anything else that still points at a search/landing page.
+ *   3. Scans the raw body for real per-job URLs in document order and, when
+ *      the count matches the jobs array, assigns missing URLs positionally.
+ */
+function enrichJobUrls(jobs: ExtractedJob[], body: string): ExtractedJob[] {
+  // Step 1 — repair or null out bad per-job URLs the LLM returned.
+  const repaired = jobs.map((j) => {
+    if (!j.url) return j;
+    const url = j.url.trim();
+    if (LINKEDIN_SEARCH_URL.test(url)) {
+      const m = url.match(LINKEDIN_CURRENT_JOB_ID);
+      if (m) return { ...j, url: `https://www.linkedin.com/jobs/view/${m[1]}/` };
+      return { ...j, url: undefined };
+    }
+    return j;
+  });
+
+  // Step 2 — collect per-job URLs from the raw body in document order, deduped.
+  const bodyUrls: string[] = [];
+  const seen = new Set<string>();
+  const push = (u: string) => {
+    if (seen.has(u)) return;
+    seen.add(u);
+    bodyUrls.push(u);
+  };
+  for (const m of body.matchAll(LINKEDIN_VIEW_URL)) {
+    push(`https://www.linkedin.com/jobs/view/${m[1]}/`);
+  }
+  for (const m of body.matchAll(JOBICY_VIEW_URL)) {
+    push(m[0]);
+  }
+
+  // Step 3 — positional fill. Only safe when URL count matches job count;
+  // otherwise we could misattribute URLs to the wrong job.
+  if (bodyUrls.length === repaired.length) {
+    return repaired.map((j, i) => (j.url ? j : { ...j, url: bodyUrls[i] }));
+  }
+
+  return repaired;
 }
