@@ -110,6 +110,35 @@ const JD_EXTRACTORS: {
     ],
   },
   {
+    // Radancy / TalentBrew (Magic Bullet) career sites -- UHG/Optum and
+    // others. The company-hosted hostname varies (careers.unitedhealthgroup.com,
+    // jobs.humana.com, etc.) but the path shape /job/<city>/<slug>/<siteId>/<jobId>
+    // is consistent across tenants. Class names like `ajd_job-details` and
+    // `ats-description` are Radancy-specific.
+    //
+    // Note: these pages render TWO elements with the same class -- one is the
+    // metadata header (~180 chars), the other the actual JD body (~8k chars).
+    // The longest-match logic in extractText picks the right one.
+    pattern: /\/job\/[^/]+\/[^/]+\/\d+\/\d+(?:[/?#]|$)/i,
+    selectors: [
+      ".ajd_job-details__ats-description",
+      ".ats-description",
+      "#anchor-responsibilities",
+      "section.ajd_job-details.job-description",
+      "[class*='ajd_job-details']",
+    ],
+    titleSelectors: [
+      ".ajd_job-title",
+      "[class*='ajd_job-title']",
+      "h1",
+    ],
+    companySelectors: [
+      "[class*='ajd_company']",
+      "[class*='company-name']",
+      "meta[property='og:site_name']",
+    ],
+  },
+  {
     // Workday job detail pages (myworkdayjobs.com or myworkdaysite.com)
     pattern: /myworkday(?:jobs|site)\.com/i,
     selectors: [
@@ -198,13 +227,23 @@ function looksLikeCode(text: string): boolean {
 }
 
 function extractText(selectors: string[]): string | null {
-  // Try explicit selectors first
+  // Try explicit selectors first. When a selector matches multiple elements,
+  // prefer the longest text -- several ATS templates (Radancy, some Workday
+  // tenants) render a short metadata header with the SAME class as the full
+  // JD body, and "first match wins" picked up the header (~180 chars) instead
+  // of the body (~8k chars). Longest-match keeps the signal.
   for (const selector of selectors) {
     const els = document.querySelectorAll(selector);
+    let best: string | null = null;
+    let bestLen = 0;
     for (const el of els) {
       const text = cleanTextContent(el);
-      if (text.length > 100 && !looksLikeCode(text)) return text;
+      if (text.length > 100 && !looksLikeCode(text) && text.length > bestLen) {
+        best = text;
+        bestLen = text.length;
+      }
     }
+    if (best) return best;
   }
 
   // Fallback 1: find "About the job" or "Description" heading and walk DOM
