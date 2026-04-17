@@ -86,6 +86,56 @@ describe("scanWorkday", () => {
     }
   });
 
+  it("sends empty appliedFacets by default", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(mockLandingResponse(CSRF_HTML))
+      .mockResolvedValueOnce(
+        mockFetchResponse(JSON.stringify({ jobPostings: [], total: 0 }))
+      );
+    global.fetch = fetchMock;
+
+    await scanWorkday("fakeco/wd5/Site");
+
+    const postCall = fetchMock.mock.calls.find(
+      (c: unknown[]) => (c[1] as Record<string, unknown>)?.method === "POST"
+    );
+    const body = JSON.parse(
+      (postCall![1] as { body: string }).body
+    ) as { appliedFacets: Record<string, string[]> };
+    expect(body.appliedFacets).toEqual({});
+  });
+
+  it("forwards appliedFacets from ScanContext into CxS POST body", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(mockLandingResponse(CSRF_HTML))
+      .mockResolvedValueOnce(
+        mockFetchResponse(JSON.stringify({ jobPostings: [], total: 0 }))
+      );
+    global.fetch = fetchMock;
+
+    const appliedFacets = {
+      jobFamilyGroup: [
+        "e65dbadf6a50100168ed86fe4cf50001",
+        "e65dbadf6a50100168ed7f2a693c0001",
+      ],
+    };
+
+    await scanWorkday("fakeco/wd5/Site", {
+      supabase: {} as never,
+      userId: "user_x",
+      allowLlmFallback: false,
+      appliedFacets,
+    });
+
+    const postCall = fetchMock.mock.calls.find(
+      (c: unknown[]) => (c[1] as Record<string, unknown>)?.method === "POST"
+    );
+    const body = JSON.parse(
+      (postCall![1] as { body: string }).body
+    ) as { appliedFacets: Record<string, string[]> };
+    expect(body.appliedFacets).toEqual(appliedFacets);
+  });
+
   it("sends CSRF token in POST headers", async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(mockLandingResponse(CSRF_HTML))

@@ -32,6 +32,25 @@ import { evaluateStage1, type LeadFilterPrefs } from "@/lib/lead-filter";
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const WORKDAY_INTER_CALL_MS = 1500;
 
+/**
+ * Defensive read of the JSONB applied_facets column. We already enforce
+ * `jsonb_typeof = 'object'` via CHECK constraint, but the DB client returns
+ * `unknown`, and we filter to {string: string[]} before sending to Workday.
+ */
+function sanitizeFacets(raw: unknown): Record<string, string[]> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Record<string, string[]> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (
+      Array.isArray(v) &&
+      v.every((x) => typeof x === "string" && x.length > 0 && x.length < 200)
+    ) {
+      out[k] = v as string[];
+    }
+  }
+  return out;
+}
+
 // Cache prefs per user per run — a single cron pass usually hits only one user
 // but multi-tenant still benefits from a local memo.
 async function loadUserPrefs(
@@ -91,7 +110,7 @@ export async function GET(req: Request) {
 
   const { data: targets, error: targetsErr } = await supabase
     .from("target_companies")
-    .select("id, clerk_user_id, company_name, ats_vendor, ats_identifier, last_scanned_at, allow_llm_fallback")
+    .select("id, clerk_user_id, company_name, ats_vendor, ats_identifier, last_scanned_at, allow_llm_fallback, applied_facets")
     .eq("active", true)
     .or(`last_scanned_at.is.null,last_scanned_at.lt.${staleCutoff}`)
     .order("last_scanned_at", { ascending: true, nullsFirst: true })
@@ -155,6 +174,7 @@ export async function GET(req: Request) {
               supabase,
               userId: target.clerk_user_id,
               allowLlmFallback: target.allow_llm_fallback ?? true,
+              appliedFacets: sanitizeFacets(target.applied_facets),
             }
           : undefined;
 

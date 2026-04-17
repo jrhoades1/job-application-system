@@ -11,9 +11,20 @@ import { z } from "zod";
 import { getAuthenticatedClient } from "@/lib/supabase";
 import { detectVendor } from "@/career-scan";
 
+// Workday CxS facet IDs are ~32-char opaque hex strings. Cap at 200 to be safe
+// without being restrictive. Max 20 values per facet key is plenty.
+const FacetValuesSchema = z.array(z.string().min(1).max(200)).max(20);
+
+const AppliedFacetsSchema = z
+  .record(z.string().min(1).max(100), FacetValuesSchema)
+  .refine((obj) => Object.keys(obj).length <= 10, {
+    message: "Max 10 facet keys",
+  });
+
 const AddTargetSchema = z.object({
   careersUrl: z.string().url().max(500),
   companyName: z.string().trim().min(1).max(200).optional(),
+  appliedFacets: AppliedFacetsSchema.optional(),
 });
 
 export async function GET() {
@@ -22,7 +33,7 @@ export async function GET() {
 
     const { data, error } = await supabase
       .from("target_companies")
-      .select("id, company_name, careers_url, ats_vendor, ats_identifier, active, last_scanned_at, last_error, created_at")
+      .select("id, company_name, careers_url, ats_vendor, ats_identifier, active, last_scanned_at, last_error, applied_facets, created_at")
       .eq("clerk_user_id", userId)
       .order("created_at", { ascending: false });
 
@@ -79,6 +90,11 @@ export async function POST(req: Request) {
       parsed.data.companyName?.trim() ||
       slugForName.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
+    // Only persist facets for Workday — on other vendors they'd be dead weight
+    // and could surprise a future maintainer.
+    const appliedFacets =
+      detection.vendor === "workday" ? (parsed.data.appliedFacets ?? {}) : {};
+
     const { data, error } = await supabase
       .from("target_companies")
       .insert({
@@ -87,8 +103,9 @@ export async function POST(req: Request) {
         careers_url: parsed.data.careersUrl,
         ats_vendor: detection.vendor,
         ats_identifier: detection.identifier,
+        applied_facets: appliedFacets,
       })
-      .select("id, company_name, careers_url, ats_vendor, ats_identifier, active, created_at")
+      .select("id, company_name, careers_url, ats_vendor, ats_identifier, active, applied_facets, created_at")
       .single();
 
     if (error) {

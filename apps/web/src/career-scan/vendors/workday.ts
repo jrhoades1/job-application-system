@@ -145,9 +145,11 @@ export async function scanWorkday(
   let offset = 0;
   let retried429 = false;
 
+  const appliedFacets = context?.appliedFacets ?? {};
+
   while (offset < MAX_LISTINGS) {
     const body = JSON.stringify({
-      appliedFacets: {},
+      appliedFacets,
       limit: PAGE_SIZE,
       offset,
       searchText: "",
