@@ -102,6 +102,7 @@ export default function DashboardPage() {
 
   const { syncing, connected: emailConnected, sync: handleSync } = useGmailSync({
     onSynced: refreshActions,
+    autoSync: true,
   });
 
   useEffect(() => {
