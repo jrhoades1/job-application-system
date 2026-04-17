@@ -229,6 +229,11 @@ export async function GET(req: Request) {
       if (diff.new.length > 0) {
         // Always record the snapshot — keeps diff accurate so filtered-out
         // roles aren't re-seen next run.
+        //
+        // Chunked: Radancy tenants like UHG can dump 5,000+ new rows on a
+        // first scan, and a single INSERT of that size hits Supabase's
+        // PostgREST payload ceiling and silently drops the whole batch.
+        // 500 per batch keeps each request well under the 1MB edge.
         const snapshotRows = diff.new.map((j) => ({
           target_company_id: target.id,
           job_external_id: j.externalId,
@@ -239,7 +244,18 @@ export async function GET(req: Request) {
           first_seen_at: nowIso,
           last_seen_at: nowIso,
         }));
-        await supabase.from("company_job_snapshots").insert(snapshotRows);
+        const SNAPSHOT_CHUNK = 500;
+        for (let i = 0; i < snapshotRows.length; i += SNAPSHOT_CHUNK) {
+          const chunk = snapshotRows.slice(i, i + SNAPSHOT_CHUNK);
+          const { error: snapErr } = await supabase
+            .from("company_job_snapshots")
+            .insert(chunk);
+          if (snapErr) {
+            throw new Error(
+              `snapshot insert failed at chunk ${i}: ${snapErr.message}`
+            );
+          }
+        }
 
         // Stage 1 knockout filter — discipline/seniority/location/salary.
         // Only roles that pass become pipeline_leads. No JD needed — title
