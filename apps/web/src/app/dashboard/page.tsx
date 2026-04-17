@@ -347,12 +347,12 @@ function ActionSection({
         body: JSON.stringify({ ids, status: "withdrawn" }),
       });
       if (!res.ok) {
-        throw new Error(`Archive failed (${res.status})`);
+        throw new Error(`Withdraw failed (${res.status})`);
       }
-      toast.success(`Archived ${ids.length} application${ids.length !== 1 ? "s" : ""}`);
+      toast.success(`Withdrew ${ids.length} application${ids.length !== 1 ? "s" : ""}`);
       await onRefresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Archive failed");
+      toast.error(err instanceof Error ? err.message : "Withdraw failed");
     } finally {
       setBulkActing(false);
     }
@@ -389,7 +389,7 @@ function ActionSection({
               onClick={handleBulkArchive}
               disabled={bulkActing}
             >
-              Archive All ({dismissableActions.length})
+              Withdraw All ({dismissableActions.length})
             </Button>
           </div>
         )}
@@ -454,12 +454,12 @@ function ActionCard({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ids: [appId], status: "withdrawn" }),
         });
-        if (!res.ok) throw new Error(`Archive failed (${res.status})`);
-        toast.success(`Archived ${action.company || "application"}`);
+        if (!res.ok) throw new Error(`Withdraw failed (${res.status})`);
+        toast.success(`Withdrew ${action.company || "application"}`);
       }
       await onRefresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Archive failed");
+      toast.error(err instanceof Error ? err.message : "Withdraw failed");
     } finally {
       setActing(false);
     }
@@ -531,7 +531,7 @@ function ActionCard({
                   disabled={acting}
                   tabIndex={-1}
                 >
-                  {isInsight ? "Dismiss" : "Archive"}
+                  {isInsight ? "Dismiss" : "Withdraw"}
                 </Button>
               </>
             )}
