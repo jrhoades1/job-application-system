@@ -23,6 +23,9 @@ import {
   diffSnapshots,
   WorkdayAuthError,
   WorkdayRateLimitError,
+  RadancyAuthError,
+  RadancyRateLimitError,
+  IcimsAuthError,
   type JobListing,
   type AtsVendor,
   type ScanContext,
@@ -31,6 +34,23 @@ import { evaluateStage1, type LeadFilterPrefs } from "@/lib/lead-filter";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const WORKDAY_INTER_CALL_MS = 1500;
+const RADANCY_INTER_CALL_MS = 1500;
+const ICIMS_INTER_CALL_MS = 1000;
+
+/**
+ * Throttle key per vendor -- identifies the tenant we should skip for the
+ * rest of a cron run after a 429. Null for vendors that don't need throttle
+ * tracking (Greenhouse is unlimited; we could add if that changes).
+ */
+function throttleKeyFor(
+  vendor: AtsVendor,
+  identifier: string
+): string | null {
+  if (vendor === "workday") return `workday:${identifier.split("/")[0]}`;
+  if (vendor === "radancy") return `radancy:${identifier.split("/")[0]}`;
+  if (vendor === "icims") return `icims:${identifier}`;
+  return null;
+}
 
 /**
  * Defensive read of the JSONB applied_facets column. We already enforce
@@ -128,24 +148,27 @@ export async function GET(req: Request) {
   const throttledTenants = new Set<string>();
 
   for (const target of targets ?? []) {
-    // Skip Workday tenants that already 429'd this run
-    if (target.ats_vendor === "workday") {
-      const tenant = target.ats_identifier.split("/")[0];
-      if (throttledTenants.has(tenant)) {
-        results.push({
-          targetCompanyId: target.id,
-          company: target.company_name,
-          vendor: target.ats_vendor as AtsVendor,
-          status: "failed",
-          jobsFound: 0,
-          jobsNew: 0,
-          leadsCreated: 0,
-          leadsFilteredOut: 0,
-          jobsRemoved: 0,
-          error: "Skipped: tenant rate limited earlier in this run",
-        });
-        continue;
-      }
+    // Skip tenants that already 429'd this run (Workday & Radancy share a
+    // namespace of identifier-prefixes; collisions between vendors are
+    // impossible because the set is cleared each cron pass).
+    const throttleKey = throttleKeyFor(
+      target.ats_vendor as AtsVendor,
+      target.ats_identifier
+    );
+    if (throttleKey && throttledTenants.has(throttleKey)) {
+      results.push({
+        targetCompanyId: target.id,
+        company: target.company_name,
+        vendor: target.ats_vendor as AtsVendor,
+        status: "failed",
+        jobsFound: 0,
+        jobsNew: 0,
+        leadsCreated: 0,
+        leadsFilteredOut: 0,
+        jobsRemoved: 0,
+        error: "Skipped: tenant rate limited earlier in this run",
+      });
+      continue;
     }
     const { data: runInsert } = await supabase
       .from("career_scan_runs")
@@ -168,13 +191,19 @@ export async function GET(req: Request) {
     };
 
     try {
+      // Build ScanContext for any vendor that may need DB access (LLM
+      // fallback) or tenant-scoped config. Workday uses appliedFacets;
+      // iCIMS uses allowLlmFallback. Other vendors ignore it.
       const scanContext: ScanContext | undefined =
-        target.ats_vendor === "workday"
+        target.ats_vendor === "workday" || target.ats_vendor === "icims"
           ? {
               supabase,
               userId: target.clerk_user_id,
               allowLlmFallback: target.allow_llm_fallback ?? true,
-              appliedFacets: sanitizeFacets(target.applied_facets),
+              appliedFacets:
+                target.ats_vendor === "workday"
+                  ? sanitizeFacets(target.applied_facets)
+                  : undefined,
             }
           : undefined;
 
@@ -290,14 +319,21 @@ export async function GET(req: Request) {
           .eq("id", runId);
       }
     } catch (err) {
+      // Skip this tenant for the rest of the run on rate-limit errors.
       if (
-        err instanceof WorkdayRateLimitError &&
-        target.ats_vendor === "workday"
+        err instanceof WorkdayRateLimitError ||
+        err instanceof RadancyRateLimitError
       ) {
-        throttledTenants.add(target.ats_identifier.split("/")[0]);
+        const key = throttleKeyFor(
+          target.ats_vendor as AtsVendor,
+          target.ats_identifier
+        );
+        if (key) throttledTenants.add(key);
       }
       const message =
-        err instanceof WorkdayAuthError
+        err instanceof WorkdayAuthError ||
+        err instanceof RadancyAuthError ||
+        err instanceof IcimsAuthError
           ? "Auth required -- remove this target"
           : err instanceof Error
             ? err.message
@@ -332,9 +368,13 @@ export async function GET(req: Request) {
 
     results.push(result);
 
-    // Rate-limit courtesy delay between Workday calls
+    // Rate-limit courtesy delay between calls to non-unlimited vendors.
     if (target.ats_vendor === "workday") {
       await sleep(WORKDAY_INTER_CALL_MS);
+    } else if (target.ats_vendor === "radancy") {
+      await sleep(RADANCY_INTER_CALL_MS);
+    } else if (target.ats_vendor === "icims") {
+      await sleep(ICIMS_INTER_CALL_MS);
     }
   }
 

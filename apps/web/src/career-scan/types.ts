@@ -12,6 +12,7 @@ export type AtsVendor =
   | "smartrecruiters"
   | "workday"
   | "icims"
+  | "radancy"
   | "generic_llm";
 
 export interface JobListing {
