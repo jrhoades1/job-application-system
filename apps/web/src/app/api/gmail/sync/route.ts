@@ -30,6 +30,7 @@ import {
   requirementsFromRoleTitle,
 } from "@/lib/extract-requirements-ai";
 import { evaluateStage1, evaluateStage2, type LeadFilterPrefs } from "@/lib/lead-filter";
+import { extractPostingId } from "@/lib/posting-id";
 
 // Non-job email signals (ported from email_parse.py)
 const NON_JOB_PATTERNS = [
@@ -600,36 +601,47 @@ export async function POST(req: Request) {
       .in("status", ["applied", "interviewing"]);
     const appliedApps: AppliedAppRef[] = (appliedAppsData ?? []) as AppliedAppRef[];
 
-    // Load ALL applications + active pipeline leads for duplicate detection
-    // (company + role). Seeding from pipeline_leads prevents the same posting
-    // from re-landing as a new lead on subsequent syncs (LinkedIn digests
-    // often re-surface the same job for days).
+    // Load ALL applications + active pipeline leads for duplicate detection.
+    // Primary key is the stable `posting_id` (parsed from the posting URL);
+    // company+role is a fallback when no URL is available (e.g. raw email
+    // digests without a link). Seeding from pipeline_leads prevents the same
+    // posting from re-landing as a new lead on subsequent syncs (LinkedIn
+    // digests often re-surface the same job for days).
     const [{ data: allApps }, { data: activeLeads }] = await Promise.all([
       supabase
         .from("applications")
-        .select("company, role")
+        .select("company, role, posting_id")
         .eq("clerk_user_id", userId)
         .is("deleted_at", null),
       supabase
         .from("pipeline_leads")
-        .select("company, role")
+        .select("company, role, posting_id")
         .eq("clerk_user_id", userId)
         .is("deleted_at", null)
         .in("status", ["pending_review", "promoted"]),
     ]);
     const knownCompanyRoles = new Set<string>();
+    const knownPostingIds = new Set<string>();
     for (const a of allApps ?? []) {
       if (a.company && a.role) {
         knownCompanyRoles.add(`${normalizeCompany(a.company)}::${normalizeCompany(a.role)}`);
       }
+      if (a.posting_id) knownPostingIds.add(a.posting_id);
     }
     for (const l of activeLeads ?? []) {
       if (l.company && l.role) {
         knownCompanyRoles.add(`${normalizeCompany(l.company)}::${normalizeCompany(l.role)}`);
       }
+      if (l.posting_id) knownPostingIds.add(l.posting_id);
     }
 
-    function isDuplicateLead(company: string, role: string): boolean {
+    function isDuplicateLead(company: string, role: string, url?: string | null): boolean {
+      // Posting-ID match is authoritative when available — the same posting on
+      // LinkedIn/Greenhouse/etc. always hashes to the same id regardless of
+      // how role/company strings were parsed on a given email.
+      const postingId = extractPostingId(url ?? null);
+      if (postingId && knownPostingIds.has(postingId)) return true;
+
       const normCompany = normalizeCompany(company);
       const normRole = normalizeCompany(role);
       // Exact company+role match
@@ -872,8 +884,8 @@ export async function POST(req: Request) {
           if (existingUids.has(leadUid)) continue;
           if (URL_LIKE_COMPANY.test(job.company.trim())) continue;
 
-          // Skip if same company+role already exists in applications
-          if (isDuplicateLead(job.company, job.role)) continue;
+          // Skip if already applied or already a lead for this posting
+          if (isDuplicateLead(job.company, job.role, job.url)) continue;
 
           // Store whatever details the AI extracted from the email
           let leadText = job.description || "";
@@ -933,6 +945,8 @@ export async function POST(req: Request) {
           knownCompanyRoles.add(
             `${normalizeCompany(job.company)}::${normalizeCompany(job.role)}`
           );
+          const insertedPostingId = extractPostingId(careerPageUrl);
+          if (insertedPostingId) knownPostingIds.add(insertedPostingId);
           inserted++;
         }
 
@@ -995,8 +1009,8 @@ export async function POST(req: Request) {
       const subjectAsRole = subject.replace(/^(fw|fwd|re)\s*:\s*/gi, "").trim();
       const finalRole = extracted?.role || (isNotificationSubject(subject) ? null : subjectAsRole) || null;
 
-      // Skip leads where same company+role already exists in applications
-      if (finalCompany && finalRole && isDuplicateLead(finalCompany, finalRole)) {
+      // Skip leads where same posting or company+role already exists
+      if (finalCompany && finalRole && isDuplicateLead(finalCompany, finalRole, null)) {
         existingUids.add(msg.id);
         skipped++;
         if (processedLabelId) labelMessage(tokens.access_token, msg.id, processedLabelId).catch(() => {});
