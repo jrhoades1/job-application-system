@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { evaluateStage1, type LeadFilterPrefs } from "@/lib/lead-filter";
+import {
+  evaluateStage1,
+  detectDiscipline,
+  type LeadFilterPrefs,
+} from "@/lib/lead-filter";
 
 const PREFS: LeadFilterPrefs = {
   lead_filter_enabled: true,
@@ -264,5 +268,119 @@ describe("evaluateStage1 — location filter (South Florida or remote)", () => {
 
   it("allows empty location (fail-open)", () => {
     expect(stage1("Director of Engineering", PREFS, true, "").pass).toBe(true);
+  });
+});
+
+// Regression tests for the 2026-04-17 UHG / Radancy no-leads bug.
+// UHG's Radancy feed returns 5,560 jobs where many tech leadership roles
+// encode remote-ness in the TITLE ("Remote Nationwide", "- Remote") but
+// keep the office city in the location field. The filter only checked
+// location + description_text for remote signals, so these slipped into
+// "not South Florida" rejections. Also, strict mode's discipline allowlist
+// excluded `data`, so Data Science leadership never made it through.
+describe("evaluateStage1 -- UHG remote-in-title regression", () => {
+  const PREFS_MANAGER_R: LeadFilterPrefs = {
+    lead_filter_enabled: true,
+    min_role_level: "manager",
+    remote_preference: "remote",
+    salary_min: null,
+  };
+
+  it("passes 'Director of AI/ML Engineering Remote Nationwide' when location is office", () => {
+    const v = evaluateStage1(
+      {
+        role: "Director of AI/ML Engineering Remote Nationwide or Hybrid in MN/DC",
+        company: "UHG",
+        location: "Eden Prairie, MN",
+      },
+      PREFS_MANAGER_R,
+      { strict: true }
+    );
+    expect(v.pass).toBe(true);
+  });
+
+  it("passes 'Senior Director, AI/ML Engineering - Remote' with office location", () => {
+    const v = evaluateStage1(
+      {
+        role: "Senior Director, AI/ML Engineering - Remote",
+        company: "UHG",
+        location: "Eden Prairie, MN",
+      },
+      PREFS_MANAGER_R,
+      { strict: true }
+    );
+    expect(v.pass).toBe(true);
+  });
+
+  it("passes 'Head of Platform Engineering - Remote' with office location", () => {
+    const v = evaluateStage1(
+      {
+        role: "Head of Platform Engineering - Remote",
+        company: "UHG",
+        location: "Eden Prairie, MN",
+      },
+      PREFS_MANAGER_R,
+      { strict: true }
+    );
+    expect(v.pass).toBe(true);
+  });
+
+  it("still rejects offshore engineering leadership with no remote signal in title", () => {
+    const v = evaluateStage1(
+      {
+        role: "Senior Manager, Software Engineering",
+        company: "UHG",
+        location: "Dublin, Leinster",
+      },
+      PREFS_MANAGER_R,
+      { strict: true }
+    );
+    expect(v.pass).toBe(false);
+    expect(v.reason).toMatch(/Location/);
+  });
+});
+
+describe("evaluateStage1 -- data/ML discipline allowed in strict mode", () => {
+  const P: LeadFilterPrefs = {
+    lead_filter_enabled: true,
+    min_role_level: "manager",
+    remote_preference: "remote",
+    salary_min: null,
+  };
+
+  it("detectDiscipline('Director Data Science') -> data", () => {
+    expect(detectDiscipline("Director Data Science")).toBe("data");
+  });
+
+  it("detectDiscipline('Senior Director, Data Science - NextGen Forecasting') -> data", () => {
+    expect(
+      detectDiscipline("Senior Director, Data Science - NextGen Forecasting")
+    ).toBe("data");
+  });
+
+  it("passes 'Director Data Science - Remote'", () => {
+    const v = evaluateStage1(
+      {
+        role: "Director Data Science - Remote",
+        company: "UHG",
+        location: "Eden Prairie, MN",
+      },
+      P,
+      { strict: true }
+    );
+    expect(v.pass).toBe(true);
+  });
+
+  it("passes 'Senior Director, Data Science - Remote'", () => {
+    const v = evaluateStage1(
+      {
+        role: "Senior Director, Data Science - Remote",
+        company: "UHG",
+        location: "Eden Prairie, MN",
+      },
+      P,
+      { strict: true }
+    );
+    expect(v.pass).toBe(true);
   });
 });

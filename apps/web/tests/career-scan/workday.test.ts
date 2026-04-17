@@ -86,6 +86,91 @@ describe("scanWorkday", () => {
     }
   });
 
+  it(
+    "keeps paginating when later pages return total=0 but still have jobs (Cigna bug)",
+    async () => {
+      // Page 1 reports total=60 and returns 20 jobs.
+      // Pages 2+ return total=0 (tenant bug) but still deliver 20 jobs each.
+      // Scanner should keep fetching until an empty page, not bail on total=0.
+      const buildPage = (
+        total: number,
+        start: number,
+        count: number
+      ): string =>
+        JSON.stringify({
+          total,
+          jobPostings: Array.from({ length: count }, (_, i) => ({
+            title: `Job ${start + i}`,
+            externalPath: `/job/loc/role/R-${start + i}`,
+            locationsText: "Remote",
+            subtitleText: "Eng",
+          })),
+        });
+
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(mockLandingResponse(CSRF_HTML))
+        .mockResolvedValueOnce(mockFetchResponse(buildPage(60, 0, 20)))
+        .mockResolvedValueOnce(mockFetchResponse(buildPage(0, 20, 20)))
+        .mockResolvedValueOnce(mockFetchResponse(buildPage(0, 40, 20)))
+        .mockResolvedValueOnce(mockFetchResponse(buildPage(0, 60, 0)));
+      global.fetch = fetchMock;
+
+      const results = await scanWorkday("fakeco/wd5/Site");
+      expect(results).toHaveLength(60);
+    }
+  );
+
+  it("sends empty appliedFacets by default", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(mockLandingResponse(CSRF_HTML))
+      .mockResolvedValueOnce(
+        mockFetchResponse(JSON.stringify({ jobPostings: [], total: 0 }))
+      );
+    global.fetch = fetchMock;
+
+    await scanWorkday("fakeco/wd5/Site");
+
+    const postCall = fetchMock.mock.calls.find(
+      (c: unknown[]) => (c[1] as Record<string, unknown>)?.method === "POST"
+    );
+    const body = JSON.parse(
+      (postCall![1] as { body: string }).body
+    ) as { appliedFacets: Record<string, string[]> };
+    expect(body.appliedFacets).toEqual({});
+  });
+
+  it("forwards appliedFacets from ScanContext into CxS POST body", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(mockLandingResponse(CSRF_HTML))
+      .mockResolvedValueOnce(
+        mockFetchResponse(JSON.stringify({ jobPostings: [], total: 0 }))
+      );
+    global.fetch = fetchMock;
+
+    const appliedFacets = {
+      jobFamilyGroup: [
+        "e65dbadf6a50100168ed86fe4cf50001",
+        "e65dbadf6a50100168ed7f2a693c0001",
+      ],
+    };
+
+    await scanWorkday("fakeco/wd5/Site", {
+      supabase: {} as never,
+      userId: "user_x",
+      allowLlmFallback: false,
+      appliedFacets,
+    });
+
+    const postCall = fetchMock.mock.calls.find(
+      (c: unknown[]) => (c[1] as Record<string, unknown>)?.method === "POST"
+    );
+    const body = JSON.parse(
+      (postCall![1] as { body: string }).body
+    ) as { appliedFacets: Record<string, string[]> };
+    expect(body.appliedFacets).toEqual(appliedFacets);
+  });
+
   it("sends CSRF token in POST headers", async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(mockLandingResponse(CSRF_HTML))

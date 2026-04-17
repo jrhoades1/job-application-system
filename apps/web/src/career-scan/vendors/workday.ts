@@ -144,10 +144,18 @@ export async function scanWorkday(
   const allJobs: JobListing[] = [];
   let offset = 0;
   let retried429 = false;
+  // Captured from the first page's `total`. Some tenants (Cigna observed
+  // 2026-04-17) return total=0 on every page after the first even though
+  // `jobPostings` still contains results — trusting per-page `total` makes
+  // the loop exit after 40 jobs. Latch the initial value and rely on
+  // empty-page / MAX_LISTINGS / knownTotal to stop.
+  let knownTotal: number | null = null;
+
+  const appliedFacets = context?.appliedFacets ?? {};
 
   while (offset < MAX_LISTINGS) {
     const body = JSON.stringify({
-      appliedFacets: {},
+      appliedFacets,
       limit: PAGE_SIZE,
       offset,
       searchText: "",
@@ -216,6 +224,8 @@ export async function scanWorkday(
       return [];
     }
 
+    if (knownTotal === null) knownTotal = parsed.total;
+
     for (const job of parsed.jobPostings) {
       allJobs.push({
         externalId: job.externalPath,
@@ -226,8 +236,9 @@ export async function scanWorkday(
       });
     }
 
+    if (parsed.jobPostings.length === 0) break;
     offset += PAGE_SIZE;
-    if (offset >= parsed.total || parsed.jobPostings.length === 0) break;
+    if (knownTotal > 0 && offset >= knownTotal) break;
     retried429 = false;
   }
 

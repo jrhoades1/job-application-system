@@ -23,6 +23,9 @@ import {
   diffSnapshots,
   WorkdayAuthError,
   WorkdayRateLimitError,
+  RadancyAuthError,
+  RadancyRateLimitError,
+  IcimsAuthError,
   type JobListing,
   type AtsVendor,
   type ScanContext,
@@ -31,6 +34,42 @@ import { evaluateStage1, type LeadFilterPrefs } from "@/lib/lead-filter";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const WORKDAY_INTER_CALL_MS = 1500;
+const RADANCY_INTER_CALL_MS = 1500;
+const ICIMS_INTER_CALL_MS = 1000;
+
+/**
+ * Throttle key per vendor -- identifies the tenant we should skip for the
+ * rest of a cron run after a 429. Null for vendors that don't need throttle
+ * tracking (Greenhouse is unlimited; we could add if that changes).
+ */
+function throttleKeyFor(
+  vendor: AtsVendor,
+  identifier: string
+): string | null {
+  if (vendor === "workday") return `workday:${identifier.split("/")[0]}`;
+  if (vendor === "radancy") return `radancy:${identifier.split("/")[0]}`;
+  if (vendor === "icims") return `icims:${identifier}`;
+  return null;
+}
+
+/**
+ * Defensive read of the JSONB applied_facets column. We already enforce
+ * `jsonb_typeof = 'object'` via CHECK constraint, but the DB client returns
+ * `unknown`, and we filter to {string: string[]} before sending to Workday.
+ */
+function sanitizeFacets(raw: unknown): Record<string, string[]> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Record<string, string[]> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (
+      Array.isArray(v) &&
+      v.every((x) => typeof x === "string" && x.length > 0 && x.length < 200)
+    ) {
+      out[k] = v as string[];
+    }
+  }
+  return out;
+}
 
 // Cache prefs per user per run — a single cron pass usually hits only one user
 // but multi-tenant still benefits from a local memo.
@@ -91,7 +130,7 @@ export async function GET(req: Request) {
 
   const { data: targets, error: targetsErr } = await supabase
     .from("target_companies")
-    .select("id, clerk_user_id, company_name, ats_vendor, ats_identifier, last_scanned_at, allow_llm_fallback")
+    .select("id, clerk_user_id, company_name, ats_vendor, ats_identifier, last_scanned_at, allow_llm_fallback, applied_facets")
     .eq("active", true)
     .or(`last_scanned_at.is.null,last_scanned_at.lt.${staleCutoff}`)
     .order("last_scanned_at", { ascending: true, nullsFirst: true })
@@ -109,24 +148,27 @@ export async function GET(req: Request) {
   const throttledTenants = new Set<string>();
 
   for (const target of targets ?? []) {
-    // Skip Workday tenants that already 429'd this run
-    if (target.ats_vendor === "workday") {
-      const tenant = target.ats_identifier.split("/")[0];
-      if (throttledTenants.has(tenant)) {
-        results.push({
-          targetCompanyId: target.id,
-          company: target.company_name,
-          vendor: target.ats_vendor as AtsVendor,
-          status: "failed",
-          jobsFound: 0,
-          jobsNew: 0,
-          leadsCreated: 0,
-          leadsFilteredOut: 0,
-          jobsRemoved: 0,
-          error: "Skipped: tenant rate limited earlier in this run",
-        });
-        continue;
-      }
+    // Skip tenants that already 429'd this run (Workday & Radancy share a
+    // namespace of identifier-prefixes; collisions between vendors are
+    // impossible because the set is cleared each cron pass).
+    const throttleKey = throttleKeyFor(
+      target.ats_vendor as AtsVendor,
+      target.ats_identifier
+    );
+    if (throttleKey && throttledTenants.has(throttleKey)) {
+      results.push({
+        targetCompanyId: target.id,
+        company: target.company_name,
+        vendor: target.ats_vendor as AtsVendor,
+        status: "failed",
+        jobsFound: 0,
+        jobsNew: 0,
+        leadsCreated: 0,
+        leadsFilteredOut: 0,
+        jobsRemoved: 0,
+        error: "Skipped: tenant rate limited earlier in this run",
+      });
+      continue;
     }
     const { data: runInsert } = await supabase
       .from("career_scan_runs")
@@ -149,12 +191,19 @@ export async function GET(req: Request) {
     };
 
     try {
+      // Build ScanContext for any vendor that may need DB access (LLM
+      // fallback) or tenant-scoped config. Workday uses appliedFacets;
+      // iCIMS uses allowLlmFallback. Other vendors ignore it.
       const scanContext: ScanContext | undefined =
-        target.ats_vendor === "workday"
+        target.ats_vendor === "workday" || target.ats_vendor === "icims"
           ? {
               supabase,
               userId: target.clerk_user_id,
               allowLlmFallback: target.allow_llm_fallback ?? true,
+              appliedFacets:
+                target.ats_vendor === "workday"
+                  ? sanitizeFacets(target.applied_facets)
+                  : undefined,
             }
           : undefined;
 
@@ -180,6 +229,11 @@ export async function GET(req: Request) {
       if (diff.new.length > 0) {
         // Always record the snapshot — keeps diff accurate so filtered-out
         // roles aren't re-seen next run.
+        //
+        // Chunked: Radancy tenants like UHG can dump 5,000+ new rows on a
+        // first scan, and a single INSERT of that size hits Supabase's
+        // PostgREST payload ceiling and silently drops the whole batch.
+        // 500 per batch keeps each request well under the 1MB edge.
         const snapshotRows = diff.new.map((j) => ({
           target_company_id: target.id,
           job_external_id: j.externalId,
@@ -190,7 +244,18 @@ export async function GET(req: Request) {
           first_seen_at: nowIso,
           last_seen_at: nowIso,
         }));
-        await supabase.from("company_job_snapshots").insert(snapshotRows);
+        const SNAPSHOT_CHUNK = 500;
+        for (let i = 0; i < snapshotRows.length; i += SNAPSHOT_CHUNK) {
+          const chunk = snapshotRows.slice(i, i + SNAPSHOT_CHUNK);
+          const { error: snapErr } = await supabase
+            .from("company_job_snapshots")
+            .insert(chunk);
+          if (snapErr) {
+            throw new Error(
+              `snapshot insert failed at chunk ${i}: ${snapErr.message}`
+            );
+          }
+        }
 
         // Stage 1 knockout filter — discipline/seniority/location/salary.
         // Only roles that pass become pipeline_leads. No JD needed — title
@@ -270,14 +335,21 @@ export async function GET(req: Request) {
           .eq("id", runId);
       }
     } catch (err) {
+      // Skip this tenant for the rest of the run on rate-limit errors.
       if (
-        err instanceof WorkdayRateLimitError &&
-        target.ats_vendor === "workday"
+        err instanceof WorkdayRateLimitError ||
+        err instanceof RadancyRateLimitError
       ) {
-        throttledTenants.add(target.ats_identifier.split("/")[0]);
+        const key = throttleKeyFor(
+          target.ats_vendor as AtsVendor,
+          target.ats_identifier
+        );
+        if (key) throttledTenants.add(key);
       }
       const message =
-        err instanceof WorkdayAuthError
+        err instanceof WorkdayAuthError ||
+        err instanceof RadancyAuthError ||
+        err instanceof IcimsAuthError
           ? "Auth required -- remove this target"
           : err instanceof Error
             ? err.message
@@ -312,9 +384,13 @@ export async function GET(req: Request) {
 
     results.push(result);
 
-    // Rate-limit courtesy delay between Workday calls
+    // Rate-limit courtesy delay between calls to non-unlimited vendors.
     if (target.ats_vendor === "workday") {
       await sleep(WORKDAY_INTER_CALL_MS);
+    } else if (target.ats_vendor === "radancy") {
+      await sleep(RADANCY_INTER_CALL_MS);
+    } else if (target.ats_vendor === "icims") {
+      await sleep(ICIMS_INTER_CALL_MS);
     }
   }
 
