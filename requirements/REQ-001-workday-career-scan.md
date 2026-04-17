@@ -1,11 +1,46 @@
 ---
 id: REQ-001
 name: Workday ATS support for career-scan
-status: proposed
+status: implemented
 priority: high
 owner: jimmy
 created: 2026-04-15
-updated: 2026-04-15
+updated: 2026-04-17
+shipped: 2026-04-16
+shipped_commit: 348aff9
+---
+
+## Shipped 2026-04-16
+
+Implementation landed in commit `348aff9` (feat(career-scan): Workday ATS
+support with LLM fallback (REQ-001)). All primary acceptance criteria below
+were met except the 6-payer rollout -- **the premise was wrong: only 2 of
+the 6 named payers actually run Workday.** Corrected rollout below.
+
+**Rollout as of 2026-04-17:**
+
+| Payer | ATS | Status |
+|---|---|---|
+| Humana | Workday (`humana/wd5/Humana_External_Career_Site`) | scanning daily, 40 jobs, 1 new lead 4/16 |
+| Elevance Health | Workday (`elevancehealth/wd1/ANT`) | scanning daily, 287 jobs |
+| CVS Health | Workday (`cvshealth/wd1/CVS_Health_Careers`) | scanning daily, 500 jobs (hits hard cap -- see follow-ups) |
+| Cigna | Workday (`cigna/wd5/cignacareers`) | added 2026-04-17, 648 jobs total |
+| Optum / UnitedHealth Group | **iCIMS** (primary) + legacy Taleo at `uhg.taleo.net` | blocked -- needs REQ-002 iCIMS support |
+| Molina Healthcare | **Oracle HCM** (`apply.molinahealthcare.com`) | blocked -- needs separate Oracle HCM vendor |
+
+**Identifier format note:** spec originally called for `{tenant}/{site}`; shipped
+implementation uses `{tenant}/{wdN}/{site}` because the `wdN` subdomain varies
+per tenant (wd1 vs wd5) and is required to reconstruct the API URL. Cleaner
+design, no migration needed (`ats_identifier` is `TEXT`).
+
+**Follow-up work (not part of this requirement):**
+- CVS truncation: all 4 active Workday tenants scan successfully, but CVS
+  hits the 500-listing hard cap. Either raise the cap or add location/keyword
+  filters to the CxS request. Worth its own small requirement.
+- Optum on iCIMS -> new REQ (REQ-002) when Jimmy wants iCIMS targets.
+- Molina on Oracle HCM -> lower priority; Molina is a smaller target than
+  Optum and CVS.
+
 ---
 
 # Workday ATS support for career-scan
