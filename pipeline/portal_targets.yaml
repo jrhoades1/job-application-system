@@ -1,0 +1,93 @@
+# Portal Discovery Targets
+# -----------------------------------------------------------------------------
+# Seed list for `python portal_scan.py`. Each entry is a company + ATS slug.
+# Slugs are the public board identifier, verified against live APIs.
+#
+# Adding a company:
+#   1. Visit their careers page, find the ATS (Greenhouse / Ashby / Lever).
+#   2. Copy the slug from the URL (e.g., boards.greenhouse.io/anthropic → "anthropic").
+#   3. Add an entry below. Re-run doctor + portal_scan to verify.
+#
+# Archetype hints feed the archetype classifier (Phase 4) — a job from
+# anthropic is pre-labelled `ai-applied`, saving a classifier call.
+# -----------------------------------------------------------------------------
+
+targets:
+  # --- Greenhouse (verified per memory: reference_greenhouse_targets.md) ---
+  - company: Stripe
+    ats: greenhouse
+    slug: stripe
+    archetype_hints: [platform-sre, engineering-leadership]
+
+  - company: Anthropic
+    ats: greenhouse
+    slug: anthropic
+    archetype_hints: [ai-applied, engineering-leadership]
+
+  - company: Brex
+    ats: greenhouse
+    slug: brex
+    archetype_hints: [platform-sre, engineering-leadership]
+
+  - company: Databricks
+    ats: greenhouse
+    slug: databricks
+    archetype_hints: [ai-applied, data-analytics, engineering-leadership]
+
+  - company: Coinbase
+    ats: greenhouse
+    slug: coinbase
+    archetype_hints: [platform-sre, security]
+
+  - company: Instacart
+    ats: greenhouse
+    slug: instacart
+    archetype_hints: [platform-sre, data-analytics]
+
+  # --- Ashby ---
+  - company: OpenAI
+    ats: ashby
+    slug: openai
+    archetype_hints: [ai-applied]
+
+  - company: Linear
+    ats: ashby
+    slug: linear
+    archetype_hints: [platform-sre, engineering-leadership]
+
+  - company: Perplexity
+    ats: ashby
+    slug: perplexity
+    archetype_hints: [ai-applied]
+
+  # --- Lever ---
+  - company: Netflix
+    ats: lever
+    slug: netflix
+    archetype_hints: [platform-sre, engineering-leadership]
+
+  - company: Figma
+    ats: ashby
+    slug: figma
+    archetype_hints: [platform-sre, engineering-leadership]
+
+# -----------------------------------------------------------------------------
+# Filter rules (applied after fetch, before staging)
+# -----------------------------------------------------------------------------
+filter:
+  # Skip postings older than N days (based on updated_at from feed)
+  max_age_days: 30
+
+  # Skip if title matches any regex (case-insensitive)
+  title_blocklist:
+    - "(?i)\\b(intern|junior|entry[- ]level|early[- ]career)\\b"
+    - "(?i)\\b(sales|marketing|recruiter|customer\\s+success|account\\s+executive|account\\s+manager|business\\s+development|sdr|bdr)\\b"
+    - "(?i)\\b(accounting|finance|legal|hr|recruit)\\b"
+    - "(?i)\\b(designer|design\\s+lead|ux\\s+researcher|content\\s+writer)\\b"
+    - "(?i)\\b(support\\s+engineer|technical\\s+support|solutions\\s+architect)\\b"
+
+  # Require one of these to appear in title (empty = no requirement)
+  title_allowlist: []
+
+  # Skip if location is one of these (empty = allow all)
+  location_blocklist: []
