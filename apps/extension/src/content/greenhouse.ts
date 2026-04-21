@@ -1,9 +1,12 @@
 /** Greenhouse ATS auto-fill — boards.greenhouse.io */
 
-import type { ProfileData } from "@/lib/api-client";
+import type { ProfileData, MatchedApplication } from "@/lib/api-client";
 import { setInputValue } from "./index";
 
-export function fillGreenhouse(profile: ProfileData): { filled: number } {
+export function fillGreenhouse(
+  profile: ProfileData,
+  evaluation?: MatchedApplication | null
+): { filled: number } {
   let filled = 0;
 
   // Greenhouse uses standard HTML forms with predictable field IDs
@@ -47,6 +50,19 @@ export function fillGreenhouse(profile: ProfileData): { filled: number } {
     );
     if (titleField && !titleField.value) {
       setInputValue(titleField, currentJob.title);
+      filled++;
+    }
+  }
+
+  // Cover letter field — only fill when we have a cached evaluation.
+  // Caller (popup "Fill" button) is the explicit user consent per project
+  // security model. Never auto-submit the form after filling.
+  if (evaluation?.cover_letter) {
+    const coverLetterField = document.querySelector<HTMLTextAreaElement>(
+      'textarea[name*="cover" i], textarea[id*="cover" i], textarea[aria-label*="cover" i]'
+    );
+    if (coverLetterField && !coverLetterField.value) {
+      setInputValue(coverLetterField, evaluation.cover_letter);
       filled++;
     }
   }

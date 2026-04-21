@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Job App Assistant",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Auto-fill job applications and track your application status",
   "permissions": [
     "storage",

@@ -12,16 +12,36 @@ export async function GET(req: Request) {
     }
 
     // Try exact source_url match first
+    // Return cached evaluation artifacts (cover_letter, archetype, score) so the
+    // extension can offer to fill the cover-letter field without regenerating.
     const { data: exact } = await supabase
       .from("applications")
-      .select("id, company, role, status")
+      .select("id, company, role, status, cover_letter, resume_version, archetype, match_scores(overall, match_percentage)")
       .eq("clerk_user_id", userId)
       .eq("source_url", url)
       .is("deleted_at", null)
       .maybeSingle();
 
     if (exact) {
-      return NextResponse.json({ match: exact });
+      const score = Array.isArray(exact.match_scores) ? exact.match_scores[0] : exact.match_scores;
+      return NextResponse.json({
+        match: {
+          id: exact.id,
+          company: exact.company,
+          role: exact.role,
+          status: exact.status,
+          archetype: exact.archetype,
+          has_cover_letter: !!exact.cover_letter,
+          cover_letter: exact.cover_letter ?? null,
+          resume_version: exact.resume_version ?? null,
+          score: score
+            ? {
+                overall: score.overall,
+                match_percentage: score.match_percentage,
+              }
+            : null,
+        },
+      });
     }
 
     // Try partial URL match — but skip generic job board domains
@@ -43,7 +63,7 @@ export async function GET(req: Request) {
       // For company career pages, match by full URL path to be precise
       const { data: partial } = await supabase
         .from("applications")
-        .select("id, company, role, status")
+        .select("id, company, role, status, cover_letter, resume_version, archetype, match_scores(overall, match_percentage)")
         .eq("clerk_user_id", userId)
         .is("deleted_at", null)
         .ilike("source_url", `%${domain}%`)
@@ -51,7 +71,25 @@ export async function GET(req: Request) {
         .maybeSingle();
 
       if (partial) {
-        return NextResponse.json({ match: partial });
+        const score = Array.isArray(partial.match_scores) ? partial.match_scores[0] : partial.match_scores;
+        return NextResponse.json({
+          match: {
+            id: partial.id,
+            company: partial.company,
+            role: partial.role,
+            status: partial.status,
+            archetype: partial.archetype,
+            has_cover_letter: !!partial.cover_letter,
+            cover_letter: partial.cover_letter ?? null,
+            resume_version: partial.resume_version ?? null,
+            score: score
+              ? {
+                  overall: score.overall,
+                  match_percentage: score.match_percentage,
+                }
+              : null,
+          },
+        });
       }
     }
 

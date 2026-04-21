@@ -1,9 +1,12 @@
 /** Lever ATS auto-fill — jobs.lever.co */
 
-import type { ProfileData } from "@/lib/api-client";
+import type { ProfileData, MatchedApplication } from "@/lib/api-client";
 import { setInputValue } from "./index";
 
-export function fillLever(profile: ProfileData): { filled: number } {
+export function fillLever(
+  profile: ProfileData,
+  evaluation?: MatchedApplication | null
+): { filled: number } {
   let filled = 0;
 
   // Lever uses a clean form with class-based selectors
@@ -37,6 +40,18 @@ export function fillLever(profile: ProfileData): { filled: number } {
     const input = document.querySelector<HTMLInputElement>(selector);
     if (input && !input.value) {
       setInputValue(input, value);
+      filled++;
+    }
+  }
+
+  // Cover letter field — only when caller provides a cached evaluation
+  // (explicit user consent via popup "Fill" button). Never auto-submit.
+  if (evaluation?.cover_letter) {
+    const coverLetterField = document.querySelector<HTMLTextAreaElement>(
+      'textarea[name*="cover" i], textarea[id*="cover" i], textarea[aria-label*="cover" i]'
+    );
+    if (coverLetterField && !coverLetterField.value) {
+      setInputValue(coverLetterField, evaluation.cover_letter);
       filled++;
     }
   }

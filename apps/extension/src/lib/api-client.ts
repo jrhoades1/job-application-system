@@ -66,6 +66,15 @@ export interface MatchedApplication {
   company: string;
   role: string;
   status: string;
+  // Cached evaluation artifacts (added for consent-gated autofill).
+  archetype?: string | null;
+  has_cover_letter?: boolean;
+  cover_letter?: string | null;
+  resume_version?: string | null;
+  score?: {
+    overall: string;
+    match_percentage: number;
+  } | null;
 }
 
 export async function matchUrl(url: string): Promise<MatchedApplication | null> {

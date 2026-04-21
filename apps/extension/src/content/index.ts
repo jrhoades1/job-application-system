@@ -1,7 +1,7 @@
 /** Content script — runs on all pages, handles detection, badge, auto-fill, JD capture, and job import */
 
 import { detectATS } from "@/lib/ats-patterns";
-import type { ProfileData } from "@/lib/api-client";
+import type { ProfileData, MatchedApplication } from "@/lib/api-client";
 import { fillGreenhouse } from "./greenhouse";
 import { fillLever } from "./lever";
 import { attemptJDCapture } from "./jd-capture";
@@ -62,7 +62,7 @@ if (/linkedin\.com\/jobs/i.test(window.location.href)) {
 // Listen for commands from background
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === "DO_FILL" && message.profile) {
-    const result = fillForm(message.profile);
+    const result = fillForm(message.profile, message.evaluation ?? null);
     sendResponse(result);
   } else if (message.type === "DO_CAPTURE_JD") {
     const result = attemptJDCapture();
@@ -71,14 +71,17 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   return true;
 });
 
-function fillForm(profile: ProfileData): { filled: number; error?: string } {
+function fillForm(
+  profile: ProfileData,
+  evaluation: MatchedApplication | null
+): { filled: number; error?: string } {
   if (!ats) return { filled: 0, error: "Not on a supported ATS page" };
 
   switch (ats.name) {
     case "greenhouse":
-      return fillGreenhouse(profile);
+      return fillGreenhouse(profile, evaluation);
     case "lever":
-      return fillLever(profile);
+      return fillLever(profile, evaluation);
     default:
       return fillGeneric(profile);
   }

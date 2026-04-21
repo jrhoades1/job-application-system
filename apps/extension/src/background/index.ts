@@ -151,7 +151,16 @@ async function handleMessage(message: Message): Promise<unknown> {
       // Send profile to the active tab's content script
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tab?.id) return { error: "No active tab" };
-      return await chrome.tabs.sendMessage(tab.id, { type: "DO_FILL", profile });
+      // Look up cached evaluation (cover letter, archetype, score) for this URL.
+      // Content script passes it through to fillGreenhouse/fillLever which
+      // only inject the cover letter if the user clicked "Fill" — that click
+      // is the consent gate per project security model. Never auto-submit.
+      const evaluation = tab.url ? await matchUrl(tab.url) : null;
+      return await chrome.tabs.sendMessage(tab.id, {
+        type: "DO_FILL",
+        profile,
+        evaluation,
+      });
     }
 
     case "CAPTURE_JD": {
