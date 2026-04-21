@@ -87,6 +87,7 @@ const ACTION_ICONS: Record<string, string> = {
   followup_this_week: "📅",
   decay_warning: "⚠️",
   decay_imminent: "🚨",
+  decay_summary: "📦",
   insight: "💡",
 };
 
