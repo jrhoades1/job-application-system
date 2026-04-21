@@ -31,3 +31,15 @@ export type { LocationResult } from "./detect-location";
 
 export { checkAtsKeywords, extractAtsKeywords } from "./ats-keyword-check";
 export type { AtsCheckResult, AtsKeywordResult } from "./ats-keyword-check";
+
+export {
+  classifyArchetype,
+  applyArchetypeToBands,
+  ARCHETYPE_CONFIG,
+} from "./classify-archetype";
+export type {
+  ArchetypeName,
+  ArchetypeRules,
+  ArchetypeConfig,
+  Classification,
+} from "./classify-archetype";

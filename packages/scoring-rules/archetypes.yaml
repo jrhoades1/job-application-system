@@ -1,0 +1,123 @@
+# Archetype Rules — Route job descriptions to role-specific scoring.
+# -----------------------------------------------------------------------------
+# Both job_score.py and apps/web/src/scoring/classify-archetype.ts read this.
+# If you change it, update both sides.
+#
+# Classification is heuristic (v1): title regex + keyword scan.
+# v2 will call Sonnet for low-confidence cases, cached by JD hash.
+# -----------------------------------------------------------------------------
+
+version: 1
+
+# Strictness multiplier applied to match_percentage thresholds.
+# 1.0 = use the base bands in scoring-rules.yaml unchanged.
+# 1.1 = raise every band by 10% (stricter — "strong" needs 88% instead of 80%).
+# 0.9 = lower every band by 10% (more lenient).
+# Confidence below this makes the classifier fall back to global bands.
+min_confidence: 0.6
+
+archetypes:
+  engineering-leadership:
+    label: Engineering Leadership
+    description: Director, VP, Head-of-Engineering, CTO, EM roles managing teams
+    strictness: 1.0
+    title_patterns:
+      # Matches "Director of", "Director,", and plain "Director" with team noun
+      - "(?i)^(?:vp|svp|head of|director)\\b"
+      - "(?i)\\bdirector[,\\s]+(?:software|engineering|platform|product)\\b"
+      - "(?i)\\b(?:engineering manager|em|sr\\.?\\s+manager)\\b"
+      - "(?i)\\bhead of (?:engineering|platform|product engineering)\\b"
+      - "(?i)\\b(?:cto|chief technology officer)\\b"
+      - "(?i)\\bsr\\.?\\s+director\\b"
+    required_keywords:
+      - "(?i)\\b(?:team|org|people|direct reports|managers?|leadership)\\b"
+    disqualifiers:
+      - "(?i)\\bindividual contributor only\\b"
+
+  ai-applied:
+    label: Applied AI / ML Engineering
+    description: Staff+ engineering roles focused on LLM, applied ML, AI product
+    strictness: 1.0
+    title_patterns:
+      - "(?i)\\b(?:ai engineer|ml engineer|applied (?:ai|ml)|llm engineer)\\b"
+      - "(?i)\\b(?:head of|director of|principal|staff) (?:ai|ml|applied ai)\\b"
+      - "(?i)\\bai (?:platform|product|infrastructure)\\b"
+      - "(?i)\\bagent(ic)? (?:engineer|developer)\\b"
+    required_keywords:
+      - "(?i)\\b(?:llm|gpt|claude|langchain|openai|anthropic|rag|retrieval|embeddings?|vector|fine[- ]?tun|prompt)\\b"
+    disqualifiers:
+      - "(?i)\\bresearch scientist\\b"
+      - "(?i)\\bphd\\s+(?:required|mandatory)\\b"
+
+  data-analytics:
+    label: Data / Analytics Engineering
+    description: Senior data engineer, analytics engineering, BI lead
+    strictness: 1.0
+    title_patterns:
+      - "(?i)\\b(?:senior|staff|principal|lead) data engineer\\b"
+      - "(?i)\\banalytics engineer\\b"
+      - "(?i)\\bhead of (?:data|analytics|bi)\\b"
+      - "(?i)\\bdata platform (?:engineer|lead)\\b"
+    required_keywords:
+      - "(?i)\\b(?:dbt|snowflake|bigquery|redshift|airflow|spark|warehouse|etl|elt)\\b"
+    disqualifiers: []
+
+  platform-sre:
+    label: Platform / SRE / Infrastructure
+    description: Senior+ infra, SRE, platform engineering, DevEx
+    strictness: 1.0
+    title_patterns:
+      - "(?i)\\b(?:senior|staff|principal) (?:platform|infrastructure|sre|site reliability|devops) engineer\\b"
+      - "(?i)\\bhead of (?:platform|infrastructure|sre|devex)\\b"
+      - "(?i)\\bplatform (?:engineer|lead)\\b"
+    required_keywords:
+      - "(?i)\\b(?:kubernetes|terraform|aws|gcp|observability|reliability|slo|on[- ]call)\\b"
+    disqualifiers: []
+
+  founder-minded-ic:
+    label: Founder-minded IC
+    description: Founding engineer, 0-to-1 builder, small-team first-hire
+    strictness: 0.9
+    # Niche archetypes beat overlapping ones on ties ("Founding AI Engineer"
+    # routes here, not ai-applied, because founding stage dominates tailoring.)
+    priority: 10
+    title_patterns:
+      - "(?i)\\bfounding (?:engineer|ai engineer|platform engineer|swe)\\b"
+      - "(?i)\\b(?:first|early) engineer\\b"
+      - "(?i)\\b0[- ]to[- ]1\\b"
+    required_keywords:
+      - "(?i)\\b(?:founding|early stage|seed|series a|0[- ]to[- ]1|first\\s+hire|small team)\\b"
+    disqualifiers: []
+
+  security:
+    label: Security Engineering
+    description: AppSec, product security, security engineering lead
+    strictness: 1.0
+    title_patterns:
+      - "(?i)\\b(?:senior|staff|principal) (?:security|appsec) engineer\\b"
+      - "(?i)\\bhead of (?:security|product security|appsec)\\b"
+      - "(?i)\\bciso\\b"
+    required_keywords:
+      - "(?i)\\b(?:owasp|threat model|siem|pentest|vulnerability|ciso|soc\\s?2|iso\\s?27001)\\b"
+    disqualifiers: []
+
+  healthcare-ops:
+    label: Healthcare / Regulated Ops
+    description: CTO or engineering leadership at healthcare/regulated co
+    strictness: 1.0
+    # Niche: HIPAA/FHIR/PHI keywords are strong signals that override generic
+    # leadership routing (a CTO at a healthcare co needs domain-aware scoring).
+    priority: 10
+    title_patterns:
+      - "(?i)\\b(?:cto|vp engineering|head of engineering)\\b"
+    required_keywords:
+      - "(?i)\\b(?:hipaa|phi|fhir|hl7|ehr|emr|hitrust|fda|cms)\\b"
+    disqualifiers: []
+
+# -----------------------------------------------------------------------------
+# Fallback: no archetype matched above this confidence floor.
+# Caller should score with the global rubric unchanged.
+# -----------------------------------------------------------------------------
+fallback:
+  label: General
+  strictness: 1.0
