@@ -116,8 +116,11 @@ export function detectDiscipline(roleTitle: string): Discipline | null {
   if (/\b(product\s+manager|product\s+owner|product\s+lead|cpo|head\s+of\s+product)\b/.test(t)) return "product";
   // Design
   if (/\b(designer|ux|ui|user\s+experience|creative\s+director)\b/.test(t)) return "design";
-  // Data / ML
-  if (/\b(data\s+(scientist|analyst|engineer)|machine\s+learning|ml\s+engineer|ai\s+engineer|analytics)\b/.test(t)) return "data";
+  // Data / ML — accept "Data Science" (the field) alongside "Data Scientist".
+  // Without the bare "science" branch, titles like "Director Data Science" or
+  // "Senior Director, Data Science — NextGen Forecasting" fall through to
+  // null and get rejected in strict mode.
+  if (/\b(data\s+(scientist|science|analyst|engineer)|machine\s+learning|ml\s+engineer|ai\s+engineer|analytics)\b/.test(t)) return "data";
 
   return null;
 }
@@ -209,13 +212,15 @@ export interface Stage1Options {
   strict?: boolean;
 }
 
-// Strict mode is engineering-only by design — it's used by career-scan for
-// a user targeting engineering leadership roles. Product Manager titles ("PM",
-// "Product Lead") would otherwise pass through and swamp the feed with IC
-// product roles, which are a distinct career track. Data scientist / ML
-// engineer titles already match the `engineering` regex via "engineer".
+// Strict mode for career-scan targeting engineering + data/ML leadership.
+// Product is intentionally excluded to prevent IC PM titles from flooding
+// the feed (it's a distinct career track). Data is included because
+// Director/VP Data Science, AI/ML leadership, and Analytics leadership
+// are all active targets for this user; without it, titles like "Senior
+// Principal Data Scientist" get classified as `data` and rejected.
 const STRICT_ALLOWED_DISCIPLINES: ReadonlySet<Discipline> = new Set([
   "engineering",
+  "data",
 ]);
 
 // Compound non-engineering titles that would otherwise slip past the engineering
@@ -363,11 +368,17 @@ export function evaluateStage1(
   // 1. If it mentions remote/hybrid, it passes (regardless of other location text).
   // 2. If it has a physical location, it must be in South Florida (~1 hr of West Palm Beach).
   // 3. Null/empty location fails open — don't reject what we can't classify.
+  //
+  // The role title is included in the remote-detection corpus because many
+  // ATS feeds (UHG/Radancy, Workday) encode remote-ness in the TITLE but
+  // still report a physical office in the location field. Example:
+  // "Director of AI/ML Engineering Remote Nationwide" @ "Eden Prairie, MN".
   {
     const locText = (lead.location ?? "").toLowerCase();
     const descText = (lead.description_text ?? "").toLowerCase();
-    const combined = `${locText} ${descText}`;
-    const isRemoteOrHybrid = /\b(remote|work from home|work from anywhere|hybrid|telecommute|distributed)\b/.test(combined);
+    const titleText = (lead.role ?? "").toLowerCase();
+    const combined = `${locText} ${descText} ${titleText}`;
+    const isRemoteOrHybrid = /\b(remote|work from home|work from anywhere|hybrid|telecommute|distributed|nationwide)\b/.test(combined);
 
     if (!isRemoteOrHybrid && locText.length > 0) {
       // Check for South Florida (within ~1 hr of West Palm Beach)

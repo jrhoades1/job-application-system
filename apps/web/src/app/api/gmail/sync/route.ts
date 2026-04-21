@@ -591,15 +591,27 @@ export async function POST(req: Request) {
       .is("deleted_at", null)
       .in("status", ["evaluating", "pending_review", "ready_to_apply"]);
 
-    // Load applied/interviewing applications for rejection matching. These are
-    // the only rows we'll consider flipping to `rejected` during this sync.
-    const { data: appliedAppsData } = await supabase
+    // Load applications that a rejection email could plausibly refer to. We
+    // match against ALL non-terminal-offer statuses so a rejection for an
+    // already-rejected or mistakenly-withdrawn app still gets handled cleanly
+    // (no lead pollution, idempotent backfill of rejection_date, and recovery
+    // from Archive → withdrawn mishaps).
+    const REJECTION_MATCHABLE_STATUSES = [
+      "applied",
+      "interviewing",
+      "evaluating",
+      "pending_review",
+      "ready_to_apply",
+      "withdrawn",
+      "rejected",
+    ];
+    const { data: matchableAppsData } = await supabase
       .from("applications")
       .select("id, company, role, status")
       .eq("clerk_user_id", userId)
       .is("deleted_at", null)
-      .in("status", ["applied", "interviewing"]);
-    const appliedApps: AppliedAppRef[] = (appliedAppsData ?? []) as AppliedAppRef[];
+      .in("status", REJECTION_MATCHABLE_STATUSES);
+    const matchableApps: AppliedAppRef[] = (matchableAppsData ?? []) as AppliedAppRef[];
 
     // Load ALL applications + active pipeline leads for duplicate detection.
     // Primary key is the stable `posting_id` (parsed from the posting URL);
@@ -742,12 +754,13 @@ export async function POST(req: Request) {
         continue;
       }
 
-      // Rejection auto-processing: if the email looks like a rejection AND we
-      // can confidently match it to an applied/interviewing row, flip that row
-      // to `rejected`, archive the email, and log a status history entry.
-      // Only high-confidence matches are auto-applied — ambiguous ones fall
-      // through to the existing pipeline so the user can triage manually.
-      if (isRejectionEmail(subject, body) && appliedApps.length > 0) {
+      // Rejection auto-processing: if the email looks like a rejection, we
+      // always handle it here — archive the Gmail message and either update
+      // the matching application or record a non-matching rejection marker.
+      // This path NEVER falls through to the `isJobEmail` skip path, which
+      // would otherwise pollute the Jobs tab with "Non-job email" rows for
+      // every forwarded rejection.
+      if (isRejectionEmail(subject, body)) {
         // Direct rejections have the employer in the From: header.
         let candidateCompany = extractConfirmationCompany(
           from,
@@ -772,51 +785,97 @@ export async function POST(req: Request) {
           candidateCompany,
           subject,
           body,
-          appliedApps
+          matchableApps
         );
 
+        const rejectionDate = emailDate.slice(0, 10);
+        const reason = extractRejectionReason(body);
+        const extraLabels = rejectedLabelId ? [rejectedLabelId] : [];
+
         if (match && match.confidence === "high") {
-          const rejectionDate = emailDate.slice(0, 10);
-          const reason = extractRejectionReason(body);
-          const matchedRow = appliedApps.find((a) => a.id === match.appId);
+          const matchedRow = matchableApps.find((a) => a.id === match.appId);
+          const prevStatus = matchedRow?.status ?? "applied";
+          const isStatusChange = prevStatus !== "rejected";
+
+          // Only transition status when the app isn't already rejected. For
+          // already-rejected apps, avoid clobbering a rejection_date/reason
+          // that was set manually — we backfill only when the fields are null.
+          const updatePayload: Record<string, string> = {
+            updated_at: new Date().toISOString(),
+          };
+          if (isStatusChange) {
+            updatePayload.status = "rejected";
+            updatePayload.rejection_date = rejectionDate;
+            updatePayload.rejection_reason = reason;
+          } else {
+            const { data: currentApp } = await supabase
+              .from("applications")
+              .select("rejection_date, rejection_reason")
+              .eq("id", match.appId)
+              .eq("clerk_user_id", userId)
+              .single();
+            if (!currentApp?.rejection_date) updatePayload.rejection_date = rejectionDate;
+            if (!currentApp?.rejection_reason) updatePayload.rejection_reason = reason;
+          }
 
           const { error: updateErr } = await supabase
             .from("applications")
-            .update({
-              status: "rejected",
-              rejection_date: rejectionDate,
-              rejection_reason: reason,
-              updated_at: new Date().toISOString(),
-            })
+            .update(updatePayload)
             .eq("id", match.appId)
             .eq("clerk_user_id", userId);
 
           if (!updateErr) {
-            await supabase.from("application_status_history").insert({
-              application_id: match.appId,
-              clerk_user_id: userId,
-              from_status: matchedRow?.status ?? "applied",
-              to_status: "rejected",
-              source: "email_detection",
-            });
+            if (isStatusChange) {
+              await supabase.from("application_status_history").insert({
+                application_id: match.appId,
+                clerk_user_id: userId,
+                from_status: prevStatus,
+                to_status: "rejected",
+                source: "email_detection",
+              });
+            }
 
-            // Archive + label the email so it leaves the inbox.
-            const extraLabels = rejectedLabelId ? [rejectedLabelId] : [];
             archiveMessage(tokens.access_token, msg.id, extraLabels).catch(
               () => {}
             );
 
             // Drop from the in-memory list so we don't match the same row
             // again in this sync (two rejection emails from the same company).
-            const idx = appliedApps.findIndex((a) => a.id === match.appId);
-            if (idx !== -1) appliedApps.splice(idx, 1);
+            const idx = matchableApps.findIndex((a) => a.id === match.appId);
+            if (idx !== -1) matchableApps.splice(idx, 1);
 
             existingUids.add(msg.id);
-            rejectionsProcessed++;
+            if (isStatusChange) rejectionsProcessed++;
             continue;
           }
+          // If the update errored, fall through to the no-match marker path
+          // below so the email still leaves the inbox and gets recorded.
         }
-        // No confident match — fall through to normal handling below.
+
+        // No confident match — archive the email, tag it, and record a
+        // terminal `skipped` marker so subsequent syncs skip via existingUids
+        // and the row never reappears as leaf noise in the Jobs tab.
+        archiveMessage(tokens.access_token, msg.id, extraLabels).catch(() => {});
+
+        const markerCompany =
+          candidateCompany ||
+          from.replace(/<.*>/, "").replace(/"/g, "").trim() ||
+          "Unknown";
+        await supabase.from("pipeline_leads").insert({
+          clerk_user_id: userId,
+          company: markerCompany,
+          role: subject,
+          email_uid: msg.id,
+          email_date: emailDate,
+          raw_subject: subject,
+          status: "skipped",
+          skip_reason: "Rejection email — no matching application",
+          red_flags: [],
+          created_at: new Date().toISOString(),
+        });
+        existingUids.add(msg.id);
+        skipped++;
+        continue;
       }
 
       if (!isJobEmail(from, subject, body)) {

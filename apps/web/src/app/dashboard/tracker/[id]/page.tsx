@@ -932,11 +932,13 @@ export default function ApplicationDetailPage() {
                   }
                   setApp({ ...app, ...updates });
                   // Auto-save status changes immediately to prevent race conditions
-                  // (e.g. "I Applied" then "Save Changes" reverting status)
+                  // (e.g. "I Applied" then "Save Changes" reverting status).
+                  // Send the full updates payload so side-effect fields like
+                  // rejection_date persist, not just the status.
                   const res = await fetch(`/api/applications/${params.id}`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ status: v }),
+                    body: JSON.stringify(updates),
                   });
                   if (res.ok) {
                     const saved = await res.json();

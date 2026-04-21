@@ -87,6 +87,7 @@ const ACTION_ICONS: Record<string, string> = {
   followup_this_week: "📅",
   decay_warning: "⚠️",
   decay_imminent: "🚨",
+  decay_summary: "📦",
   insight: "💡",
 };
 
@@ -102,6 +103,7 @@ export default function DashboardPage() {
 
   const { syncing, connected: emailConnected, sync: handleSync } = useGmailSync({
     onSynced: refreshActions,
+    autoSync: true,
   });
 
   useEffect(() => {
@@ -338,21 +340,34 @@ function ActionSection({
   }
 
   async function handleBulkArchive() {
+    const ids = dismissableActions.map((a) => extractAppId(a.id)!);
+    if (ids.length > 10) {
+      const ok = window.confirm(
+        `Withdraw ${ids.length} applications? This sets status=withdrawn on every one of them, including strong/good matches. Use Snooze if you just want them off today's list.`
+      );
+      if (!ok) return;
+    }
     setBulkActing(true);
     try {
-      const ids = dismissableActions.map((a) => extractAppId(a.id)!);
-      const res = await fetch("/api/applications/bulk-status", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids, status: "withdrawn" }),
-      });
-      if (!res.ok) {
-        throw new Error(`Archive failed (${res.status})`);
+      const BULK_CHUNK = 50;
+      let totalUpdated = 0;
+      for (let i = 0; i < ids.length; i += BULK_CHUNK) {
+        const chunk = ids.slice(i, i + BULK_CHUNK);
+        const res = await fetch("/api/applications/bulk-status", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: chunk, status: "withdrawn" }),
+        });
+        if (!res.ok) {
+          throw new Error(`Withdraw failed on chunk ${Math.floor(i / BULK_CHUNK) + 1} (${res.status})`);
+        }
+        const payload = (await res.json()) as { updated?: number };
+        totalUpdated += payload.updated ?? chunk.length;
       }
-      toast.success(`Archived ${ids.length} application${ids.length !== 1 ? "s" : ""}`);
+      toast.success(`Withdrew ${totalUpdated} application${totalUpdated !== 1 ? "s" : ""}`);
       await onRefresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Archive failed");
+      toast.error(err instanceof Error ? err.message : "Withdraw failed");
     } finally {
       setBulkActing(false);
     }
@@ -389,7 +404,7 @@ function ActionSection({
               onClick={handleBulkArchive}
               disabled={bulkActing}
             >
-              Archive All ({dismissableActions.length})
+              Withdraw All ({dismissableActions.length})
             </Button>
           </div>
         )}
@@ -454,12 +469,12 @@ function ActionCard({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ids: [appId], status: "withdrawn" }),
         });
-        if (!res.ok) throw new Error(`Archive failed (${res.status})`);
-        toast.success(`Archived ${action.company || "application"}`);
+        if (!res.ok) throw new Error(`Withdraw failed (${res.status})`);
+        toast.success(`Withdrew ${action.company || "application"}`);
       }
       await onRefresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Archive failed");
+      toast.error(err instanceof Error ? err.message : "Withdraw failed");
     } finally {
       setActing(false);
     }
@@ -531,7 +546,7 @@ function ActionCard({
                   disabled={acting}
                   tabIndex={-1}
                 >
-                  {isInsight ? "Dismiss" : "Archive"}
+                  {isInsight ? "Dismiss" : "Withdraw"}
                 </Button>
               </>
             )}

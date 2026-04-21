@@ -17,6 +17,7 @@ export interface TodayAction {
     | "followup_this_week"
     | "decay_warning"
     | "decay_imminent"
+    | "decay_summary"
     | "insight";
   priority: "urgent" | "today" | "week";
   company: string;
@@ -37,6 +38,79 @@ interface InterviewRound {
 
 function trackerUrl(id: string, actionType: string, detail: string) {
   return `/dashboard/tracker/${id}?action=${actionType}&detail=${encodeURIComponent(detail)}`;
+}
+
+// Prefixes for action ids whose first UUID segment is the application id.
+// Kept in sync with extractAppId() on the client (dashboard/page.tsx).
+const APP_ID_PREFIXES = [
+  "interview-", "overdue-", "debrief-", "followup-today-", "first-followup-",
+  "referral-", "ready-", "stalled-", "followup-week-", "decay-",
+];
+
+function extractAppId(actionId: string): string | null {
+  for (const p of APP_ID_PREFIXES) {
+    if (actionId.startsWith(p)) {
+      // Strip known suffixes like `-${round}` on interview/debrief.
+      const rest = actionId.slice(p.length);
+      const firstDash = rest.indexOf("-", 36); // UUIDs are 36 chars
+      return firstDash === -1 ? rest : rest.slice(0, firstDash);
+    }
+  }
+  return null;
+}
+
+function collectAppIds(actions: TodayAction[]): Set<string> {
+  const out = new Set<string>();
+  for (const a of actions) {
+    const id = extractAppId(a.id);
+    if (id) out.add(id);
+  }
+  return out;
+}
+
+// Priority ordering for per-app dedup: a more specific CTA beats a generic
+// decay/follow-up warning for the same application. Lower = wins.
+const TYPE_SPECIFICITY: Record<TodayAction["type"], number> = {
+  interview_soon: 0,
+  debrief_needed: 1,
+  overdue_followup: 2,
+  followup_due_today: 3,
+  needs_first_followup: 4,
+  find_referral: 5,
+  ready_to_apply: 6,
+  stalled: 7,
+  decay_imminent: 8,
+  followup_this_week: 9,
+  decay_warning: 10,
+  new_leads: 11,
+  decay_summary: 12,
+  insight: 13,
+};
+
+const PRIORITY_RANK = { urgent: 0, today: 1, week: 2 } as const;
+
+function dedupeByApp(actions: TodayAction[]): TodayAction[] {
+  const bestByApp = new Map<string, TodayAction>();
+  const passthrough: TodayAction[] = [];
+  for (const a of actions) {
+    const appId = extractAppId(a.id);
+    if (!appId) {
+      passthrough.push(a); // pipeline-leads, insights, decay-summary
+      continue;
+    }
+    const existing = bestByApp.get(appId);
+    if (!existing || isMoreSpecific(a, existing)) {
+      bestByApp.set(appId, a);
+    }
+  }
+  return [...passthrough, ...bestByApp.values()];
+}
+
+function isMoreSpecific(a: TodayAction, b: TodayAction): boolean {
+  const pa = PRIORITY_RANK[a.priority];
+  const pb = PRIORITY_RANK[b.priority];
+  if (pa !== pb) return pa < pb;
+  return TYPE_SPECIFICITY[a.type] < TYPE_SPECIFICITY[b.type];
 }
 
 export async function GET() {
@@ -173,13 +247,16 @@ export async function GET() {
         .eq("clerk_user_id", userId)
         .order("changed_at", { ascending: false }),
 
-      // Referral pending — recently applied, hasn't found an insider yet
+      // Referral pending — only surface for apps applied in the last 7 days.
+      // Referral-hunting ROI drops fast after the first week; older pending
+      // rows get auto-skipped during decay handling instead of cluttering Today.
       supabase
         .from("applications")
         .select("id, company, role, applied_date")
         .eq("clerk_user_id", userId)
         .is("deleted_at", null)
         .eq("referral_status", "pending")
+        .gte("applied_date", ago7d)
         .not("status", "in", '("withdrawn","rejected","accepted")'),
     ]);
 
@@ -362,7 +439,10 @@ export async function GET() {
       });
     }
 
-    // DECAY WARNINGS: flag apps approaching auto-archive
+    // DECAY: flag apps approaching auto-archive.
+    // Imminent (<= IMMINENT_THRESHOLD_DAYS to auto) stays as individual urgent cards.
+    // Non-imminent warnings get collapsed into a single summary card so a bulk-
+    // apply wave doesn't flood Today with dozens of identical reminders.
     const decayHistoryMap = new Map<string, string>();
     for (const row of (decayHistoryRes.data ?? []) as { application_id: string; changed_at: string }[]) {
       if (!decayHistoryMap.has(row.application_id)) {
@@ -370,8 +450,16 @@ export async function GET() {
       }
     }
 
-    // Track IDs already in the actions list to avoid duplicating
-    const existingActionIds = new Set(actions.map((a) => a.id.replace(/^(ready|stalled)-/, "")));
+    // Suppress a decay card when the same app already has a specific CTA above.
+    const existingAppIds = collectAppIds(actions);
+
+    type DecaySummaryRow = {
+      appId: string;
+      status: string;
+      daysInStatus: number;
+      deadlineDate: string;
+    };
+    const nonImminentDecay: DecaySummaryRow[] = [];
 
     for (const app of (decayableRes.data ?? []) as { id: string; company: string; role: string; status: string; created_at: string; follow_up_date: string | null }[]) {
       const rule = DECAY_RULES[app.status];
@@ -394,11 +482,8 @@ export async function GET() {
         (now.getTime() - new Date(decayAnchor).getTime()) / (24 * 60 * 60 * 1000)
       );
 
-      // Only warn if past warnDays threshold
       if (daysInStatus < rule.warnDays) continue;
-
-      // Skip if this app already has a more specific action (ready_to_apply, stalled, etc.)
-      if (existingActionIds.has(app.id)) continue;
+      if (existingAppIds.has(app.id)) continue;
 
       const daysUntilAuto = rule.autoDays - daysInStatus;
       const isImminent = daysUntilAuto <= IMMINENT_THRESHOLD_DAYS;
@@ -406,20 +491,60 @@ export async function GET() {
         .toISOString()
         .split("T")[0];
 
+      if (isImminent) {
+        actions.push({
+          id: `decay-${app.id}`,
+          type: "decay_imminent",
+          priority: "urgent",
+          company: app.company,
+          role: app.role,
+          action_label: rule.positiveLabel,
+          action_url: trackerUrl(app.id, "decay_imminent", `${daysInStatus} days in "${app.status}"`),
+          detail: `Auto-archive in ${daysUntilAuto} day${daysUntilAuto !== 1 ? "s" : ""} (${daysInStatus}d in "${app.status}")`,
+          due_date: deadlineDate,
+          decay_deadline: deadlineDate,
+        });
+      } else {
+        nonImminentDecay.push({ appId: app.id, status: app.status, daysInStatus, deadlineDate });
+      }
+    }
+
+    // Collapse into a single summary card when >3 non-imminent warnings exist;
+    // keep individual cards when the list is small enough to act on directly.
+    if (nonImminentDecay.length > 3) {
+      const nextDeadline = nonImminentDecay
+        .map((d) => d.deadlineDate)
+        .sort()[0];
       actions.push({
-        id: `decay-${app.id}`,
-        type: isImminent ? "decay_imminent" : "decay_warning",
-        priority: isImminent ? "urgent" : "today",
-        company: app.company,
-        role: app.role,
-        action_label: rule.positiveLabel,
-        action_url: trackerUrl(app.id, isImminent ? "decay_imminent" : "decay_warning", `${daysInStatus} days in "${app.status}"`),
-        detail: isImminent
-          ? `Auto-archive in ${daysUntilAuto} day${daysUntilAuto !== 1 ? "s" : ""} (${daysInStatus}d in "${app.status}")`
-          : `${daysInStatus} days in "${app.status}" — auto-archive ${deadlineDate}`,
-        due_date: deadlineDate,
-        decay_deadline: deadlineDate,
+        id: "decay-summary",
+        type: "decay_summary",
+        priority: "week",
+        company: "",
+        role: "",
+        action_label: "Review",
+        action_url: "/dashboard/jobs?tab=applied&filter=decay",
+        detail: `${nonImminentDecay.length} applications approaching auto-archive — next on ${nextDeadline}`,
+        due_date: nextDeadline,
       });
+    } else {
+      for (const d of nonImminentDecay) {
+        const rule = DECAY_RULES[d.status]!;
+        // Re-fetch a display-friendly row from the decayable list for company/role.
+        const app = (decayableRes.data ?? []).find((a) => a.id === d.appId);
+        if (!app) continue;
+        actions.push({
+          id: `decay-${d.appId}`,
+          type: "decay_warning",
+          priority: "today",
+          company: app.company,
+          role: app.role,
+          action_label: rule.positiveLabel,
+          action_url: trackerUrl(d.appId, "decay_warning", `${d.daysInStatus} days in "${d.status}"`),
+          detail: `${d.daysInStatus} days in "${d.status}" — auto-archive ${d.deadlineDate}`,
+          due_date: d.deadlineDate,
+          decay_deadline: d.deadlineDate,
+        });
+      }
     }
 
     // INSIGHTS: surface undismissed insight notifications
@@ -445,9 +570,13 @@ export async function GET() {
       });
     }
 
+    // Per-application dedup: one card per app, most specific wins. Prevents the
+    // same application showing up as find_referral AND decay_warning AND stalled.
+    const dedupedActions = dedupeByApp(actions);
+
     // Sort within each priority bucket by due_date (soonest first)
     const priorityOrder = { urgent: 0, today: 1, week: 2 };
-    actions.sort((a, b) => {
+    dedupedActions.sort((a, b) => {
       const pDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
       if (pDiff !== 0) return pDiff;
       if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date);
@@ -485,7 +614,7 @@ export async function GET() {
       ]);
 
     return NextResponse.json({
-      actions,
+      actions: dedupedActions,
       stats: {
         total: totalRes.count ?? 0,
         active: activeRes.count ?? 0,

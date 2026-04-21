@@ -9,6 +9,8 @@
 import type { AtsVendor, JobListing, ScanContext } from "./types";
 import { scanGreenhouse } from "./vendors/greenhouse";
 import { scanWorkday } from "./vendors/workday";
+import { scanRadancy } from "./vendors/radancy";
+import { scanIcims } from "./vendors/icims";
 
 export { detectVendor } from "./detect-vendor";
 export type { VendorDetection } from "./detect-vendor";
@@ -16,6 +18,12 @@ export { diffSnapshots } from "./diff";
 export type { DiffResult, PriorSnapshotRow } from "./diff";
 export type { AtsVendor, JobListing, ScanContext } from "./types";
 export { WorkdayAuthError, WorkdayRateLimitError } from "./vendors/workday";
+export {
+  RadancyAuthError,
+  RadancyRateLimitError,
+  detectRadancyAsync,
+} from "./vendors/radancy";
+export { IcimsAuthError } from "./vendors/icims";
 
 export async function scanCompany(
   vendor: AtsVendor,
@@ -27,10 +35,13 @@ export async function scanCompany(
       return scanGreenhouse(identifier);
     case "workday":
       return scanWorkday(identifier, context);
+    case "radancy":
+      return scanRadancy(identifier);
+    case "icims":
+      return scanIcims(identifier, context);
     case "lever":
     case "ashby":
     case "smartrecruiters":
-    case "icims":
     case "generic_llm":
       throw new Error(`Vendor '${vendor}' not implemented yet`);
     default: {

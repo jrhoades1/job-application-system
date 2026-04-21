@@ -12,6 +12,7 @@ export type AtsVendor =
   | "smartrecruiters"
   | "workday"
   | "icims"
+  | "radancy"
   | "generic_llm";
 
 export interface JobListing {
@@ -32,9 +33,14 @@ export interface VendorScanError extends Error {
 /**
  * Optional context passed to vendor scanners that need DB access (Workday
  * LLM fallback) or cost-cap checking. Greenhouse doesn't need it.
+ *
+ * `appliedFacets` is Workday-only. Shape matches Workday's CxS API exactly
+ * (keys like jobFamilyGroup / locationMainGroup; values are arrays of
+ * opaque facet IDs). Empty object = no filter. Ignored by other vendors.
  */
 export interface ScanContext {
   supabase: import("@supabase/supabase-js").SupabaseClient;
   userId: string;
   allowLlmFallback: boolean;
+  appliedFacets?: Record<string, string[]>;
 }
