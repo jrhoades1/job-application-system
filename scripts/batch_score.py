@@ -8,7 +8,10 @@ job_description. Results are upserted into the match_scores table.
 No AI tokens needed — pure algorithmic matching.
 
 Usage:
-    SUPABASE_SERVICE_ROLE_KEY="..." python batch_score.py [--dry-run]
+    SUPABASE_SERVICE_ROLE_KEY="..." python batch_score.py [--dry-run] [--workers N]
+
+--workers 1  (default) — serial, identical to historical behaviour
+--workers 8           — Supabase HTTP I/O parallelizes via threads
 """
 
 import json
@@ -16,6 +19,8 @@ import os
 import re
 import sys
 import requests
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from threading import Lock
 
 SUPABASE_URL = "https://whlfknhcueovaelkisgp.supabase.co"
 SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
@@ -416,12 +421,75 @@ def upsert_score(app_id: str, score_data: dict) -> bool:
 # Main
 # ---------------------------------------------------------------------------
 
+def score_one_app(app: dict) -> dict | None:
+    """
+    Pure function: app dict → score_data dict (ready for upsert). Returns
+    None when no requirements can be extracted. Idempotent, thread-safe.
+    """
+    jd = app["job_description"]
+    reqs = extract_requirements(jd)
+    if not reqs:
+        return None
+    matches = [score_requirement(req, ACHIEVEMENTS) for req in reqs]
+    overall = calculate_overall_score(matches)
+    keywords = extract_keywords(jd)
+    red_flags = detect_red_flags(jd)
+
+    strong_matches = [m for m in matches if m["match_type"] == "strong"]
+    partial_matches = [m for m in matches if m["match_type"] == "partial"]
+    gap_matches = [m for m in matches if m["match_type"] == "gap"]
+
+    return {
+        "overall": overall["overall"],
+        "match_percentage": overall["match_percentage"],
+        "strong_count": overall["strong_count"],
+        "partial_count": overall["partial_count"],
+        "gap_count": overall["gap_count"],
+        "requirements_matched": json.dumps([
+            {"requirement": m["requirement"], "evidence": m["evidence"], "category": m["category"]}
+            for m in strong_matches
+        ]),
+        "requirements_partial": json.dumps([
+            {"requirement": m["requirement"], "evidence": m["evidence"], "category": m["category"]}
+            for m in partial_matches
+        ]),
+        "gaps": json.dumps([m["requirement"] for m in gap_matches]),
+        "addressable_gaps": json.dumps([]),
+        "hard_gaps": json.dumps([]),
+        "keywords": keywords,
+        "red_flags": red_flags,
+        "_reqs_count": len(reqs),
+    }
+
+
+def _parse_workers(argv: list[str]) -> int:
+    for i, a in enumerate(argv):
+        if a == "--workers" and i + 1 < len(argv):
+            try:
+                n = int(argv[i + 1])
+                if n < 1 or n > 32:
+                    print(f"--workers must be 1-32, got {n}", file=sys.stderr)
+                    sys.exit(2)
+                return n
+            except ValueError:
+                print(f"--workers expects an int, got {argv[i + 1]!r}", file=sys.stderr)
+                sys.exit(2)
+        if a.startswith("--workers="):
+            try:
+                return int(a.split("=", 1)[1])
+            except ValueError:
+                print(f"bad --workers value: {a!r}", file=sys.stderr)
+                sys.exit(2)
+    return 1
+
+
 def main():
     if not SUPABASE_KEY:
         print("Set SUPABASE_SERVICE_ROLE_KEY environment variable")
         sys.exit(1)
 
     dry_run = "--dry-run" in sys.argv
+    workers = _parse_workers(sys.argv)
 
     # Load apps
     apps = load_applications()
@@ -435,7 +503,7 @@ def main():
     print(f"  {len(existing)} already have scores")
 
     to_score = [a for a in with_jd if a["id"] not in existing]
-    print(f"  {len(to_score)} need scoring\n")
+    print(f"  {len(to_score)} need scoring" + (f" (parallel {workers} workers)" if workers > 1 else "") + "\n")
 
     if dry_run:
         print("DRY RUN — not writing to database\n")
@@ -444,7 +512,63 @@ def main():
     scored = 0
     errors = 0
     band_counts = {"strong": 0, "good": 0, "stretch": 0, "long_shot": 0}
+    progress_lock = Lock()
+    processed_count = [0]
 
+    def _process(i_app: tuple[int, dict]) -> tuple[int, dict, dict | None, bool]:
+        """Worker: returns (index, app, score_data or None, upsert_ok)."""
+        i, app = i_app
+        score_data = score_one_app(app)
+        if score_data is None:
+            return (i, app, None, False)
+        if dry_run:
+            return (i, app, score_data, True)
+        ok = upsert_score(app["id"], {k: v for k, v in score_data.items() if not k.startswith("_")})
+        return (i, app, score_data, ok)
+
+    if workers == 1:
+        iterator = (_process((i, a)) for i, a in enumerate(to_score))
+    else:
+        executor = ThreadPoolExecutor(max_workers=workers)
+        futures = [executor.submit(_process, (i, a)) for i, a in enumerate(to_score)]
+        iterator = (f.result() for f in as_completed(futures))
+
+    for i, app, score_data, upsert_ok in iterator:
+        with progress_lock:
+            processed_count[0] += 1
+        company = app.get("company", "?")
+        role = app.get("role", "?")
+        if score_data is None:
+            if i < 5 or i % 50 == 0:
+                print(f"  [{processed_count[0]}/{len(to_score)}] SKIP (no requirements): {company} | {role}")
+            continue
+        if not upsert_ok and not dry_run:
+            errors += 1
+            print(f"  [{processed_count[0]}/{len(to_score)}] ERROR: {company} | {role}")
+            continue
+        scored += 1
+        band_counts[score_data["overall"]] += 1
+        if processed_count[0] <= 10 or processed_count[0] % 25 == 0:
+            print(f"  [{processed_count[0]}/{len(to_score)}] {score_data['overall']:10s} {score_data['match_percentage']:5.1f}% | {company} | {role} ({score_data['_reqs_count']} reqs)")
+
+    if workers > 1:
+        # Kept executor alive for the as_completed iterator above
+        pass
+
+    # Early return — skip the old sequential loop below (replaced by the iterator above)
+    print(f"\nDone! Scored {scored} applications ({errors} errors)")
+    print("\nScore distribution:")
+    for band in ["strong", "good", "stretch", "long_shot"]:
+        count = band_counts[band]
+        pct = (count / scored * 100) if scored > 0 else 0
+        bar = "#" * int(pct / 2)
+        print(f"  {band:10s}: {count:4d} ({pct:5.1f}%) {bar}")
+    return
+
+    # ------------------------------------------------------------------
+    # Old sequential scoring loop (retained inert in case parallel path
+    # fails — will be removed in a follow-up after parallel stabilizes).
+    # ------------------------------------------------------------------
     for i, app in enumerate(to_score):
         company = app.get("company", "?")
         role = app.get("role", "?")
