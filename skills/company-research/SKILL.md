@@ -78,7 +78,18 @@ Read:
 ### Step 3: Research the company
 
 Use web search to gather information. Read `references/data-sources.md` for the
-full checklist and red flag indicators.
+full checklist and red flag indicators, and `references/deep-dive-checklist.md`
+for the structured "deep" mode that mirrors career-ops.
+
+**Deep mode** (default for engineering-leadership, ai-applied, founder-minded-ic
+archetypes or when the user says "deep" / "deep dive" / "really research"):
+Work through `references/deep-dive-checklist.md` top-to-bottom. Produces a
+structured 8-section brief with dated press releases, exec LinkedIn summaries,
+tech blog themes, and a competitor landscape. Expect 8-12 searches/fetches.
+
+**Light mode** (default for general archetype, under 30 minutes):
+Tier 1 only, skip the structured deep-dive checklist. Produces a shorter
+company-brief.md focused on connecting findings to achievements.
 
 **Tier 1 — Must research (do all of these):**
 - Company website: About page, leadership team, mission/values, product pages
@@ -92,9 +103,9 @@ full checklist and red flag indicators.
 - LinkedIn: company size, growth trajectory, key leaders, recent hires
 - Crunchbase: funding history, investors, valuation, competitors
 
-**Tier 3 — Research if the company is tech-forward:**
+**Tier 3 — Research if the company is tech-forward (or any AI/platform archetype):**
 - GitHub organization: open-source presence, tech stack signals
-- Engineering blog: what they write about, architecture posts
+- Engineering blog: what they write about, architecture posts, recent themes
 - Conference talks by their engineers
 
 **For former employers** (metadata.former_employer is true): Skip general research —
