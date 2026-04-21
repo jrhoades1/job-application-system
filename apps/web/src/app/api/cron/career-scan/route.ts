@@ -18,6 +18,7 @@
 
 import { NextResponse } from "next/server";
 import { getServiceRoleClient } from "@/lib/supabase";
+import { classifyForWrite } from "@/lib/classify-on-write";
 import {
   scanCompany,
   diffSnapshots,
@@ -285,19 +286,23 @@ export async function GET(req: Request) {
         result.leadsFilteredOut = diff.new.length - passing.length;
 
         if (passing.length > 0) {
-          const leadRows = passing.map((j) => ({
-            clerk_user_id: target.clerk_user_id,
-            company: target.company_name,
-            role: j.title,
-            source_platform: "career_scan",
-            career_page_url: j.url,
-            ats_type: target.ats_vendor,
-            location: j.location ?? null,
-            status: "pending_review" as const,
-            score_details: { score_source: "estimated" },
-            confidence: 1.0,
-            pipeline_batch: `career_scan_${nowIso.slice(0, 10)}`,
-          }));
+          const leadRows = passing.map((j) => {
+            const archetypeFields = classifyForWrite({ role: j.title, jd: "" });
+            return {
+              clerk_user_id: target.clerk_user_id,
+              company: target.company_name,
+              role: j.title,
+              source_platform: "career_scan",
+              career_page_url: j.url,
+              ats_type: target.ats_vendor,
+              location: j.location ?? null,
+              status: "pending_review" as const,
+              score_details: { score_source: "estimated" },
+              confidence: 1.0,
+              pipeline_batch: `career_scan_${nowIso.slice(0, 10)}`,
+              ...archetypeFields,
+            };
+          });
           await supabase.from("pipeline_leads").insert(leadRows);
         }
       }

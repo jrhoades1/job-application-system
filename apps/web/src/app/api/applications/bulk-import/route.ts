@@ -12,6 +12,7 @@ import {
   inferSourceFromUrl,
   isPrivateUrl,
 } from "@/lib/scrape-helpers";
+import { classifyForWrite } from "@/lib/classify-on-write";
 
 const bulkImportSchema = z.object({
   urls: z.array(z.string().url()).min(1).max(20),
@@ -84,6 +85,11 @@ export async function POST(req: Request) {
         continue;
       }
 
+      const archetypeFields = classifyForWrite({
+        role: scraped.role,
+        jd: scraped.description,
+      });
+
       const { data, error } = await supabase
         .from("applications")
         .insert({
@@ -94,6 +100,7 @@ export async function POST(req: Request) {
           job_description: scraped.description,
           clerk_user_id: userId,
           status: "evaluating",
+          ...archetypeFields,
         })
         .select("id")
         .single();

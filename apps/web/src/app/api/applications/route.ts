@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedClient } from "@/lib/supabase";
 import { createApplicationSchema } from "@/schemas/application";
+import { classifyForWrite } from "@/lib/classify-on-write";
 
 export async function GET(req: Request) {
   try {
@@ -79,9 +80,14 @@ export async function POST(req: Request) {
       );
     }
 
+    const archetypeFields = classifyForWrite({
+      role: parsed.data.role,
+      jd: parsed.data.job_description,
+    });
+
     const { data, error } = await supabase
       .from("applications")
-      .insert({ ...parsed.data, clerk_user_id: userId })
+      .insert({ ...parsed.data, ...archetypeFields, clerk_user_id: userId })
       .select()
       .single();
 

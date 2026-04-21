@@ -31,6 +31,7 @@ import {
 } from "@/lib/extract-requirements-ai";
 import { evaluateStage1, evaluateStage2, type LeadFilterPrefs } from "@/lib/lead-filter";
 import { extractPostingId } from "@/lib/posting-id";
+import { classifyForWrite } from "@/lib/classify-on-write";
 
 // Non-job email signals (ported from email_parse.py)
 const NON_JOB_PATTERNS = [
@@ -972,6 +973,7 @@ export async function POST(req: Request) {
             ? await scoreLead(leadText, job.role, job.company, { digestEmail: true })
             : null;
 
+          const archetypeFields = classifyForWrite({ role: job.role, jd: leadText });
           await supabase.from("pipeline_leads").insert({
             clerk_user_id: userId,
             company: job.company,
@@ -997,6 +999,7 @@ export async function POST(req: Request) {
                 }
               : { score_source: "estimated" },
             red_flags: leadScore?.red_flags ?? [],
+            ...archetypeFields,
             created_at: new Date().toISOString(),
           });
 
@@ -1107,6 +1110,7 @@ export async function POST(req: Request) {
       if (!stage1Single.pass || !stage2Single.pass) {
         const skipReason = !stage1Single.pass ? stage1Single.reason : stage2Single.reason;
         // Auto-skipped — still store so the user can audit the filter
+        const archetypeFieldsSkipped = classifyForWrite({ role: finalRole, jd: cleanedJd });
         await supabase.from("pipeline_leads").insert({
           clerk_user_id: userId,
           company: finalCompany,
@@ -1127,6 +1131,7 @@ export async function POST(req: Request) {
             score_source: singleScore.score.score_source,
           },
           red_flags: singleScore.red_flags,
+          ...archetypeFieldsSkipped,
           created_at: new Date().toISOString(),
         });
         existingUids.add(msg.id);
@@ -1135,6 +1140,7 @@ export async function POST(req: Request) {
         continue;
       }
 
+      const archetypeFieldsPromoted = classifyForWrite({ role: finalRole, jd: cleanedJd });
       await supabase.from("pipeline_leads").insert({
         clerk_user_id: userId,
         company: finalCompany,
@@ -1154,6 +1160,7 @@ export async function POST(req: Request) {
           score_source: singleScore.score.score_source,
         },
         red_flags: singleScore.red_flags,
+        ...archetypeFieldsPromoted,
         created_at: new Date().toISOString(),
       });
 
@@ -1166,6 +1173,7 @@ export async function POST(req: Request) {
         job_description: cleanedJd,
         status: "pending_review",
         email_uid: msg.id,
+        ...archetypeFieldsPromoted,
       }).select("id").single();
 
       // Create match_scores for the auto-promoted application
