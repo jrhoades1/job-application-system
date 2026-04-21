@@ -10,6 +10,17 @@ interface InsightsData {
   total: number;
   status_distribution: Record<string, number>;
   score_distribution: Record<string, number>;
+  grade_distribution?: Record<"A" | "B" | "C" | "D" | "F", number>;
+  archetype_distribution?: Record<string, number>;
+  weekly_trend?: Array<{
+    week_starting: string;
+    total: number;
+    strong: number;
+    good: number;
+    stretch: number;
+    long_shot: number;
+    unscored: number;
+  }>;
   source_breakdown: Record<
     string,
     { total: number; interviews: number; offers: number }
@@ -149,6 +160,129 @@ export default function InsightsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Letter Grade Distribution (A/B/C/D/F) */}
+        {data.grade_distribution && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Grade Distribution</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {(["A", "B", "C", "D", "F"] as const).map((g) => {
+                  const count = data.grade_distribution?.[g] ?? 0;
+                  return (
+                    <div key={g} className="flex justify-between items-center">
+                      <span className="text-sm font-mono w-6">{g}</span>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="h-2 bg-primary rounded"
+                          style={{
+                            width: `${Math.max(8, (count / data.total) * 120)}px`,
+                          }}
+                        />
+                        <span className="text-sm text-muted-foreground w-8 text-right">
+                          {count}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Archetype Distribution */}
+        {data.archetype_distribution && Object.keys(data.archetype_distribution).length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>By Archetype</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {Object.entries(data.archetype_distribution)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([archetype, count]) => (
+                    <div key={archetype} className="flex justify-between items-center">
+                      <span className="text-sm">{archetype}</span>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="h-2 bg-primary rounded"
+                          style={{
+                            width: `${Math.max(8, (count / data.total) * 120)}px`,
+                          }}
+                        />
+                        <span className="text-sm text-muted-foreground w-8 text-right">
+                          {count}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Weekly Trend (last 12 weeks) */}
+        {data.weekly_trend && data.weekly_trend.some((w) => w.total > 0) && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Weekly Trend (last 12 weeks)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1">
+                {data.weekly_trend.map((w) => (
+                  <div key={w.week_starting} className="flex items-center gap-2 text-xs">
+                    <span className="font-mono w-20 text-muted-foreground">
+                      {w.week_starting}
+                    </span>
+                    <div className="flex-1 flex gap-px h-2">
+                      {w.strong > 0 && (
+                        <div
+                          className="bg-emerald-500"
+                          style={{ width: `${w.strong * 8}px` }}
+                          title={`${w.strong} strong`}
+                        />
+                      )}
+                      {w.good > 0 && (
+                        <div
+                          className="bg-blue-500"
+                          style={{ width: `${w.good * 8}px` }}
+                          title={`${w.good} good`}
+                        />
+                      )}
+                      {w.stretch > 0 && (
+                        <div
+                          className="bg-amber-500"
+                          style={{ width: `${w.stretch * 8}px` }}
+                          title={`${w.stretch} stretch`}
+                        />
+                      )}
+                      {w.long_shot > 0 && (
+                        <div
+                          className="bg-rose-500"
+                          style={{ width: `${w.long_shot * 8}px` }}
+                          title={`${w.long_shot} long shot`}
+                        />
+                      )}
+                      {w.unscored > 0 && (
+                        <div
+                          className="bg-muted-foreground/40"
+                          style={{ width: `${w.unscored * 8}px` }}
+                          title={`${w.unscored} unscored`}
+                        />
+                      )}
+                    </div>
+                    <span className="w-8 text-right text-muted-foreground">
+                      {w.total || ""}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Score Tier Conversion */}
         {data.score_tier_conversion && (

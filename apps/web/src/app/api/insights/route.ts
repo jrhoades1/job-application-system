@@ -1,14 +1,20 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedClient } from "@/lib/supabase";
+import {
+  buildGradeDistribution,
+  buildArchetypeDistribution,
+  buildWeeklyTrend,
+  emptyGradeDistribution,
+} from "@/lib/score-distribution";
 
 export async function GET() {
   try {
     const { supabase, userId } = await getAuthenticatedClient();
 
-    // Fetch all applications with scores
+    // Fetch all applications with scores (archetype added in migration 021)
     const { data: apps } = await supabase
       .from("applications")
-      .select("status, source, applied_date, rejection_date, rejection_reason, created_at, match_scores(overall, match_percentage)")
+      .select("status, source, applied_date, rejection_date, rejection_reason, created_at, archetype, match_scores(overall, match_percentage)")
       .eq("clerk_user_id", userId)
       .is("deleted_at", null);
 
@@ -17,6 +23,9 @@ export async function GET() {
         total: 0,
         status_distribution: {},
         score_distribution: {},
+        grade_distribution: emptyGradeDistribution(),
+        archetype_distribution: {},
+        weekly_trend: [],
         source_breakdown: {},
         conversion_funnel: {},
         rejection_patterns: [],
@@ -156,6 +165,9 @@ export async function GET() {
       total: apps.length,
       status_distribution: statusDist,
       score_distribution: scoreDist,
+      grade_distribution: buildGradeDistribution(apps),
+      archetype_distribution: buildArchetypeDistribution(apps),
+      weekly_trend: buildWeeklyTrend(apps, 12),
       source_breakdown: sourceBreakdown,
       conversion_funnel: funnel,
       rejection_patterns: rejectionPatterns,
