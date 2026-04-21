@@ -62,14 +62,18 @@ what to emphasize.
 ### Step 1: Load the application context
 
 Read three files from the application folder:
-- `metadata.json` — the match score, requirements matched/partial/gaps, keywords, and
-  whether this is a former employer
+- `metadata.json` — the match score, requirements matched/partial/gaps, keywords,
+  **archetype** (populated by classify-on-write), and whether this is a former employer
 - `job-description.md` — the full posting for reference
 
 Then read the master files:
 - `master/base-resume.docx` — extract the current resume structure and content
 - `master/achievements.md` — the full achievement inventory (richer than the resume)
 - `master/narrative.md` — tone guide and role-type themes
+
+If `metadata.archetype` is absent or `"general"`, fall back to the base rubric
+(no archetype-driven reordering). If it's one of the seven specific archetypes,
+read `references/archetype-emphasis.md` for the bullet-category priority map.
 
 Understanding the base resume's structure is important — you need to know what sections
 exist, how bullets are organized, and what the current emphasis looks like before you
@@ -112,6 +116,15 @@ within that structure, make strategic changes.
 **Experience sections:**
 - Reorder bullets within each role so the most relevant ones come first. A recruiter
   who stops reading after 2 bullets should see the strongest matches.
+- **Archetype-driven reorder (required when `metadata.archetype` is set):**
+  Use `references/archetype-emphasis.md` to pick which bullet categories lead each
+  role. For example, `engineering-leadership` leads with team-scaling and org design;
+  `ai-applied` leads with LLM/RAG/agentic work; `healthcare-ops` leads with HIPAA/FHIR
+  and regulated-domain work. Never delete a bullet — only reorder. The base resume's
+  full content stays accessible in case the user rejects the reorder.
+- **Keyword injection into the summary:** Extract the top 5 keywords from the JD
+  (`metadata.match_score.keywords`) and weave 2-3 of them into the opening line
+  of the summary. Prefer archetype-relevant keywords when multiple tie.
 - For **moderate and heavy** tailoring: pull in achievements from `achievements.md` that
   aren't on the base resume but directly address requirements or partial matches. Tag
   pulled-in items in your working notes so you can tell the user what was added.
