@@ -45,6 +45,10 @@ REPO_ROOT = Path(__file__).resolve().parent
 TARGETS_PATH = REPO_ROOT / "pipeline" / "portal_targets.yaml"
 STAGE_DIR = REPO_ROOT / "pipeline" / "staging" / "discovered"
 APPLICATIONS_DIR = REPO_ROOT / "applications"
+# Lifetime history of every URL we've ever discovered. Dedup reads this so
+# re-running a scan across days/weeks/months doesn't re-surface stale roles.
+# Append-only, tab-separated: fingerprint, first_seen_iso, ats, company, url.
+SCAN_HISTORY_PATH = REPO_ROOT / "pipeline" / "scan-history.tsv"
 
 HTTP_HEADERS = {
     "User-Agent": "job-applications/portal_scan (+https://github.com/jimmyrhoades1/job-applications)",
@@ -255,6 +259,46 @@ def load_known_fingerprints() -> set[str]:
     return fps
 
 
+def load_scan_history() -> set[str]:
+    """Fingerprints from the lifetime scan history (scan-history.tsv).
+
+    Survives stage-file rotation/cleanup. If someone purges discovered/*.jsonl,
+    dedup still works against the lifetime ledger.
+    """
+    fps: set[str] = set()
+    if not SCAN_HISTORY_PATH.exists():
+        return fps
+    try:
+        for line in SCAN_HISTORY_PATH.read_text(encoding="utf-8").splitlines():
+            if not line.strip() or line.startswith("#"):
+                continue
+            fp = line.split("\t", 1)[0]
+            if fp:
+                fps.add(fp)
+    except OSError:
+        pass
+    return fps
+
+
+def append_scan_history(postings: list[Posting]) -> int:
+    """Append new rows to scan-history.tsv. Creates header on first write."""
+    if not postings:
+        return 0
+    SCAN_HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+    existing = load_scan_history()
+    new_rows = [p for p in postings if p.fingerprint() not in existing]
+    if not new_rows:
+        return 0
+    is_new_file = not SCAN_HISTORY_PATH.exists()
+    now_iso = datetime.now(timezone.utc).isoformat()
+    with SCAN_HISTORY_PATH.open("a", encoding="utf-8", newline="") as f:
+        if is_new_file:
+            f.write("# fingerprint\tfirst_seen_at\tats\tcompany\turl\n")
+        for p in new_rows:
+            f.write(f"{p.fingerprint()}\t{now_iso}\t{p.ats}\t{p.company}\t{p.url}\n")
+    return len(new_rows)
+
+
 def dedup(
     postings: Iterable[Posting],
     known_urls: set[str],
@@ -353,12 +397,14 @@ def scan(
         time.sleep(0.5)  # be nice
 
     known_urls = load_known_urls()
-    known_fps = load_known_fingerprints()
+    # Merge staged + lifetime history — either source evicts a duplicate.
+    known_fps = load_known_fingerprints() | load_scan_history()
     unique, dupes = dedup(all_postings, known_urls, known_fps)
     stats.postings_duplicate = dupes
 
     if unique and not dry_run:
         stage_postings(unique)
+        append_scan_history(unique)
         stats.postings_staged = len(unique)
     return unique, stats
 

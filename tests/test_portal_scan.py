@@ -198,6 +198,7 @@ def test_full_cycle_target_to_stage(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(portal_scan, "STAGE_DIR", tmp_path / "staged")
     monkeypatch.setattr(portal_scan, "APPLICATIONS_DIR", tmp_path / "apps")
+    monkeypatch.setattr(portal_scan, "SCAN_HISTORY_PATH", tmp_path / "scan-history.tsv")
 
     fake_fetchers = dict(portal_scan.FETCHERS)
     fake_fetchers["greenhouse"] = lambda slug: [
@@ -221,3 +222,89 @@ def test_since_parser():
     assert portal_scan._parse_since("2w") == 14
     assert portal_scan._parse_since("1m") == 30
     assert portal_scan._parse_since(None) is None
+
+
+# ---------------------------------------------------------------------------
+# Scan-history lifetime ledger
+# ---------------------------------------------------------------------------
+
+def test_scan_history_append_and_load(tmp_path, monkeypatch):
+    history_path = tmp_path / "scan-history.tsv"
+    monkeypatch.setattr(portal_scan, "SCAN_HISTORY_PATH", history_path)
+    p = portal_scan.Posting("Stripe", "greenhouse", "SWE", "https://s/j/1",
+                            "Remote", "2026-04-20T00:00:00Z", "1")
+    added = portal_scan.append_scan_history([p])
+    assert added == 1
+    assert history_path.exists()
+
+    # Second append of same posting — should dedupe, return 0
+    added2 = portal_scan.append_scan_history([p])
+    assert added2 == 0
+
+    # Load should see the fingerprint
+    fps = portal_scan.load_scan_history()
+    assert p.fingerprint() in fps
+
+
+def test_scan_history_survives_stage_purge(tmp_path, monkeypatch):
+    """If discovered/*.jsonl is purged, lifetime ledger still evicts dupes."""
+    monkeypatch.setattr(portal_scan, "SCAN_HISTORY_PATH", tmp_path / "scan-history.tsv")
+    monkeypatch.setattr(portal_scan, "STAGE_DIR", tmp_path / "staged")
+    p = portal_scan.Posting("Stripe", "greenhouse", "SWE", "https://s/j/1",
+                            "Remote", "2026-04-20T00:00:00Z", "1")
+
+    # Record in history, but do NOT write to stage dir
+    portal_scan.append_scan_history([p])
+
+    # Merge sources
+    known_fps = portal_scan.load_known_fingerprints() | portal_scan.load_scan_history()
+    unique, dupes = portal_scan.dedup([p], set(), known_fps)
+    assert unique == []
+    assert dupes == 1
+
+
+def test_scan_history_header_on_first_write(tmp_path, monkeypatch):
+    history_path = tmp_path / "scan-history.tsv"
+    monkeypatch.setattr(portal_scan, "SCAN_HISTORY_PATH", history_path)
+    p = portal_scan.Posting("Stripe", "greenhouse", "SWE", "https://s/j/1",
+                            "Remote", None, "1")
+    portal_scan.append_scan_history([p])
+    content = history_path.read_text(encoding="utf-8")
+    assert content.startswith("#"), "first line should be a header"
+    assert "fingerprint" in content
+
+
+def test_full_cycle_writes_to_history(tmp_path, monkeypatch):
+    config = tmp_path / "portal_targets.yaml"
+    config.write_text(
+        "targets:\n"
+        "  - company: HistCo\n"
+        "    ats: greenhouse\n"
+        "    slug: histco\n"
+        "    archetype_hints: []\n"
+        "filter:\n"
+        "  max_age_days: 365\n"
+        "  title_blocklist: []\n"
+        "  title_allowlist: []\n"
+        "  location_blocklist: []\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(portal_scan, "STAGE_DIR", tmp_path / "staged")
+    monkeypatch.setattr(portal_scan, "SCAN_HISTORY_PATH", tmp_path / "scan-history.tsv")
+    monkeypatch.setattr(portal_scan, "APPLICATIONS_DIR", tmp_path / "apps")
+
+    fake_fetchers = dict(portal_scan.FETCHERS)
+    fake_fetchers["greenhouse"] = lambda slug: [
+        portal_scan.Posting("histco", "greenhouse", "Senior Eng", "https://h/j/1",
+                            "Remote", "2026-04-20T00:00:00Z", "1")
+    ]
+    with patch.dict(portal_scan.FETCHERS, fake_fetchers, clear=True):
+        _postings1, stats1 = portal_scan.scan(config_path=config)
+    assert stats1.postings_staged == 1
+    assert (tmp_path / "scan-history.tsv").exists()
+
+    # Second scan with same data — history prevents restage
+    with patch.dict(portal_scan.FETCHERS, fake_fetchers, clear=True):
+        _postings2, stats2 = portal_scan.scan(config_path=config)
+    assert stats2.postings_staged == 0
+    assert stats2.postings_duplicate == 1
