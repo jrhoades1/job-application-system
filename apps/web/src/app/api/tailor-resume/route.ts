@@ -127,6 +127,9 @@ export async function POST(req: Request) {
       {
         model: "claude-sonnet-4-20250514",
         max_tokens: 2000,
+        // temperature: 0 — keep the tailored resume text stable across
+        // re-runs so downstream scoring isn't moved by Sonnet's sampling.
+        temperature: 0,
         messages: [{ role: "user", content: prompt }],
       },
       "tailor_resume",
@@ -173,14 +176,29 @@ export async function POST(req: Request) {
         );
 
         if (allReqs.length > 0) {
-          // Score the tailored resume text (not profile achievements) against requirements
-          const resumeAsAchievements: Record<string, string[]> = {
-            "Tailored Resume": content.split("\n").filter((l) => l.trim().length > 0),
-          };
+          // Score against profile achievements UNION the tailored resume text.
+          // Scoring the resume text alone meant adding evidence to the profile
+          // didn't reliably improve the percentage — Sonnet might phrase the
+          // new bullet weakly or omit it on regeneration, so the displayed
+          // "Resume match" could drop after the user added a missing item.
+          // Including profile achievements makes the metric monotonic in
+          // profile additions while still rewarding strong tailored phrasing.
+          const scoringAchievements: Record<string, string[]> = {};
+          for (const cat of (profile.achievements ?? []) as Array<{
+            category: string;
+            items: { text: string }[];
+          }>) {
+            if (cat.category && Array.isArray(cat.items)) {
+              scoringAchievements[cat.category] = cat.items.map((i) => i.text);
+            }
+          }
+          scoringAchievements["Tailored Resume"] = content
+            .split("\n")
+            .filter((l) => l.trim().length > 0);
 
           const resumeMatches = await scoreRequirementsWithAI(
             allReqs,
-            resumeAsAchievements,
+            scoringAchievements,
             { role: app.role ?? undefined, company: app.company ?? undefined }
           ).catch(() => []);
 
