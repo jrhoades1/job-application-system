@@ -52,6 +52,10 @@ export async function scoreRequirementsWithAI(
     {
       model: "claude-haiku-4-5-20251001",
       max_tokens: 2000,
+      // temperature: 0 — deterministic verdicts. Without this, the same resume
+      // can flip strong↔partial↔gap across re-runs, making scores inexplicably
+      // drop after the user adds achievements to address gaps.
+      temperature: 0,
       messages: [
         {
           role: "user",

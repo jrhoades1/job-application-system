@@ -102,6 +102,9 @@ export async function extractRequirementsWithAI(
     {
       model: "claude-haiku-4-5-20251001",
       max_tokens: 1500,
+      // temperature: 0 — same JD must yield the same requirement set every call.
+      // Otherwise the denominator in match_percentage shifts between re-tailors.
+      temperature: 0,
       messages: [
         {
           role: "user",
