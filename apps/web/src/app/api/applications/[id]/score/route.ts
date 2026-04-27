@@ -10,6 +10,7 @@ import {
   scoreRequirementsWithAI,
   calculateOverallScore,
 } from "@/scoring";
+import { hashJd } from "@/lib/get-or-extract-requirements";
 
 export async function POST(
   _req: Request,
@@ -100,7 +101,9 @@ export async function POST(
       .filter((m) => m.match_type === "gap")
       .map((m) => m.requirement);
 
-    // Upsert match_scores (application_id has UNIQUE constraint)
+    // Upsert match_scores (application_id has UNIQUE constraint).
+    // Persist extracted_requirements + jd_hash so re-tailor reuses this set
+    // instead of re-running the AI extractor and shifting the denominator.
     const { error: upsertError } = await supabase
       .from("match_scores")
       .upsert(
@@ -117,6 +120,8 @@ export async function POST(
           requirements_partial: partials,
           gaps,
           keywords: requirements.keywords,
+          extracted_requirements: allReqs,
+          jd_hash: hashJd(app.job_description),
         },
         { onConflict: "application_id" }
       );

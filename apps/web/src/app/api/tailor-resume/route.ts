@@ -5,12 +5,11 @@ import { getAuthenticatedClient } from "@/lib/supabase";
 import { createTrackedMessage, ApplicationQuotaExceededError } from "@/lib/anthropic";
 import { buildTailorResumePrompt } from "@/ai/tailor-resume";
 import {
-  extractRequirements,
   calculateOverallScore,
   checkAtsKeywords,
   extractAtsKeywords,
 } from "@/scoring";
-import { extractRequirementsWithAI } from "@/lib/extract-requirements-ai";
+import { getOrExtractRequirements } from "@/lib/get-or-extract-requirements";
 import { scoreRequirementsWithAI } from "@/scoring/score-requirements-ai";
 
 const tailorSchema = z.object({
@@ -161,24 +160,17 @@ export async function POST(req: Request) {
 
     if (app.job_description) {
       try {
-        // Extract requirements from JD. If the algorithmic extractor returns
-        // too few reqs on a sufficiently long JD, fall back to the AI
-        // extractor — a threshold of <3 catches cases where a single junk
-        // header line slips through and tanks the match score to 0%.
-        const reqs = extractRequirements(app.job_description);
-        let allReqs = [...reqs.hard_requirements, ...reqs.preferred];
-
-        if (allReqs.length < 3 && app.job_description.length > 500) {
-          const aiReqs = await extractRequirementsWithAI(
-            app.job_description,
-            app.role ?? "",
-            app.company ?? ""
-          );
-          const aiAll = [...aiReqs.hard_requirements, ...aiReqs.preferred];
-          if (aiAll.length > allReqs.length) {
-            allReqs = aiAll;
-          }
-        }
+        // Reuse the requirement set cached on first scoring/tailor for this
+        // JD. Without the cache, the AI fallback inside extraction can shift
+        // the requirement count between re-tailors and silently change the
+        // match_percentage denominator. JD edits invalidate via SHA-256.
+        const { requirements: allReqs } = await getOrExtractRequirements(
+          supabase,
+          app.id,
+          app.job_description,
+          app.role ?? "",
+          app.company ?? ""
+        );
 
         if (allReqs.length > 0) {
           // Score the tailored resume text (not profile achievements) against requirements

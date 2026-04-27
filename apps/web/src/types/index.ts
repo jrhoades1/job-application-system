@@ -125,6 +125,8 @@ export interface MatchScoreRow {
   hard_gaps: string[];
   keywords: string[];
   red_flags: string[];
+  extracted_requirements: string[];
+  jd_hash: string | null;
   created_at: string;
 }
 
