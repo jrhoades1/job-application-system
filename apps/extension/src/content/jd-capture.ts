@@ -5,6 +5,8 @@
  * Runs on LinkedIn, ZipRecruiter, Indeed, Glassdoor, and generic job pages.
  */
 
+import { parsePageTitle } from "@/lib/parse-page-title";
+
 /** Selectors for extracting job descriptions from known platforms */
 const JD_EXTRACTORS: {
   pattern: RegExp;
@@ -313,44 +315,6 @@ function extractFirst(selectors: string[]): string | null {
     }
   }
   return null;
-}
-
-/** Parse job title and company from the browser tab title */
-function parsePageTitle(pageTitle: string): { title?: string; company?: string } {
-  // Strip leading notification count: "(2) Title..." → "Title..."
-  const cleaned = pageTitle.replace(/^\(\d+\)\s*/, "");
-
-  // LinkedIn: "Perfecting Peds hiring Director of Engineering in United States | LinkedIn"
-  const linkedinMatch = cleaned.match(/^(.+?)\s+hiring\s+(.+?)\s+in\s+/i);
-  if (linkedinMatch) {
-    return { company: linkedinMatch[1].trim(), title: linkedinMatch[2].trim() };
-  }
-
-  // LinkedIn alt: "Director of Engineering - Perfecting Peds | LinkedIn"
-  const linkedinAlt = cleaned.match(/^(.+?)\s*[-–—]\s*(.+?)\s*\|\s*LinkedIn/i);
-  if (linkedinAlt) {
-    return { title: linkedinAlt[1].trim(), company: linkedinAlt[2].trim() };
-  }
-
-  // ZipRecruiter: "Role - Company | ZipRecruiter"
-  const zipMatch = cleaned.match(/^(.+?)\s*[-–—]\s*(.+?)\s*\|\s*ZipRecruiter/i);
-  if (zipMatch) {
-    return { title: zipMatch[1].trim(), company: zipMatch[2].trim() };
-  }
-
-  // Indeed: "Role - Company - Location | Indeed.com"
-  const indeedMatch = cleaned.match(/^(.+?)\s*[-–—]\s*(.+?)\s*[-–—]/i);
-  if (indeedMatch) {
-    return { title: indeedMatch[1].trim(), company: indeedMatch[2].trim() };
-  }
-
-  // Generic: "Role at Company" or "Role | Company"
-  const genericMatch = cleaned.match(/^(.+?)\s+(?:at|@|\|)\s+(.+?)(?:\s*[-–—|]|$)/i);
-  if (genericMatch) {
-    return { title: genericMatch[1].trim(), company: genericMatch[2].trim() };
-  }
-
-  return {};
 }
 
 export interface CaptureResult {

@@ -1,8 +1,11 @@
 import { describe, it, expect } from "vitest";
+import { parsePageTitle } from "../../extension/src/lib/parse-page-title";
 
 /**
  * Tests for the JD capture page title parsing logic.
- * This is the same logic used in the Chrome extension content script.
+ * Imports the SAME function the Chrome extension uses — never reimplement
+ * inline. (A previous duplicate copy here drifted from the extension and
+ * masked the LinkedIn search-panel "company=LinkedIn" bug.)
  */
 
 function normalize(s: string): string {
@@ -21,40 +24,6 @@ function fuzzyMatch(a: string, b: string): boolean {
   const longerText = longer.join(" ");
   const matches = shorter.filter((w) => w.length > 2 && longerText.includes(w));
   return matches.length >= Math.ceil(shorter.length * 0.5);
-}
-
-function parsePageTitle(pageTitle: string): { title?: string; company?: string } {
-  // LinkedIn: "Perfecting Peds hiring Director of Engineering in United States | LinkedIn"
-  const linkedinMatch = pageTitle.match(/^(.+?)\s+hiring\s+(.+?)\s+in\s+/i);
-  if (linkedinMatch) {
-    return { company: linkedinMatch[1].trim(), title: linkedinMatch[2].trim() };
-  }
-
-  // LinkedIn alt: "Director of Engineering - Perfecting Peds | LinkedIn"
-  const linkedinAlt = pageTitle.match(/^(.+?)\s*[-–—]\s*(.+?)\s*\|\s*LinkedIn/i);
-  if (linkedinAlt) {
-    return { title: linkedinAlt[1].trim(), company: linkedinAlt[2].trim() };
-  }
-
-  // ZipRecruiter: "Role - Company | ZipRecruiter"
-  const zipMatch = pageTitle.match(/^(.+?)\s*[-–—]\s*(.+?)\s*\|\s*ZipRecruiter/i);
-  if (zipMatch) {
-    return { title: zipMatch[1].trim(), company: zipMatch[2].trim() };
-  }
-
-  // Indeed: "Role - Company - Location | Indeed.com"
-  const indeedMatch = pageTitle.match(/^(.+?)\s*[-–—]\s*(.+?)\s*[-–—]/i);
-  if (indeedMatch) {
-    return { title: indeedMatch[1].trim(), company: indeedMatch[2].trim() };
-  }
-
-  // Generic: "Role at Company" or "Role | Company"
-  const genericMatch = pageTitle.match(/^(.+?)\s+(?:at|@|\|)\s+(.+?)(?:\s*[-–—|]|$)/i);
-  if (genericMatch) {
-    return { title: genericMatch[1].trim(), company: genericMatch[2].trim() };
-  }
-
-  return {};
 }
 
 describe("parsePageTitle", () => {
@@ -115,6 +84,63 @@ describe("parsePageTitle", () => {
     const result = parsePageTitle("LinkedIn");
     expect(result.title).toBeUndefined();
     expect(result.company).toBeUndefined();
+  });
+
+  describe("platform-name denylist (regression)", () => {
+    // Before the denylist, on LinkedIn search-panel pages with tab title
+    // "(2) Chief Technology Officer Nautilus Data Technologies | LinkedIn",
+    // the generic "Role | Company" regex returned company="LinkedIn", which
+    // the import-job route then stored as the application's company. Two real
+    // production rows were created with company="LinkedIn" before this was
+    // caught (Nautilus Data Technologies CTO, QuadMed Software Solutions Mgr).
+    it("rejects company='LinkedIn' from LinkedIn search-panel tab titles", () => {
+      const result = parsePageTitle(
+        "Chief Technology Officer Nautilus Data Technologies | LinkedIn"
+      );
+      expect(result.company).toBeUndefined();
+    });
+
+    it("rejects company='LinkedIn' even with notification-count prefix", () => {
+      const result = parsePageTitle(
+        "(2) Software Solutions Manager QuadMed | LinkedIn"
+      );
+      expect(result.company).toBeUndefined();
+    });
+
+    it("rejects company='Indeed.com' from Indeed search tabs", () => {
+      const result = parsePageTitle(
+        "Software Engineer | Indeed.com"
+      );
+      expect(result.company).toBeUndefined();
+    });
+
+    it("rejects company='ZipRecruiter' from ZipRecruiter search tabs", () => {
+      const result = parsePageTitle(
+        "Director of Engineering | ZipRecruiter"
+      );
+      expect(result.company).toBeUndefined();
+    });
+
+    it("rejects company='Glassdoor' from generic match", () => {
+      const result = parsePageTitle(
+        "Senior Engineer at Glassdoor"
+      );
+      // "Glassdoor" the company would be a tiny edge case (real Glassdoor jobs
+      // exist but this title pattern overwhelmingly comes from search tabs).
+      expect(result.company).toBeUndefined();
+    });
+
+    it("is case-insensitive on the denylist", () => {
+      expect(parsePageTitle("Engineer | linkedin").company).toBeUndefined();
+      expect(parsePageTitle("Engineer | LINKEDIN").company).toBeUndefined();
+    });
+
+    it("still extracts a real company that happens to share words with a platform", () => {
+      const result = parsePageTitle(
+        "Director - LinkedIn-style Inc | LinkedIn"
+      );
+      expect(result.company).toBe("LinkedIn-style Inc");
+    });
   });
 });
 
