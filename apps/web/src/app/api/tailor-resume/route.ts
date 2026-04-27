@@ -97,6 +97,57 @@ export async function POST(req: Request) {
       ? extractAtsKeywords(app.job_description).map((k) => k.keyword)
       : [];
 
+    // Build the MUST-COVER list: every JD requirement the candidate has
+    // truthful evidence for, paired with the achievement that proves it.
+    // Sonnet is instructed to cover every one in the tailored resume so a
+    // fresh regeneration cannot silently drop required coverage.
+    const mustCover: { requirement: string; evidence: string; category: string }[] = [];
+    if (app.job_description) {
+      try {
+        const { requirements: cachedReqs } = await getOrExtractRequirements(
+          supabase,
+          app.id,
+          app.job_description,
+          app.role ?? "",
+          app.company ?? ""
+        );
+
+        if (cachedReqs.length > 0) {
+          const profileAchievementsForScoring: Record<string, string[]> = {};
+          for (const cat of (profile.achievements ?? []) as Array<{
+            category: string;
+            items: { text: string }[];
+          }>) {
+            if (cat.category && Array.isArray(cat.items)) {
+              profileAchievementsForScoring[cat.category] = cat.items.map(
+                (i) => i.text
+              );
+            }
+          }
+
+          const profileMatches = await scoreRequirementsWithAI(
+            cachedReqs,
+            profileAchievementsForScoring,
+            { role: app.role ?? undefined, company: app.company ?? undefined }
+          ).catch(() => []);
+
+          for (const m of profileMatches) {
+            if (m.match_type === "strong" || m.match_type === "partial") {
+              mustCover.push({
+                requirement: m.requirement,
+                evidence: m.evidence,
+                category: m.category,
+              });
+            }
+          }
+        }
+      } catch (e) {
+        // Must-cover is best-effort — if scoring fails, fall back to the
+        // pre-existing prompt (gaps/strongMatches from match_scores).
+        console.error("Must-cover build error (non-fatal):", e);
+      }
+    }
+
     const prompt = buildTailorResumePrompt({
       baseResume: achievements, // Use achievements as resume base if no file
       jobDescription: app.job_description ?? "",
@@ -110,6 +161,7 @@ export async function POST(req: Request) {
       ),
       gaps: score?.gaps ?? [],
       addressableGaps: score?.addressable_gaps ?? [],
+      mustCover,
       achievements,
       narrative: profile.narrative ?? "",
       contactInfo: {
@@ -126,7 +178,10 @@ export async function POST(req: Request) {
     const response = await createTrackedMessage(
       {
         model: "claude-sonnet-4-20250514",
-        max_tokens: 2000,
+        // 4000 tokens supports up to ~3 pages of markdown — needed since
+        // length is now coverage-driven, not page-capped. The bullet-quality
+        // rule keeps it from bloating uselessly.
+        max_tokens: 4000,
         // temperature: 0 — keep the tailored resume text stable across
         // re-runs so downstream scoring isn't moved by Sonnet's sampling.
         temperature: 0,

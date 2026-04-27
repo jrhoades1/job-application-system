@@ -16,6 +16,12 @@ export interface WorkHistoryEntry {
   current?: boolean;
 }
 
+export interface MustCoverItem {
+  requirement: string;
+  evidence: string;
+  category: string;
+}
+
 export interface TailorResumeInput {
   baseResume: string;
   jobDescription: string;
@@ -27,6 +33,10 @@ export interface TailorResumeInput {
   strongMatches: string[];
   gaps: string[];
   addressableGaps: string[];
+  // Every requirement the candidate has truthful evidence for. Each one MUST
+  // appear in the tailored resume, mapped to the cited evidence. This is the
+  // primary mechanism that prevents content drop on regeneration.
+  mustCover?: MustCoverItem[];
   achievements: string;
   narrative: string;
   contactInfo: {
@@ -70,22 +80,22 @@ export function buildTailorResumePrompt(input: TailorResumeInput): string {
 - Reorder existing bullets to put most relevant first
 - Inject 3-5 keywords naturally into existing descriptions
 - Keep all content — just optimize ordering and word choice
-- One-page format maintained
+- Length matches coverage needs (no artificial page limit)
 - CRITICAL: Ensure ALL ATS keywords listed below appear VERBATIM in the resume`,
     moderate: `MODERATE TAILORING:
 - Reorder sections and bullets by relevance to this role
 - Inject 5-10 keywords from the posting
 - Expand bullets that match requirements with more specific details
-- Compress less relevant experience to make room
-- One-page format mandatory
+- Drop bullets that don't cover a MUST-COVER requirement OR a credibility marker
+- Length matches coverage needs (no artificial page limit)
 - CRITICAL: Ensure ALL ATS keywords listed below appear VERBATIM in the resume`,
     heavy: `HEAVY TAILORING:
 - Lead with transferable skills that map to requirements
 - Reframe experience to highlight relevance to this role
 - Inject 10+ keywords creatively but naturally
 - Frame addressable gaps as adjacent expertise
-- Compress or remove least relevant experience
-- One-page format mandatory — be aggressive with compression
+- Drop bullets that don't cover a MUST-COVER requirement OR a credibility marker
+- Length matches coverage needs — do NOT compress at the cost of dropping required coverage
 - CRITICAL: Ensure ALL ATS keywords listed below appear VERBATIM in the resume`,
   };
 
@@ -133,11 +143,33 @@ ${input.atsKeywords.map((k) => `- "${k}"`).join("\n")}
 
 Strategy: Place as many as possible in the Technical Skills / Skills section. Weave remaining ones into experience bullets where truthful. If the candidate has the skill but it wasn't in the source achievements, it's OK to add it to the Skills section.` : "None extracted."}
 
+## MUST-COVER REQUIREMENTS — every item below MUST appear in the resume
+
+The candidate has truthful evidence for each requirement below. Every one MUST be covered by at least one bullet that surfaces the cited evidence. You may combine when one achievement covers multiple requirements (one bullet citing one achievement can satisfy 2-3 requirements). Do NOT silently drop any requirement — coverage is the primary success metric.
+
+${
+  input.mustCover && input.mustCover.length > 0
+    ? input.mustCover
+        .map(
+          (m, i) =>
+            `${i + 1}. **Requirement:** ${m.requirement}\n   **Your evidence:** ${m.evidence || "(see Achievements & Skills below)"}${m.category ? ` (from ${m.category})` : ""}`
+        )
+        .join("\n\n")
+    : "None — score the candidate's profile against the JD before tailoring."
+}
+
+## Bullet Quality Rule
+
+Every bullet in the resume MUST do one of:
+(a) Cover one or more MUST-COVER requirements above with the cited evidence
+(b) Be a high-signal credibility marker — exits, awards, patents, conference talks, scale numbers (revenue, team size, user counts, P&L), notable employers, or major industry recognition
+
+Cut bullets that do NEITHER. Generic responsibilities without numbers, commodity skills lists with no context, or vague "improved team morale"-type claims should be removed.
+
+Length is determined by coverage needs, not page count. Senior roles with many requirements may run 1.5-2 pages — that's fine. Do not artificially compress at the cost of dropping required coverage.
+
 ## Strong Matches to Emphasize
 ${input.strongMatches.map((m) => `- ${m}`).join("\n") || "None identified"}
-
-## Gaps to Address
-${input.gaps.map((g) => `- ${g}`).join("\n") || "None"}
 
 ## Addressable Gaps (frame positively)
 ${input.addressableGaps.map((g) => `- ${g}`).join("\n") || "None"}
@@ -173,7 +205,7 @@ ${hobbiesText ? `Include a brief "Hobbies & Interests" section at the end of the
 2. Include an Executive Summary / Professional Summary section
 3. Organize experience in reverse chronological order, mapping achievement bullets to the correct company
 4. Optimize for this specific role using keyword injection and bullet reordering
-5. Fit on one page (aim for ~450 words max for bullet content)
+5. Length is driven by required coverage, NOT a fixed page count. Senior/exec roles routinely run 2-3 pages; entry roles fit on one. Cover all MUST-COVER requirements first, then trim. If you find yourself over ~1500 words, you are likely repeating yourself or including non-mapping bullets — compress redundant phrasing rather than drop coverage.
 6. Use strong action verbs and quantified results
 7. Place the most relevant experience first within each role
 8. For addressable gaps, frame adjacent experience positively
