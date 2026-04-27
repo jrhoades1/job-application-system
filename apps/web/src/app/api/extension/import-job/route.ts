@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getExtensionClient } from "@/lib/extension-auth";
 import { z } from "zod";
 import { rescoreLead } from "@/lib/rescore-lead";
+import { extractPostingId } from "@/lib/posting-id";
+import { pickPendingLeadToUpdate } from "@/lib/match-pending-lead";
 
 const importSchema = z.object({
   url: z.string().url(),
@@ -11,46 +13,6 @@ const importSchema = z.object({
   location: z.string().max(200).optional(),
   salary: z.string().max(200).optional(),
 });
-
-/**
- * Extract a stable platform+job-id key so variants of the same job URL
- * dedupe to one application. Returns null for URLs we don't recognize.
- *
- * Why: LinkedIn email links use `/comm/jobs/view/{id}`, normal links use
- * `/jobs/view/{id}`, and both carry volatile tracking params. Without
- * normalization, the extension creates a duplicate app on capture.
- */
-function canonicalJobKey(rawUrl: string): string | null {
-  try {
-    const u = new URL(rawUrl);
-    const host = u.hostname.toLowerCase();
-    const path = u.pathname;
-
-    if (host.includes("linkedin")) {
-      const m = path.match(/\/jobs\/view\/(\d+)/);
-      if (m) return `linkedin:${m[1]}`;
-    }
-    if (host.includes("indeed")) {
-      const jk = u.searchParams.get("jk");
-      if (jk) return `indeed:${jk}`;
-    }
-    if (host.includes("greenhouse")) {
-      const m = path.match(/\/jobs\/(\d+)/);
-      if (m) return `greenhouse:${host}:${m[1]}`;
-    }
-    if (host.includes("lever.co")) {
-      const m = path.match(/\/([^/]+)\/([0-9a-f-]{8,})/i);
-      if (m) return `lever:${m[1]}:${m[2]}`;
-    }
-    if (host.includes("ashbyhq") || host.includes("ashby")) {
-      const m = path.match(/\/([0-9a-f-]{8,})/i);
-      if (m) return `ashby:${m[1]}`;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
 
 /**
  * POST /api/extension/import-job
@@ -72,14 +34,18 @@ export async function POST(req: Request) {
     }
 
     const { url, job_description, role, company, location } = parsed.data;
-    const key = canonicalJobKey(url);
+    const key = extractPostingId(url);
 
     // If this URL matches a lead the user is still triaging (pending_review),
     // treat this as a "fix the JD on the open lead" flow: update the lead in
     // place and leave it in New Leads. No app is created, no promotion. The
     // lead sheet's visibilitychange listener picks up the new JD on return.
-    // Only match by URL (exact or canonical key) — never fuzzy company+role —
-    // to avoid hijacking an unrelated lead.
+    //
+    // Match precedence (see pickPendingLeadToUpdate): exact URL → canonical
+    // posting id → single-match fuzzy company+role. The fuzzy fallback only
+    // fires for an unambiguous single match so we don't hijack an unrelated
+    // lead — required for the common path where the user clicks "Search
+    // LinkedIn" on a no-URL lead and imports from the search panel.
     {
       const { data: pendingLeads } = await supabase
         .from("pipeline_leads")
@@ -89,11 +55,12 @@ export async function POST(req: Request) {
         .is("deleted_at", null)
         .limit(500);
 
-      const leadMatch = (pendingLeads ?? []).find((l) => {
-        if (l.career_page_url === url) return true;
-        if (!key || !l.career_page_url) return false;
-        return canonicalJobKey(l.career_page_url) === key;
-      });
+      const leadMatch = pickPendingLeadToUpdate(
+        pendingLeads ?? [],
+        url,
+        company,
+        role,
+      );
 
       if (leadMatch) {
         await supabase
@@ -141,7 +108,7 @@ export async function POST(req: Request) {
         .not("source_url", "is", null)
         .limit(500);
       const match = (candidates ?? []).find(
-        (c) => c.source_url && canonicalJobKey(c.source_url) === key,
+        (c) => c.source_url && extractPostingId(c.source_url) === key,
       );
       if (match) {
         existing = {
