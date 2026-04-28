@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthenticatedClient } from "@/lib/supabase";
 import { normalizeSource } from "@/lib/scrape-helpers";
+import { pickPromotionMatch } from "@/lib/pick-promotion-match";
 
 const JUNK_ROLE_PATTERNS = [
   /jobs?\s+from\s+our\s+\d+\s+job\s+board\s+partners/i,
@@ -14,6 +15,48 @@ const JUNK_ROLE_PATTERNS = [
 function isJunkRoleTitle(role: string | null | undefined): boolean {
   if (!role) return false;
   return JUNK_ROLE_PATTERNS.some((p) => p.test(role));
+}
+
+interface PromotionLeadRow {
+  promoted_application_id: string | null;
+  posting_id: string | null;
+  company: string | null;
+  role: string | null;
+}
+
+type SupabaseLike = Awaited<ReturnType<typeof getAuthenticatedClient>>["supabase"];
+
+/**
+ * Find an existing application this lead should link to instead of inserting.
+ * Queries the union of (posting_id match, company+role match, prior link),
+ * then ranks via pickPromotionMatch. Returns null when no candidate matches —
+ * caller should INSERT a fresh application.
+ */
+async function findExistingPromotionApp(
+  supabase: SupabaseLike,
+  userId: string,
+  lead: PromotionLeadRow,
+): Promise<{ id: string; company: string | null; role: string | null; posting_id: string | null } | null> {
+  // Build the OR'd filter: posting_id, company+role, or the lead's prior link.
+  const filters: string[] = [];
+  if (lead.posting_id) filters.push(`posting_id.eq.${lead.posting_id}`);
+  if (lead.company && lead.role) {
+    filters.push(`and(company.eq."${lead.company}",role.eq."${lead.role}")`);
+  }
+  if (lead.promoted_application_id) {
+    filters.push(`id.eq.${lead.promoted_application_id}`);
+  }
+  if (filters.length === 0) return null;
+
+  const { data: candidates } = await supabase
+    .from("applications")
+    .select("id, company, role, posting_id")
+    .eq("clerk_user_id", userId)
+    .is("deleted_at", null)
+    .or(filters.join(","))
+    .limit(20);
+
+  return pickPromotionMatch(candidates ?? [], lead);
 }
 
 const updateLeadSchema = z.object({
@@ -211,25 +254,24 @@ export async function PATCH(req: Request) {
       );
     }
 
-    // Dedup: if an active application already exists for same company+role,
-    // treat the promote as idempotent — heal the lead status and return the
-    // existing application id so the client can route to it. This covers the
-    // case where a prior promote created the app but failed to flip the lead
-    // status, leaving the lead stuck in pending_review.
-    const { data: existingApp } = await supabase
-      .from("applications")
-      .select("id")
-      .eq("clerk_user_id", userId)
-      .eq("company", lead.company)
-      .eq("role", lead.role)
-      .is("deleted_at", null)
-      .limit(1)
-      .maybeSingle();
+    // Dedup: if an existing application already covers this lead, link to it
+    // instead of inserting. Match precedence (see pickPromotionMatch):
+    //   1. lead.promoted_application_id (heal a prior partial promote)
+    //   2. same posting_id (catches the case where the import-job route wrote
+    //      an app with a wrong-extracted company like "LinkedIn" but the same
+    //      job-board posting id — without this, the INSERT below would crash
+    //      on the applications_posting_id_unique constraint and surface a raw
+    //      Postgres error to the user)
+    //   3. exact company+role match (original behavior)
+    const existingApp = await findExistingPromotionApp(supabase, userId, lead);
 
     if (existingApp) {
       await supabase
         .from("pipeline_leads")
-        .update({ status: "promoted" })
+        .update({
+          status: "promoted",
+          promoted_application_id: existingApp.id,
+        })
         .eq("id", id)
         .eq("clerk_user_id", userId);
       return NextResponse.json({
@@ -239,7 +281,7 @@ export async function PATCH(req: Request) {
       });
     }
 
-    const { data: app, error: appError } = await supabase
+    const insertResult = await supabase
       .from("applications")
       .insert({
         clerk_user_id: userId,
@@ -254,8 +296,35 @@ export async function PATCH(req: Request) {
       .select()
       .single();
 
-    if (appError) {
-      return NextResponse.json({ error: appError.message }, { status: 500 });
+    let app = insertResult.data;
+    let appError = insertResult.error;
+
+    // Race recovery: if we lost a posting_id_unique race (another request
+    // inserted between our dedup query and our INSERT), re-query and link.
+    if (appError && /posting_id_unique/i.test(appError.message ?? "")) {
+      const recovered = await findExistingPromotionApp(supabase, userId, lead);
+      if (recovered) {
+        await supabase
+          .from("pipeline_leads")
+          .update({
+            status: "promoted",
+            promoted_application_id: recovered.id,
+          })
+          .eq("id", id)
+          .eq("clerk_user_id", userId);
+        return NextResponse.json({
+          success: true,
+          application_id: recovered.id,
+          already_existed: true,
+        });
+      }
+    }
+
+    if (appError || !app) {
+      return NextResponse.json(
+        { error: appError?.message ?? "Failed to create application" },
+        { status: 500 },
+      );
     }
 
     // Create match score if available
@@ -282,10 +351,10 @@ export async function PATCH(req: Request) {
       source: "promotion",
     });
 
-    // Update lead status
+    // Update lead status + link to the new application
     await supabase
       .from("pipeline_leads")
-      .update({ status: "promoted" })
+      .update({ status: "promoted", promoted_application_id: app.id })
       .eq("id", id)
       .eq("clerk_user_id", userId);
 
