@@ -11,6 +11,7 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { SCORE_CONFIG } from "@/lib/constants";
+import { canonicalizeJobUrl } from "@/lib/posting-id";
 import type { PipelineLeadRow } from "@/types";
 import { ExternalLink, Plus, RefreshCw } from "lucide-react";
 import { useMemo, useState, useCallback, useEffect } from "react";
@@ -241,7 +242,12 @@ export function LeadDetailSheet({
   // auto-refreshes the lead when the user returns to this tab.
   const handleCaptureViaExtension = useCallback(() => {
     if (!lead?.career_page_url) return;
-    window.open(lead.career_page_url, "_blank", "noopener,noreferrer");
+    // LinkedIn email-digest URLs carry trk=eml-* params that trigger a
+    // stripped-down "promoted teaser" render which breaks the extension's
+    // JD capture. canonicalizeJobUrl rewrites known platforms to the
+    // tracking-free canonical form; passes other URLs through unchanged.
+    const target = canonicalizeJobUrl(lead.career_page_url) ?? lead.career_page_url;
+    window.open(target, "_blank", "noopener,noreferrer");
     toast.info(
       "Opening posting — click 'Import Job' from the extension, then return here to refresh.",
       { duration: 8000 }
@@ -360,7 +366,7 @@ export function LeadDetailSheet({
           {/* Career page link */}
           {lead.career_page_url && (
             <a
-              href={lead.career_page_url}
+              href={canonicalizeJobUrl(lead.career_page_url) ?? lead.career_page_url}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline"
