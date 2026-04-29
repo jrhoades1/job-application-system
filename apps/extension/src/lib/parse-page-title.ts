@@ -1,5 +1,5 @@
 /**
- * Parse a job-page browser tab title into { title, company }.
+ * Parse a job-page browser tab title into { title, company, degraded }.
  *
  * Used by the extension's content script and the corresponding unit tests in
  * apps/web/tests/capture-jd.test.ts. Both call this function — never reimplement
@@ -41,9 +41,37 @@ function isPlatformName(s: string | undefined): boolean {
   return PLATFORM_NAMES.has(s.trim().toLowerCase());
 }
 
-export function parsePageTitle(pageTitle: string): { title?: string; company?: string } {
+export interface ParsedTitle {
+  title?: string;
+  company?: string;
+  /**
+   * True when the title shape suggests the role slot was empty — e.g.
+   * "| Geron Corporation | LinkedIn" (LinkedIn renders this when the page
+   * hasn't fully hydrated, or for some "off-LinkedIn apply" listings).
+   * Callers should treat this as a signal to either prompt a refresh or
+   * lean harder on DOM/JSON-LD extraction.
+   */
+  degraded?: boolean;
+}
+
+export function parsePageTitle(pageTitle: string): ParsedTitle {
   // Strip leading notification count: "(2) Title..." → "Title..."
   const cleaned = pageTitle.replace(/^\(\d+\)\s*/, "");
+
+  // Degraded shape: "| Company | Platform" (empty role slot before first sep).
+  // LinkedIn ships this when the JD area hasn't hydrated — we still want to
+  // recover the company if we can, but the caller needs to know not to write
+  // a row with title="| Company".
+  const leadingSep = cleaned.match(/^\s*[|\-–—]\s+(.+)$/);
+  if (leadingSep) {
+    const rest = leadingSep[1];
+    const sepMatch = rest.match(/^(.+?)\s*[|\-–—]\s*/);
+    if (sepMatch) {
+      const company = sepMatch[1].trim();
+      if (!isPlatformName(company)) return { company, degraded: true };
+    }
+    return { degraded: true };
+  }
 
   // LinkedIn: "Perfecting Peds hiring Director of Engineering in United States | LinkedIn"
   const linkedinMatch = cleaned.match(/^(.+?)\s+hiring\s+(.+?)\s+in\s+/i);

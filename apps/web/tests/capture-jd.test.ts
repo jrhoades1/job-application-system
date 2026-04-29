@@ -142,6 +142,42 @@ describe("parsePageTitle", () => {
       expect(result.company).toBe("LinkedIn-style Inc");
     });
   });
+
+  describe("degraded LinkedIn page (regression)", () => {
+    // On 2026-04-29 the Geron Corporation VP IT listing (4396151962) rendered
+    // a stripped-down LinkedIn page: zero h1 elements, no top-card classes,
+    // no JSON-LD JobPosting, document.title="| Geron Corporation | LinkedIn"
+    // (empty role slot before the first separator). The extension's import
+    // button surfaced a useless "Could not detect company or role" toast.
+    // The fix detects this pattern, recovers the company when possible, and
+    // sets degraded=true so callers can prompt a refresh.
+    it("recovers company and flags degraded for '| Company | LinkedIn'", () => {
+      const result = parsePageTitle("| Geron Corporation | LinkedIn");
+      expect(result.company).toBe("Geron Corporation");
+      expect(result.title).toBeUndefined();
+      expect(result.degraded).toBe(true);
+    });
+
+    it("handles notification-count prefix with degraded title", () => {
+      const result = parsePageTitle("(3) | Geron Corporation | LinkedIn");
+      expect(result.company).toBe("Geron Corporation");
+      expect(result.degraded).toBe(true);
+    });
+
+    it("flags degraded but rejects platform-only company", () => {
+      const result = parsePageTitle("| LinkedIn");
+      expect(result.company).toBeUndefined();
+      expect(result.degraded).toBe(true);
+    });
+
+    it("does not flag degraded when title is well-formed", () => {
+      const result = parsePageTitle(
+        "Perfecting Peds hiring Director of Engineering in United States | LinkedIn"
+      );
+      expect(result.degraded).toBeUndefined();
+      expect(result.title).toBe("Director of Engineering");
+    });
+  });
 });
 
 describe("fuzzyMatch", () => {
