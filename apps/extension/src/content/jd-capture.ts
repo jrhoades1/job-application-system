@@ -6,6 +6,7 @@
  */
 
 import { parsePageTitle } from "@/lib/parse-page-title";
+import { parseJobPostingJsonLd } from "@/lib/parse-job-posting";
 
 /** Selectors for extracting job descriptions from known platforms */
 const JD_EXTRACTORS: {
@@ -43,6 +44,13 @@ const JD_EXTRACTORS: {
       "[class*='top-card'] h1",
       "[class*='job-title']",
       "h1 a",
+      // Modern LinkedIn variants where role is rendered as h2 / role=heading
+      // ("Promoted by hirer" / off-LinkedIn-apply listings sometimes drop h1
+      // entirely — Geron VP IT 4396151962 was the regression that surfaced this).
+      "h2[class*='job-title']",
+      "h2[class*='topcard']",
+      "[role='heading'][class*='title']",
+      "[data-test*='job-title']",
     ],
     companySelectors: [
       ".job-details-jobs-unified-top-card__company-name a",
@@ -52,6 +60,10 @@ const JD_EXTRACTORS: {
       "a[data-tracking-control-name*='company']",
       "[class*='top-card'] [class*='company']",
       "[class*='company-name']",
+      // Modern LinkedIn variants (degraded view dropped the top-card classes)
+      "[class*='topcard'] [class*='company']",
+      "[data-test*='company']",
+      "a[href*='/company/']",
     ],
   },
   {
@@ -341,7 +353,17 @@ export function attemptJDCapture(): CaptureResult {
     return { url, description: "", error: "Not a recognized job posting page" };
   }
 
-  const description = extractText(extractor.selectors);
+  // Highest-priority source: schema.org JobPosting JSON-LD. When present,
+  // it survives DOM/CSS class churn and gives canonical title + company +
+  // description. LinkedIn sometimes ships it, sometimes doesn't (depends on
+  // page state / hydration), so this is best-effort.
+  const ldScripts = [...document.querySelectorAll('script[type="application/ld+json"]')]
+    .map((s) => s.textContent ?? "")
+    .filter(Boolean);
+  const ld = parseJobPostingJsonLd(ldScripts);
+
+  const domDescription = extractText(extractor.selectors);
+  const description = domDescription || ld.description || null;
   if (!description || description.length < 50) {
     return { url, description: "", error: "Could not find job description content on this page" };
   }
@@ -353,8 +375,9 @@ export function attemptJDCapture(): CaptureResult {
     .trim()
     .slice(0, 50000);
 
-  let title = extractFirst(extractor.titleSelectors) ?? undefined;
-  let company = extractFirst(extractor.companySelectors) ?? undefined;
+  // JSON-LD wins when present — it's the canonical source.
+  let title = ld.title ?? extractFirst(extractor.titleSelectors) ?? undefined;
+  let company = ld.company ?? extractFirst(extractor.companySelectors) ?? undefined;
 
   // Fallback: extract from page title (most reliable on LinkedIn)
   const pageTitle = document.title;
@@ -382,6 +405,22 @@ export function attemptJDCapture(): CaptureResult {
         break;
       }
     }
+  }
+
+  // Degraded LinkedIn pages render with title="| Company | LinkedIn", no h1,
+  // no top-card classes, no JSON-LD. We can recover company from the page
+  // title but the role is genuinely missing from the DOM. Surface a clear
+  // error rather than the generic "Could not detect company or role" so the
+  // user knows to refresh instead of staring at a useless message. (Regression
+  // case: Geron Corp VP IT 4396151962, 2026-04-29.)
+  if (parsed.degraded && !title) {
+    return {
+      url,
+      description: cleaned,
+      title,
+      company,
+      error: "LinkedIn page didn't fully load — refresh the tab and try again.",
+    };
   }
 
   return { url, description: cleaned, title, company };

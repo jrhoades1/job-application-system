@@ -124,7 +124,7 @@ async function init() {
     }
 
     if (!extracted.company || !extracted.title) {
-      status.textContent = "Could not detect company or role";
+      status.textContent = extracted.error || "Could not detect company or role";
       status.style.color = "#ef4444";
       status.classList.remove("hidden");
       btn.textContent = "Import Job";

@@ -248,6 +248,7 @@ interface CapturedData {
   description: string;
   title?: string;
   company?: string;
+  error?: string;
 }
 
 function injectImportButton(captured: CapturedData): void {
@@ -301,7 +302,7 @@ function injectImportButton(captured: CapturedData): void {
 
     // Validate we have minimum data
     if (!captured.company || !captured.title) {
-      showToast("Could not detect company or role from this page", "error");
+      showToast(captured.error || "Could not detect company or role from this page", "error");
       return;
     }
 
