@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { extractPostingId } from "@/lib/posting-id";
+import { extractPostingId, canonicalizeJobUrl } from "@/lib/posting-id";
 
 describe("extractPostingId", () => {
   it("parses LinkedIn /jobs/view/<id>/", () => {
@@ -85,5 +85,48 @@ describe("extractPostingId", () => {
     const b =
       "https://www.linkedin.com/comm/jobs/view/4402501651/?trackingId=zzz";
     expect(extractPostingId(a)).toBe(extractPostingId(b));
+  });
+});
+
+describe("canonicalizeJobUrl", () => {
+  it("strips email-digest tracking from LinkedIn URLs", () => {
+    // The Figma URL from the 2026-04-29 regression — trk=eml-* triggers
+    // LinkedIn's stripped-down render which breaks JD capture.
+    const noisy =
+      "https://www.linkedin.com/jobs/view/4392467444/?trk=eml-email_job_alert_digest_01-primary_job_list-0-job_posting_1_jobid_4392467444_ssid_7431802834_fmid_7niqi~modk9jlq~l2&refId=9DYy8my3QLVVMkH";
+    expect(canonicalizeJobUrl(noisy)).toBe(
+      "https://www.linkedin.com/jobs/view/4392467444/"
+    );
+  });
+
+  it("rewrites /comm/jobs/view/ to canonical /jobs/view/", () => {
+    expect(
+      canonicalizeJobUrl(
+        "https://www.linkedin.com/comm/jobs/view/4401186591/?trackingId=x"
+      )
+    ).toBe("https://www.linkedin.com/jobs/view/4401186591/");
+  });
+
+  it("returns already-canonical LinkedIn URLs unchanged in shape", () => {
+    expect(
+      canonicalizeJobUrl("https://www.linkedin.com/jobs/view/4396151962/")
+    ).toBe("https://www.linkedin.com/jobs/view/4396151962/");
+  });
+
+  it("passes through non-LinkedIn URLs unchanged", () => {
+    const u =
+      "https://boards.greenhouse.io/anthropic/jobs/4321?gh_src=foo&ref=bar";
+    expect(canonicalizeJobUrl(u)).toBe(u);
+  });
+
+  it("returns LinkedIn URL unchanged when posting id cannot be extracted", () => {
+    const u = "https://www.linkedin.com/jobs/search/?keywords=cto";
+    expect(canonicalizeJobUrl(u)).toBe(u);
+  });
+
+  it("returns null for nullish input", () => {
+    expect(canonicalizeJobUrl(null)).toBeNull();
+    expect(canonicalizeJobUrl(undefined)).toBeNull();
+    expect(canonicalizeJobUrl("")).toBeNull();
   });
 });

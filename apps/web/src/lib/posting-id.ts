@@ -53,3 +53,29 @@ export function extractPostingId(url: string | null | undefined): string | null 
 
   return null;
 }
+
+/**
+ * Return a tracking-free URL for the same posting when we can confidently
+ * reconstruct one — otherwise return the input unchanged.
+ *
+ * Why: LinkedIn's email-digest links carry tracking parameters like
+ *   ?trk=eml-email_job_alert_digest_01-primary_job_list-0-job_posting_1_jobid_<id>...
+ * which trigger their stripped-down "promoted teaser" page render — no h1,
+ * no top-card classes, no JSON-LD JobPosting. That breaks the extension's
+ * JD capture and makes the page look "funny" to the user. Navigating to the
+ * canonical /jobs/view/<id>/ URL gives the full top card and reliable
+ * extraction. (Regression cases: Geron Corp 4396151962, Figma 4392467444,
+ * both surfaced 2026-04-29.)
+ *
+ * Conservative on non-LinkedIn URLs: many ATS platforms encode legitimate
+ * state in query params (Workday view tokens, Greenhouse application flow),
+ * so we only canonicalize platforms where stripping is known to be safe.
+ */
+export function canonicalizeJobUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (/linkedin\.com/i.test(url)) {
+    const m = url.match(/linkedin\.com[^\s]*\/(?:comm\/)?jobs\/view\/(\d+)/i);
+    if (m) return `https://www.linkedin.com/jobs/view/${m[1]}/`;
+  }
+  return url;
+}
