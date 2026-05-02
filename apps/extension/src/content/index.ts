@@ -8,22 +8,8 @@ import { attemptJDCapture } from "./jd-capture";
 
 const ats = detectATS(window.location.href);
 
-// Only show badge on pages that have form inputs (likely an application page)
-function hasFormInputs(): boolean {
-  const inputs = document.querySelectorAll(
-    'input[type="text"], input[type="email"], input[type="tel"], input[type="url"], input:not([type]), textarea'
-  );
-  return inputs.length >= 2;
-}
-
-// Wait for DOM to settle, then decide what to show
 setTimeout(() => {
-  if (hasFormInputs()) {
-    injectBadge(ats?.label ?? null);
-  } else {
-    // Not a form page — check if it's a job listing we can import
-    tryShowImportButton();
-  }
+  tryShowImportButton();
   detectConfirmationPage();
 }, 1500);
 
@@ -134,59 +120,6 @@ export function setInputValue(input: HTMLInputElement | HTMLTextAreaElement, val
 
   input.dispatchEvent(new Event("input", { bubbles: true }));
   input.dispatchEvent(new Event("change", { bubbles: true }));
-}
-
-/** Inject floating badge showing ATS detection */
-function injectBadge(atsLabel: string | null): void {
-  const badge = document.createElement("div");
-  badge.id = "jaa-badge";
-  const atsTag = atsLabel
-    ? `<span style="
-        background: #3b82f6;
-        color: white;
-        padding: 2px 8px;
-        border-radius: 4px;
-        font-size: 11px;
-        font-weight: 600;
-      ">${atsLabel}</span>`
-    : "";
-  badge.innerHTML = `
-    <div style="
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      z-index: 999999;
-      background: #1a1a2e;
-      color: #eee;
-      padding: 10px 16px;
-      border-radius: 8px;
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-      font-size: 13px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      cursor: pointer;
-      transition: opacity 0.2s;
-    " title="Click to auto-fill application">
-      <span style="font-size: 16px;">📋</span>
-      <span>Auto-Fill</span>
-      ${atsTag}
-    </div>
-  `;
-
-  badge.addEventListener("click", async () => {
-    const response = await chrome.runtime.sendMessage({ type: "FILL_FORM" });
-    if (response?.error) {
-      showToast(`Error: ${response.error}`, "error");
-    } else if (response?.filled > 0) {
-      showToast(`Filled ${response.filled} field${response.filled !== 1 ? "s" : ""}`, "success");
-    } else {
-      showToast("No empty fields found to fill", "info");
-    }
-  });
-
-  document.body.appendChild(badge);
 }
 
 /** Detect "thank you" / confirmation pages after submission */

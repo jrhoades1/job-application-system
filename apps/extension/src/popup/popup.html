@@ -74,8 +74,6 @@
     .btn-primary:hover { background: #2563eb; }
     .btn-outline { background: transparent; border: 1px solid #ddd; color: #666; }
     .btn-outline:hover { background: #f5f5f5; }
-    .btn-fill { background: #22c55e; color: white; width: 100%; }
-    .btn-fill:hover { background: #16a34a; }
     .actions { padding: 14px 16px; }
     .match-card {
       background: #f0f9ff;
@@ -93,7 +91,7 @@
 <body>
   <div class="header">
     <h1>Job App Assistant</h1>
-    <p>Auto-fill &amp; track applications</p>
+    <p>Capture and track applications</p>
   </div>
 
   <!-- Setup section — shown when not configured -->
@@ -149,8 +147,7 @@
     </div>
 
     <div class="actions">
-      <button class="btn btn-fill" id="fill-btn">Auto-Fill Application</button>
-      <button class="btn btn-primary" id="import-job-btn" style="width: 100%; margin-top: 8px; background: #8b5cf6;">Import Job</button>
+      <button class="btn btn-primary" id="import-job-btn" style="width: 100%; background: #8b5cf6;">Import Job</button>
       <div id="import-status" class="hidden" style="margin-top: 6px; font-size: 12px; text-align: center;"></div>
       <div style="margin-top: 8px; text-align: center;">
         <button class="btn btn-outline" id="disconnect-btn">Disconnect</button>

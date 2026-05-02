@@ -1,4 +1,4 @@
-/** Popup script — manages setup, profile display, and auto-fill trigger */
+/** Popup script — manages setup, profile display, and job import */
 
 import { getConfig, saveConfig, clearConfig } from "@/lib/api-client";
 import { clearProfile } from "@/lib/profile-store";
@@ -168,28 +168,6 @@ async function init() {
       btn.textContent = "Import Job";
       btn.disabled = false;
     }, 3000);
-  });
-
-  // Auto-fill button
-  $("fill-btn").addEventListener("click", async () => {
-    const btn = $("fill-btn") as HTMLButtonElement;
-    btn.textContent = "Filling...";
-    btn.disabled = true;
-
-    const response = await chrome.runtime.sendMessage({ type: "FILL_FORM" });
-
-    if (response?.error) {
-      btn.textContent = `Error: ${response.error}`;
-    } else if (response?.filled > 0) {
-      btn.textContent = `Filled ${response.filled} fields!`;
-    } else {
-      btn.textContent = "No empty fields found";
-    }
-
-    setTimeout(() => {
-      btn.textContent = "Auto-Fill Application";
-      btn.disabled = false;
-    }, 2000);
   });
 }
 
