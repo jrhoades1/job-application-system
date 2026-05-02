@@ -1,12 +1,6 @@
-/** Content script — runs on all pages, handles detection, badge, auto-fill, JD capture, and job import */
+/** Content script — runs on all pages, handles JD capture, job import, and confirmation detection */
 
-import { detectATS } from "@/lib/ats-patterns";
-import type { ProfileData, MatchedApplication } from "@/lib/api-client";
-import { fillGreenhouse } from "./greenhouse";
-import { fillLever } from "./lever";
 import { attemptJDCapture } from "./jd-capture";
-
-const ats = detectATS(window.location.href);
 
 setTimeout(() => {
   tryShowImportButton();
@@ -47,80 +41,12 @@ if (/linkedin\.com\/jobs/i.test(window.location.href)) {
 
 // Listen for commands from background
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message.type === "DO_FILL" && message.profile) {
-    const result = fillForm(message.profile, message.evaluation ?? null);
-    sendResponse(result);
-  } else if (message.type === "DO_CAPTURE_JD") {
+  if (message.type === "DO_CAPTURE_JD") {
     const result = attemptJDCapture();
     sendResponse(result);
   }
   return true;
 });
-
-function fillForm(
-  profile: ProfileData,
-  evaluation: MatchedApplication | null
-): { filled: number; error?: string } {
-  if (!ats) return { filled: 0, error: "Not on a supported ATS page" };
-
-  switch (ats.name) {
-    case "greenhouse":
-      return fillGreenhouse(profile, evaluation);
-    case "lever":
-      return fillLever(profile, evaluation);
-    default:
-      return fillGeneric(profile);
-  }
-}
-
-/** Generic auto-fill — tries common field names/labels */
-function fillGeneric(profile: ProfileData): { filled: number } {
-  let filled = 0;
-
-  const fieldMap: [string[], string][] = [
-    [["first_name", "firstname", "first-name", "fname"], profile.full_name.split(" ")[0] ?? ""],
-    [["last_name", "lastname", "last-name", "lname"], profile.full_name.split(" ").slice(1).join(" ")],
-    [["email", "email_address", "emailaddress"], profile.email],
-    [["phone", "phone_number", "phonenumber", "mobile"], profile.phone ?? ""],
-    [["linkedin", "linkedin_url", "linkedin_profile"], profile.linkedin_url ?? ""],
-    [["portfolio", "website", "portfolio_url", "personal_website"], profile.portfolio_url ?? ""],
-    [["location", "city", "address"], profile.location ?? ""],
-  ];
-
-  for (const [names, value] of fieldMap) {
-    if (!value) continue;
-    for (const name of names) {
-      const input = document.querySelector<HTMLInputElement>(
-        `input[name*="${name}" i], input[id*="${name}" i], input[autocomplete*="${name}" i]`
-      );
-      if (input && !input.value) {
-        setInputValue(input, value);
-        filled++;
-        break;
-      }
-    }
-  }
-
-  return { filled };
-}
-
-/** Set input value with proper React/change event dispatch */
-export function setInputValue(input: HTMLInputElement | HTMLTextAreaElement, value: string): void {
-  const nativeSet = Object.getOwnPropertyDescriptor(
-    window.HTMLInputElement.prototype, "value"
-  )?.set ?? Object.getOwnPropertyDescriptor(
-    window.HTMLTextAreaElement.prototype, "value"
-  )?.set;
-
-  if (nativeSet) {
-    nativeSet.call(input, value);
-  } else {
-    input.value = value;
-  }
-
-  input.dispatchEvent(new Event("input", { bubbles: true }));
-  input.dispatchEvent(new Event("change", { bubbles: true }));
-}
 
 /** Detect "thank you" / confirmation pages after submission */
 function detectConfirmationPage(): void {

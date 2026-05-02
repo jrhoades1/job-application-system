@@ -8,7 +8,6 @@ export type Message =
   | { type: "GET_PROFILE" }
   | { type: "MATCH_URL"; url: string }
   | { type: "MARK_APPLIED"; applicationId: string }
-  | { type: "FILL_FORM" }
   | { type: "CAPTURE_JD" }
   | { type: "IMPORT_JOB"; data: { url: string; job_description: string; role: string; company: string; location?: string } }
   | { type: "BULK_CAPTURE_START" }
@@ -144,24 +143,6 @@ async function handleMessage(message: Message): Promise<unknown> {
 
     case "MARK_APPLIED":
       return await markApplied(message.applicationId);
-
-    case "FILL_FORM": {
-      const profile = await getProfile();
-      if (!profile) return { error: "No profile available" };
-      // Send profile to the active tab's content script
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (!tab?.id) return { error: "No active tab" };
-      // Look up cached evaluation (cover letter, archetype, score) for this URL.
-      // Content script passes it through to fillGreenhouse/fillLever which
-      // only inject the cover letter if the user clicked "Fill" — that click
-      // is the consent gate per project security model. Never auto-submit.
-      const evaluation = tab.url ? await matchUrl(tab.url) : null;
-      return await chrome.tabs.sendMessage(tab.id, {
-        type: "DO_FILL",
-        profile,
-        evaluation,
-      });
-    }
 
     case "CAPTURE_JD": {
       // Triggered from popup — tell content script to extract, then send to API
