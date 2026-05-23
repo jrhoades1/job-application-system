@@ -15,6 +15,7 @@ import { shouldSkipDigest, escapeHtml, type DigestSkipReason } from "./utils";
 import { sendSms } from "@/lib/twilio";
 import { runDecayEngine, type DecayResult } from "@/lib/decay-engine";
 import { runWeeklyIntelligence, storeInsights, type IntelligenceResult } from "@/lib/weekly-intelligence";
+import { enrichLeadsForUser, type EnrichStats } from "@/lib/enrich-leads";
 
 export const maxDuration = 300;
 
@@ -75,7 +76,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Database error" }, { status: 500 });
   }
 
-  const results: { userId: string; sync: SyncResult | null; apiSources: ApiSourcesResult | null; decay: DecayResult | null; digest: DigestOutcome }[] = [];
+  const results: { userId: string; sync: SyncResult | null; apiSources: ApiSourcesResult | null; decay: DecayResult | null; enrich: EnrichStats | null; digest: DigestOutcome }[] = [];
 
   for (const conn of connections ?? []) {
     const userId = conn.clerk_user_id;
@@ -126,6 +127,15 @@ export async function GET(req: Request) {
       console.error(`[nightly-pipeline] Decay engine error for ${userId}:`, err);
     }
 
+    // 2.6 Enrich fresh stubs inline so the digest reflects scored matches,
+    // not estimated stubs (which are capped at "stretch" by calculateOverallScore).
+    let enrichResult: EnrichStats | null = null;
+    try {
+      enrichResult = await enrichLeadsForUser(supabase, userId);
+    } catch (err) {
+      console.error(`[nightly-pipeline] Enrich error for ${userId}:`, err);
+    }
+
     // 2.7 Run weekly intelligence (Mondays only)
     let intelligenceResult: IntelligenceResult | null = null;
     const dayOfWeek = new Date().getDay();
@@ -161,7 +171,7 @@ export async function GET(req: Request) {
     // Skip digest based on frequency preference
     const skip = shouldSkipDigest(digestFrequency, new Date().getDay());
     if (skip.skip && skip.reason) {
-      results.push({ userId, sync: syncResult, apiSources: apiSourcesResult, decay: decayResult, digest: { skipped: skip.reason } });
+      results.push({ userId, sync: syncResult, apiSources: apiSourcesResult, decay: decayResult, enrich: enrichResult, digest: { skipped: skip.reason } });
       continue;
     }
 
@@ -221,6 +231,7 @@ export async function GET(req: Request) {
       sync: syncResult,
       apiSources: apiSourcesResult,
       decay: decayResult,
+      enrich: enrichResult,
       digest: { aboveThreshold, top3Count: top3.length, emailSent: !!(digestEmail && top3.length > 0), smsSent },
     });
   }
