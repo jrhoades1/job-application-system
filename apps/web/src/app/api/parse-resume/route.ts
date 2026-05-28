@@ -26,7 +26,7 @@ const resumeResponseSchema = z.object({
   })).default([]),
 });
 
-const MAX_FILE_SIZE = 500 * 1024; // 500 KB
+const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4 MB — under Vercel's 4.5 MB serverless payload limit
 const ACCEPTED_TYPES = [
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
 
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { error: "File too large. Maximum size is 500 KB." },
+        { error: "File too large. Maximum size is 4 MB." },
         { status: 400 }
       );
     }

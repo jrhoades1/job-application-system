@@ -261,7 +261,7 @@ export function ProfileForm() {
         <CardHeader>
           <CardTitle>Import from Resume</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Upload your resume and Claude will fill in your profile automatically. PDF, DOCX, or TXT — max 500 KB.
+            Upload your resume and Claude will fill in your profile automatically. PDF, DOCX, or TXT — max 4 MB.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
