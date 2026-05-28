@@ -11,11 +11,18 @@ export function getStripe(): Stripe {
   return _stripe;
 }
 
+/**
+ * Caps at or above this number are treated as "unlimited" by the metering
+ * check (it never blocks) and rendered as "Unlimited" in the UI. The $10/mo
+ * AI dollar cap in cost_config is what actually gates spend.
+ */
+export const UNLIMITED_APPLICATIONS = 1_000_000;
+
 /** Plan configuration -- single source of truth for tier limits */
 export const PLAN_CONFIG = {
-  free: { applicationsCap: 3, label: "Free" },
-  pro: { applicationsCap: 30, label: "Pro" },
-  career_maintenance: { applicationsCap: 5, label: "Career Maintenance" },
+  free: { applicationsCap: UNLIMITED_APPLICATIONS, label: "Free" },
+  pro: { applicationsCap: UNLIMITED_APPLICATIONS, label: "Pro" },
+  career_maintenance: { applicationsCap: UNLIMITED_APPLICATIONS, label: "Career Maintenance" },
 } as const;
 
 export type PlanType = keyof typeof PLAN_CONFIG;

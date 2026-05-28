@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
+import { PLAN_CONFIG, UNLIMITED_APPLICATIONS } from "@/lib/stripe";
 
 interface SubscriptionData {
   plan_type: string;
@@ -106,10 +107,11 @@ export function CostUsage() {
 
   const planType = sub?.plan_type ?? "free";
   const used = sub?.applications_used ?? 0;
-  const cap = sub?.applications_cap ?? 3;
+  const cap = sub?.applications_cap ?? PLAN_CONFIG.free.applicationsCap;
   const topOff = sub?.top_off_balance ?? 0;
   const totalAvailable = cap + topOff;
-  const pct = totalAvailable > 0 ? Math.round((used / totalAvailable) * 100) : 0;
+  const isUnlimited = cap >= UNLIMITED_APPLICATIONS;
+  const pct = !isUnlimited && totalAvailable > 0 ? Math.round((used / totalAvailable) * 100) : 0;
   const isFree = planType === "free";
 
   return (
@@ -141,17 +143,29 @@ export function CostUsage() {
         </CardHeader>
         <CardContent>
           <div className="text-3xl font-bold">
-            {used} of {totalAvailable} applications
+            {isUnlimited ? (
+              <>{used} applications</>
+            ) : (
+              <>{used} of {totalAvailable} applications</>
+            )}
           </div>
-          {topOff > 0 && (
+          {isUnlimited ? (
             <div className="text-sm text-muted-foreground mt-1">
-              {cap} included + {topOff} bonus
+              Unlimited applications — spend is gated by the monthly AI dollar cap below.
             </div>
+          ) : (
+            <>
+              {topOff > 0 && (
+                <div className="text-sm text-muted-foreground mt-1">
+                  {cap} included + {topOff} bonus
+                </div>
+              )}
+              <Progress
+                value={Math.min(pct, 100)}
+                className={`mt-3 ${pct >= 80 ? "[&>div]:bg-red-500" : pct >= 60 ? "[&>div]:bg-yellow-500" : ""}`}
+              />
+            </>
           )}
-          <Progress
-            value={Math.min(pct, 100)}
-            className={`mt-3 ${pct >= 80 ? "[&>div]:bg-red-500" : pct >= 60 ? "[&>div]:bg-yellow-500" : ""}`}
-          />
           {sub?.billing_period_end && (
             <div className="text-xs text-muted-foreground mt-2">
               Resets {new Date(sub.billing_period_end).toLocaleDateString()}
@@ -160,7 +174,7 @@ export function CostUsage() {
 
           {/* Action buttons */}
           <div className="flex gap-3 mt-4">
-            {isFree && (
+            {isFree && !isUnlimited && (
               <Button
                 onClick={() => handleCheckout("pro")}
                 disabled={actionLoading}
@@ -168,7 +182,7 @@ export function CostUsage() {
                 Upgrade to Pro - $25/mo
               </Button>
             )}
-            {!isFree && pct >= 60 && (
+            {!isFree && !isUnlimited && pct >= 60 && (
               <Button
                 variant="outline"
                 onClick={handleTopOff}

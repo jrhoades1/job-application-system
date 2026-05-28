@@ -2,6 +2,7 @@ import { Webhook } from "svix";
 import { headers } from "next/headers";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { PLAN_CONFIG } from "@/lib/stripe";
 
 let _supabase: SupabaseClient | null = null;
 function getSupabase(): SupabaseClient {
@@ -85,7 +86,7 @@ export async function POST(req: Request) {
     await getSupabase().from("subscriptions").insert({
       clerk_user_id: id,
       plan_type: "free",
-      applications_cap: 3,
+      applications_cap: PLAN_CONFIG.free.applicationsCap,
     });
   }
 
