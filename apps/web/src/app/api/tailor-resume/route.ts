@@ -80,6 +80,22 @@ export async function POST(req: Request) {
       );
     }
 
+    // Refuse to tailor when there's no source material. Without achievements or
+    // work history Sonnet ignores the "do not fabricate" rule and invents a
+    // plausible resume matching the JD — better to fail loudly so the user
+    // populates their profile first.
+    const hasAchievements = Array.isArray(profile.achievements) && profile.achievements.length > 0;
+    const hasWorkHistory = Array.isArray(profile.work_history) && profile.work_history.length > 0;
+    if (!hasAchievements && !hasWorkHistory) {
+      return NextResponse.json(
+        {
+          error:
+            "Your profile is empty. Add work history and achievements in Settings → Profile before tailoring a resume.",
+        },
+        { status: 400 }
+      );
+    }
+
     const score = Array.isArray(app.match_scores)
       ? app.match_scores[0]
       : app.match_scores;
