@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -121,8 +122,10 @@ function DownloadButtons({ content, company, role, docType }: {
   role: string;
   docType: "resume" | "cover-letter";
 }) {
+  const { user } = useUser();
   const label = docType === "resume" ? "Resume" : "Cover_Letter";
-  const base = `Jimmy_Rhoades_${label}_${sanitizeFilename(company)}`;
+  const namePart = sanitizeFilename(user?.fullName ?? "Resume");
+  const base = `${namePart || "Resume"}_${label}_${sanitizeFilename(company)}`;
   return (
     <div className="flex gap-2 mt-2">
       <Button
