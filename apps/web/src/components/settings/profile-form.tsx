@@ -24,7 +24,6 @@ export function ProfileForm() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [parsing, setParsing] = useState(false);
-  const [parsedPreview, setParsedPreview] = useState<ParsedResume | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -152,48 +151,71 @@ export function ProfileForm() {
 
   async function handleParseResume(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !profile) return;
     setParsing(true);
     try {
       const form = new FormData();
       form.append("file", file);
       const res = await fetch("/api/parse-resume", { method: "POST", body: form });
-      if (res.ok) {
-        const data: ParsedResume = await res.json();
-        setParsedPreview(data);
-        toast.success("Resume parsed — review and apply below");
-      } else {
-        const err = await res.json();
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
         toast.error(err.error ?? "Failed to parse resume");
+        return;
       }
+      const data: ParsedResume = await res.json();
+
+      // Merge and persist in one shot — no preview/confirm step.
+      const mergedAchievements = mergeParsedAchievements(
+        profile.achievements ?? [],
+        data.achievements ?? []
+      );
+      const mergedWorkHistory =
+        data.work_history && data.work_history.length > 0
+          ? data.work_history
+          : profile.work_history ?? [];
+
+      const cleanedAchievements = mergedAchievements
+        .map((cat) => ({
+          ...cat,
+          items: cat.items.filter((item) => item.text.trim() !== ""),
+        }))
+        .filter((cat) => cat.items.length > 0);
+      const cleanedWorkHistory = mergedWorkHistory.filter(
+        (w) => w.company.trim() !== "" || w.title.trim() !== ""
+      );
+
+      const saveRes = await fetch("/api/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          full_name: data.full_name || profile.full_name,
+          email: data.email || profile.email,
+          phone: data.phone || profile.phone || null,
+          location: data.location || profile.location || null,
+          linkedin_url: data.linkedin_url || profile.linkedin_url || null,
+          narrative: data.narrative || profile.narrative || null,
+          achievements: cleanedAchievements,
+          work_history: cleanedWorkHistory,
+        }),
+      });
+      if (!saveRes.ok) {
+        toast.error("Parsed resume but failed to save profile");
+        return;
+      }
+      const updated = await saveRes.json();
+      setProfile(updated);
+
+      const workCount = data.work_history?.length ?? 0;
+      const catCount = data.achievements?.length ?? 0;
+      toast.success(
+        `Resume imported — ${workCount} role${workCount === 1 ? "" : "s"}, ${catCount} achievement categor${catCount === 1 ? "y" : "ies"}`
+      );
     } catch {
       toast.error("Something went wrong");
     } finally {
       setParsing(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
-  }
-
-  function applyParsedResume() {
-    if (!profile || !parsedPreview) return;
-    setProfile({
-      ...profile,
-      full_name: parsedPreview.full_name || profile.full_name,
-      email: parsedPreview.email || profile.email,
-      phone: parsedPreview.phone || profile.phone || null,
-      location: parsedPreview.location || profile.location || null,
-      linkedin_url: parsedPreview.linkedin_url || profile.linkedin_url || null,
-      narrative: parsedPreview.narrative || profile.narrative || null,
-      work_history: parsedPreview.work_history && parsedPreview.work_history.length > 0
-        ? parsedPreview.work_history
-        : profile.work_history ?? [],
-      achievements: mergeParsedAchievements(
-        profile.achievements ?? [],
-        parsedPreview.achievements ?? []
-      ),
-    });
-    setParsedPreview(null);
-    toast.success("Profile pre-filled — review and save");
   }
 
   function mergeParsedAchievements(
@@ -239,7 +261,7 @@ export function ProfileForm() {
         <CardHeader>
           <CardTitle>Import from Resume</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Upload your resume and Claude will pre-fill your profile. PDF, DOCX, or TXT — max 500 KB.
+            Upload your resume and Claude will fill in your profile automatically. PDF, DOCX, or TXT — max 500 KB.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -256,61 +278,12 @@ export function ProfileForm() {
               onClick={() => fileInputRef.current?.click()}
               disabled={parsing}
             >
-              {parsing ? "Parsing..." : "Upload Resume"}
+              {parsing ? "Importing..." : "Upload Resume"}
             </Button>
             {parsing && (
-              <span className="text-sm text-muted-foreground">Claude is reading your resume...</span>
+              <span className="text-sm text-muted-foreground">Claude is reading your resume and updating your profile...</span>
             )}
           </div>
-
-          {parsedPreview && (
-            <div className="rounded-lg border-2 border-blue-500 bg-blue-50 dark:bg-blue-950/30 p-4 space-y-3 relative">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900 px-2.5 py-0.5 text-xs font-semibold text-blue-800 dark:text-blue-200">
-                    Resume Preview
-                  </span>
-                  <p className="text-sm text-muted-foreground">Click &quot;Apply&quot; to fill in the form below</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={applyParsedResume}>Apply to Profile</Button>
-                  <Button size="sm" variant="ghost" onClick={() => setParsedPreview(null)}>Dismiss</Button>
-                </div>
-              </div>
-              <div className="text-sm text-muted-foreground grid gap-x-6 gap-y-1 grid-cols-1 sm:grid-cols-2">
-                {parsedPreview.full_name && (
-                  <p className="truncate"><span className="font-medium text-foreground">Name:</span> {parsedPreview.full_name}</p>
-                )}
-                {parsedPreview.email && (
-                  <p className="truncate"><span className="font-medium text-foreground">Email:</span> {parsedPreview.email}</p>
-                )}
-                {parsedPreview.phone && (
-                  <p className="truncate"><span className="font-medium text-foreground">Phone:</span> {parsedPreview.phone}</p>
-                )}
-                {parsedPreview.location && (
-                  <p className="truncate"><span className="font-medium text-foreground">Location:</span> {parsedPreview.location}</p>
-                )}
-                {parsedPreview.linkedin_url && (
-                  <p className="truncate sm:col-span-2"><span className="font-medium text-foreground">LinkedIn:</span> {parsedPreview.linkedin_url}</p>
-                )}
-              </div>
-              {parsedPreview.narrative && (
-                <p className="text-sm text-muted-foreground border-t border-blue-200 dark:border-blue-800 pt-2">
-                  <span className="font-medium text-foreground">Narrative:</span> {parsedPreview.narrative.slice(0, 200)}{parsedPreview.narrative.length > 200 ? "..." : ""}
-                </p>
-              )}
-              {parsedPreview.work_history && parsedPreview.work_history.length > 0 && (
-                <p className="text-sm text-muted-foreground border-t border-blue-200 dark:border-blue-800 pt-2">
-                  <span className="font-medium text-foreground">Work History:</span> {parsedPreview.work_history.map(w => `${w.title} at ${w.company}`).join(", ")}
-                </p>
-              )}
-              {parsedPreview.achievements && parsedPreview.achievements.length > 0 && (
-                <p className="text-sm text-muted-foreground border-t border-blue-200 dark:border-blue-800 pt-2">
-                  <span className="font-medium text-foreground">Achievements:</span> {parsedPreview.achievements.map(c => `${c.category} (${c.items.length})`).join(", ")}
-                </p>
-              )}
-            </div>
-          )}
         </CardContent>
       </Card>
 
