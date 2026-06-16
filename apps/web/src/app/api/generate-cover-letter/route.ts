@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthenticatedClient } from "@/lib/supabase";
-import { createTrackedMessage, ApplicationQuotaExceededError } from "@/lib/anthropic";
+import { createTrackedMessage, ApplicationQuotaExceededError, SONNET_MODEL } from "@/lib/anthropic";
 import { buildCoverLetterPrompt } from "@/ai/generate-cover-letter";
 
 const coverLetterSchema = z.object({
@@ -77,7 +77,7 @@ export async function POST(req: Request) {
 
     const response = await createTrackedMessage(
       {
-        model: "claude-sonnet-4-20250514",
+        model: SONNET_MODEL,
         max_tokens: 1500,
         messages: [{ role: "user", content: prompt }],
       },

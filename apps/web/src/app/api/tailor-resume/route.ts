@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import Anthropic from "@anthropic-ai/sdk";
 import { getAuthenticatedClient } from "@/lib/supabase";
-import { createTrackedMessage, ApplicationQuotaExceededError } from "@/lib/anthropic";
+import { createTrackedMessage, ApplicationQuotaExceededError, SONNET_MODEL } from "@/lib/anthropic";
 import { buildTailorResumePrompt } from "@/ai/tailor-resume";
 import {
   calculateOverallScore,
@@ -193,7 +193,7 @@ export async function POST(req: Request) {
 
     const response = await createTrackedMessage(
       {
-        model: "claude-sonnet-4-20250514",
+        model: SONNET_MODEL,
         // 4000 tokens supports up to ~3 pages of markdown — needed since
         // length is now coverage-driven, not page-capped. The bullet-quality
         // rule keeps it from bloating uselessly.

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthenticatedClient } from "@/lib/supabase";
-import { createTrackedMessage } from "@/lib/anthropic";
+import { createTrackedMessage, SONNET_MODEL } from "@/lib/anthropic";
 import { buildParseResumePrompt } from "@/ai/parse-resume";
 
 const resumeResponseSchema = z.object({
@@ -100,7 +100,7 @@ export async function POST(req: Request) {
 
     const response = await createTrackedMessage(
       {
-        model: "claude-sonnet-4-20250514",
+        model: SONNET_MODEL,
         max_tokens: 2000,
         messages: [{ role: "user", content: prompt }],
       },
@@ -140,7 +140,7 @@ export async function POST(req: Request) {
         const fallbackPrompt = `Based on a resume for "${name}" with expertise in: ${categories.join(", ")} — write a 2-3 sentence career positioning statement in first person. Return ONLY the narrative text, no JSON, no quotes.`;
         const fallbackResp = await createTrackedMessage(
           {
-            model: "claude-sonnet-4-20250514",
+            model: SONNET_MODEL,
             max_tokens: 300,
             messages: [{ role: "user", content: fallbackPrompt }],
           },

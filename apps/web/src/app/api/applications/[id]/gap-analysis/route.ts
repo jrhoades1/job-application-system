@@ -13,7 +13,7 @@
  */
 import { NextResponse } from "next/server";
 import { getAuthenticatedClient } from "@/lib/supabase";
-import { createTrackedMessage } from "@/lib/anthropic";
+import { createTrackedMessage, SONNET_MODEL } from "@/lib/anthropic";
 import {
   buildGapSeverityPrompt,
   parseGapSeverityResponse,
@@ -21,7 +21,7 @@ import {
   type GapSeverityResult,
 } from "@/ai/gap-severity";
 
-const MODEL = "claude-sonnet-4-20250514";
+const MODEL = SONNET_MODEL;
 const MAX_TOKENS = 512;
 
 interface GapEntry {

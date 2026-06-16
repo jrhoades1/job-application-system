@@ -6,6 +6,17 @@ import {
   incrementApplicationUsage,
 } from "./metering";
 
+/**
+ * Default Sonnet model for all tailoring/parsing/analysis calls.
+ *
+ * Defined in ONE place so a model retirement can't silently break half the
+ * endpoints again. The previous hardcoded id (`claude-sonnet-4-20250514`,
+ * Sonnet 4.0) was retired by Anthropic and started returning 404, taking down
+ * resume tailoring, parsing, cover letters, job analysis, gap analysis, and
+ * answer-question all at once. Every Sonnet call site must import this.
+ */
+export const SONNET_MODEL = "claude-sonnet-4-6";
+
 let _anthropic: Anthropic | null = null;
 
 function getAnthropic(): Anthropic {
@@ -20,7 +31,8 @@ function getAnthropic(): Anthropic {
 // Model pricing per 1M tokens (from DSF cost-tracking skill)
 const MODEL_PRICING: Record<string, { input: number; output: number }> = {
   "claude-opus-4-20250514": { input: 15.0, output: 75.0 },
-  "claude-sonnet-4-20250514": { input: 3.0, output: 15.0 },
+  "claude-sonnet-4-6": { input: 3.0, output: 15.0 },
+  "claude-sonnet-4-20250514": { input: 3.0, output: 15.0 }, // retired — kept for historical cost rows
   "claude-haiku-4-5-20251001": { input: 0.25, output: 1.25 },
 };
 
