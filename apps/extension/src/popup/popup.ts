@@ -1,6 +1,6 @@
 /** Popup script — manages setup, profile display, and job import */
 
-import { getConfig, saveConfig, clearConfig } from "@/lib/api-client";
+import { getAuthStatus, getConfig, saveConfig, clearConfig } from "@/lib/api-client";
 import { clearProfile } from "@/lib/profile-store";
 
 const $ = (id: string) => document.getElementById(id)!;
@@ -33,7 +33,10 @@ async function init() {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
-        $("setup-error").textContent = "Connection failed — check URL and token";
+        $("setup-error").textContent =
+          res.status === 401 || res.status === 403
+            ? "Token rejected — generate a fresh one in Settings → Extension"
+            : "Connection failed — check URL and token";
         $("setup-error").classList.remove("hidden");
         return;
       }
@@ -189,7 +192,11 @@ async function loadProfile() {
     $("profile-phone").textContent = profile.phone || "—";
   } else {
     $("status-dot").classList.replace("green", "red");
-    $("status-text").textContent = "Cannot reach server";
+    const status = await getAuthStatus();
+    $("status-text").textContent =
+      status === "unauthorized"
+        ? "Token invalid or revoked — generate a new one in Settings"
+        : "Cannot reach server";
   }
 }
 

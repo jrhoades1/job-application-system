@@ -35,6 +35,23 @@ async function apiFetch(path: string, options: RequestInit = {}): Promise<Respon
   });
 }
 
+export type AuthStatus = "ok" | "unauthorized" | "unreachable";
+
+/**
+ * Distinguish "token no longer valid" from "server unreachable".
+ * Tokens can be revoked from Settings → Extension, so a 401 means reconnect
+ * with a freshly generated token, not retry later.
+ */
+export async function getAuthStatus(): Promise<AuthStatus> {
+  try {
+    const res = await apiFetch("/api/extension/profile");
+    if (res.status === 401 || res.status === 403) return "unauthorized";
+    return res.ok ? "ok" : "unreachable";
+  } catch {
+    return "unreachable";
+  }
+}
+
 export interface ProfileData {
   full_name: string;
   email: string;
