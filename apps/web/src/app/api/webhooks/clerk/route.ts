@@ -29,6 +29,7 @@ interface ProvisioningOverride {
   plan_type: PlanType;
   monthly_ai_cap_usd: number;
   block_on_cap: boolean;
+  preferences: Record<string, unknown>;
 }
 
 /** Default cost_config values, mirrored from the column defaults in migration 001. */
@@ -36,6 +37,7 @@ const DEFAULT_PROVISIONING: ProvisioningOverride = {
   plan_type: "free",
   monthly_ai_cap_usd: 10.0,
   block_on_cap: true,
+  preferences: {},
 };
 
 /**
@@ -48,7 +50,7 @@ async function getProvisioning(email: string): Promise<ProvisioningOverride> {
 
   const { data, error } = await getSupabase()
     .from("provisioning_overrides")
-    .select("plan_type, monthly_ai_cap_usd, block_on_cap")
+    .select("plan_type, monthly_ai_cap_usd, block_on_cap, preferences")
     .eq("email", email.toLowerCase())
     .maybeSingle();
 
@@ -107,11 +109,12 @@ export async function POST(req: Request) {
 
     const provisioning = await getProvisioning(email);
 
-    // Create profile row
+    // Create profile row, pre-seeded with any allowlisted Bullseye preferences
     await getSupabase().from("profiles").insert({
       clerk_user_id: id,
       full_name: fullName,
       email,
+      preferences: provisioning.preferences,
     });
 
     // Create cost config (AI dollar cap is the only real spend gate)
