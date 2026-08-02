@@ -80,3 +80,9 @@ node_modules/
 
 # Logs
 *.log
+
+# Loose resume files dropped at the repo root. This repo is public — these
+# carry home addresses, cell numbers and personal emails. Ignore, don't commit.
+/*.doc
+/*.docx
+/*Resume*.pdf
