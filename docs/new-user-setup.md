@@ -155,6 +155,28 @@ insert into provisioning_overrides (email, plan_type, monthly_ai_cap_usd, block_
 values ('person@example.com', 'pro', 250.00, true, 'why this person gets elevated limits');
 ```
 
+The same row can carry their Bullseye preferences, which get merged into their
+profile at signup — that removes step 3 from their list entirely:
+
+```sql
+update provisioning_overrides
+   set preferences = jsonb_build_object(
+         'location',            'City, ST',
+         'target_roles',        jsonb_build_array('Role One', 'Role Two'),
+         'salary_min',          65000,
+         'remote_preference',   'any',        -- remote | hybrid | onsite | any
+         'min_role_level',      'any',
+         'lead_filter_enabled', true,
+         'digest_frequency',    'daily',      -- daily | weekly | off
+         'digest_email',        'person@example.com'
+       )
+ where email = 'person@example.com';
+```
+
+Keep `target_roles` to roughly ten or fewer. Each one becomes a separate
+serial API query against Jobicy and Adzuna in `/api/pipeline/api-sources`,
+which has a 120-second function ceiling and a 15-second per-fetch timeout.
+
 - `email` must be lowercase (enforced by a CHECK constraint).
 - `plan_type` is one of `free`, `pro`, `career_maintenance`.
 - `monthly_ai_cap_usd` is the real limit. For reference, the heaviest month of
@@ -180,10 +202,10 @@ update subscriptions
  where clerk_user_id = (select clerk_user_id from profiles where email = 'person@example.com');
 ```
 
-### Optional: pre-seed their Bullseye profile and targets
+### After signup: preferences and target companies
 
-If you already know what the new user wants, you can fill in steps 3 and 4 for
-them so they only have to sign up and upload a resume.
+If they've already signed up, edit the profile directly rather than the
+allowlist row (the webhook has already fired and won't fire again):
 
 ```sql
 -- Bullseye preferences
@@ -191,10 +213,8 @@ update profiles
    set preferences = preferences || jsonb_build_object(
          'target_roles',        jsonb_build_array('Role One', 'Role Two'),
          'salary_min',          120000,
-         'remote_preference',   'remote',      -- remote | hybrid | onsite | any
-         'min_role_level',      'senior',
-         'lead_filter_enabled', true,
-         'digest_frequency',    'daily'        -- daily | weekly | off
+         'remote_preference',   'remote',
+         'min_role_level',      'senior'
        )
  where email = 'person@example.com';
 
@@ -203,6 +223,25 @@ insert into target_companies (clerk_user_id, company_name, careers_url, ats_vend
 select clerk_user_id, 'Stripe', 'https://boards.greenhouse.io/stripe', 'greenhouse', 'stripe'
   from profiles where email = 'person@example.com';
 ```
+
+### Geography: what the filters actually enforce
+
+The location knockout in `lead-filter.ts` is **hardcoded**, not driven by
+preferences: a lead passes if it mentions remote/hybrid, or if its location
+matches South Florida (roughly an hour around West Palm Beach — Palm Beach,
+Broward, Miami-Dade, Martin counties). Leads with no location at all fail open.
+
+So for a South Florida user, "remote or local onsite" is the built-in behavior
+and `remote_preference` doesn't need to fight it. For a user anywhere else,
+that gate will silently reject their local jobs and the pattern list needs
+editing.
+
+Related gap worth knowing: Jobicy is a remote-only board, and the Adzuna query
+sends no `where` parameter, so it searches the whole US. Automatic intake
+therefore skews heavily remote. Local-onsite roles only surface if they happen
+to appear in a national keyword search. Users targeting local work should lean
+on the Gmail intake and extension capture rather than expecting nightly scans
+to find neighborhood employers.
 
 ### Data isolation
 
