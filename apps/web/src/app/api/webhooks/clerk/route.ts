@@ -30,6 +30,7 @@ interface ProvisioningOverride {
   monthly_ai_cap_usd: number;
   block_on_cap: boolean;
   preferences: Record<string, unknown>;
+  profile: Record<string, unknown>;
 }
 
 /** Default cost_config values, mirrored from the column defaults in migration 001. */
@@ -38,7 +39,33 @@ const DEFAULT_PROVISIONING: ProvisioningOverride = {
   monthly_ai_cap_usd: 10.0,
   block_on_cap: true,
   preferences: {},
+  profile: {},
 };
+
+/**
+ * Profile columns an allowlist row is permitted to seed. Deliberately excludes
+ * clerk_user_id and email, which are owned by Clerk — a seeded value there
+ * would either break the row or let one identity claim another's data.
+ */
+const PROFILE_SEED_KEYS = [
+  "phone",
+  "location",
+  "linkedin_url",
+  "portfolio_url",
+  "narrative",
+  "achievements",
+  "work_history",
+] as const;
+
+function pickSeedableProfileFields(
+  profile: Record<string, unknown>
+): Record<string, unknown> {
+  const seeded: Record<string, unknown> = {};
+  for (const key of PROFILE_SEED_KEYS) {
+    if (profile[key] !== undefined) seeded[key] = profile[key];
+  }
+  return seeded;
+}
 
 /**
  * Look up an elevated-limits override for this email so invited users are
@@ -50,7 +77,7 @@ async function getProvisioning(email: string): Promise<ProvisioningOverride> {
 
   const { data, error } = await getSupabase()
     .from("provisioning_overrides")
-    .select("plan_type, monthly_ai_cap_usd, block_on_cap, preferences")
+    .select("plan_type, monthly_ai_cap_usd, block_on_cap, preferences, profile")
     .eq("email", email.toLowerCase())
     .maybeSingle();
 
@@ -109,12 +136,14 @@ export async function POST(req: Request) {
 
     const provisioning = await getProvisioning(email);
 
-    // Create profile row, pre-seeded with any allowlisted Bullseye preferences
+    // Create profile row, pre-seeded with any allowlisted preferences and
+    // resume content so tailoring isn't blocked on an empty profile
     await getSupabase().from("profiles").insert({
       clerk_user_id: id,
       full_name: fullName,
       email,
       preferences: provisioning.preferences,
+      ...pickSeedableProfileFields(provisioning.profile),
     });
 
     // Create cost config (AI dollar cap is the only real spend gate)
