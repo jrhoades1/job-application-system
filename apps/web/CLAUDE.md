@@ -66,6 +66,7 @@ npx playwright test  # Run E2E tests (requires CLERK_TESTING_TOKEN)
 - All API inputs validated with Zod
 - AI spend cap: $10/month default, enforced pre-request via cost_config table
 - Clerk webhook verified via svix library
+- Extension API tokens are random 256-bit secrets stored as SHA-256 hashes in `extension_tokens`. `clerk_user_id` is NOT a credential — never authenticate on it
 
 ### Performance
 - API response time < 500ms (excluding AI calls)
@@ -109,6 +110,7 @@ npx playwright test  # Run E2E tests (requires CLERK_TESTING_TOKEN)
 | `/api/applications/bulk-status` | PATCH | Bulk status update |
 | `/api/applications/bulk-import` | POST | Bulk import from URLs |
 | `/api/profile` | GET, PUT | User profile |
+| `/api/settings/extension-token` | GET, POST, DELETE | List / generate / revoke extension API tokens (Clerk session only — never bearer) |
 | `/api/analyze-job` | POST | Algorithmic scoring + AI-enhanced analysis |
 | `/api/tailor-resume` | POST | AI resume tailoring (by application_id) |
 | `/api/generate-cover-letter` | POST | AI cover letter generation (by application_id) |

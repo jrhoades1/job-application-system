@@ -108,13 +108,16 @@ lossy and scoring against a bad JD gives a confidently wrong answer.
    (it's `apps/extension/dist` in the project).
 2. Open `chrome://extensions` and turn on **Developer mode** (top right).
 3. Click **Load unpacked** and select that folder.
-4. In the app, go to **Settings → Extension**. Copy the **App URL** and the
-   **API Token** shown there.
-5. Open the extension and paste both into its **App URL** and **API Token**
+4. In the app, go to **Settings → Extension**. Copy the **App URL**, then click
+   **Generate token**.
+5. Copy the token immediately — it is shown once and cannot be retrieved later.
+6. Open the extension and paste both into its **App URL** and **API Token**
    fields.
 
 Treat the API token like a password. Anyone who has it can read and write your
-job data.
+job data. If you lose it or think it leaked, go back to **Settings → Extension**,
+generate a new token, paste it into the extension, and **Revoke** the old one.
+Revoking takes effect immediately.
 
 To use it: open a job posting on LinkedIn or a company careers page and click
 the extension to capture the description. It'll match against an existing lead
@@ -211,8 +214,14 @@ the same deployment cannot see each other's applications, leads, scores, or
 costs. AI spend is tracked and capped per user, so one person's usage can't
 consume another's budget.
 
-One caveat worth knowing: the extension API token is currently just the user's
-account ID with a `jaa_` prefix — it has no secret component. Anyone who learns
-another user's account ID can read and write that user's job data through the
-`/api/extension/*` routes. Don't share tokens or account IDs, and treat this as
-a known gap pending a proper random-token implementation.
+Extension tokens are random 256-bit secrets. Only a SHA-256 hash is stored, so
+the plaintext exists in exactly two places: your clipboard at generation time
+and the extension's local storage. The `/api/extension/*` routes resolve the
+user from the matched token row, so knowing someone's account ID gets you
+nothing. Tokens can be revoked at any time from **Settings → Extension**, and
+minting or revoking one requires a signed-in session — a stolen extension token
+cannot be used to mint another.
+
+(Earlier builds used `jaa_` + the account ID as the token, which had no secret
+component. Those tokens are rejected outright; anyone still on one has to
+generate a real token.)
