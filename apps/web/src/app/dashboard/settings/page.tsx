@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +17,7 @@ import { ProfileForm } from "@/components/settings/profile-form";
 import { CostUsage } from "@/components/settings/cost-usage";
 import { BullseyeForm } from "@/components/settings/bullseye-form";
 import { TargetCompaniesForm } from "@/components/settings/target-companies-form";
+import { ExtensionTokenManager } from "@/components/settings/extension-token-manager";
 
 interface EmailConnection {
   email_address: string;
@@ -27,7 +27,6 @@ interface EmailConnection {
 
 export default function SettingsPage() {
   const searchParams = useSearchParams();
-  const { user } = useUser();
   const initialTab = searchParams.get("tab") ?? "profile";
   const [activeTab, setActiveTab] = useState(initialTab);
 
@@ -192,33 +191,15 @@ export default function SettingsPage() {
                     Copy this into the extension&apos;s &quot;App URL&quot; field.
                   </p>
                 </div>
-                <div>
-                  <label className="text-sm font-medium">API Token</label>
-                  <div className="flex gap-2">
-                    <Input readOnly value={user ? `jaa_${user.id}` : "Loading..."} />
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        if (user) {
-                          navigator.clipboard.writeText(`jaa_${user.id}`);
-                          toast.success("Token copied to clipboard");
-                        }
-                      }}
-                    >
-                      Copy
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Paste this into the extension&apos;s &quot;API Token&quot; field.
-                  </p>
-                </div>
+                <ExtensionTokenManager />
                 <div className="pt-2 border-t">
                   <h4 className="text-sm font-medium mb-2">Setup Instructions</h4>
                   <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
                     <li>Open Chrome and go to <code>chrome://extensions</code></li>
                     <li>Enable &quot;Developer mode&quot; (top right)</li>
                     <li>Click &quot;Load unpacked&quot; and select the <code>apps/extension/dist</code> folder</li>
-                    <li>Click the extension icon and paste the App URL and API Token above</li>
+                    <li>Generate a token above and copy it</li>
+                    <li>Click the extension icon and paste the App URL and API Token</li>
                   </ol>
                 </div>
               </CardContent>
