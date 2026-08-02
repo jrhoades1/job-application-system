@@ -25,6 +25,10 @@ The email matters: your limits are attached to it. If you sign up with a
 different address than the one that was allowlisted, you'll land on the default
 $10/month AI budget instead of your intended one.
 
+If you see **"You are not allowed to access this application"**, your address
+hasn't been added to the auth allowlist yet. That's an admin step, not
+something you can fix from your side — go tell whoever set up your account.
+
 ### 2. Upload your resume — do this first
 
 **Settings → Profile → Import from Resume → Upload Resume**
@@ -140,7 +144,30 @@ broken you'll know exactly where.
 
 ## For the admin
 
-### Before they sign up: allowlist the email
+There are **two** separate allowlists, and both have to be done before the
+person signs up. Clerk decides whether they can create an account at all;
+`provisioning_overrides` decides what limits they get once they do.
+
+### Step 1: let them through Clerk
+
+The Clerk instance has sign-up restrictions on. If you skip this, the new user
+hits "You are not allowed to access this application" at the sign-in page and
+never reaches the app.
+
+Go to the [Clerk dashboard](https://dashboard.clerk.com) → your app →
+**Configure → Restrictions**, and:
+
+- Add their email to the **Allowlist**.
+- Check **Sign-up mode**. If it's *Restricted*, allowlisting alone may not be
+  enough — either invite them explicitly or set the mode to *Public*.
+- Make sure the address isn't caught by the **Blocklist**.
+
+Note: this app currently runs on a Clerk **development** instance
+(`helping-frog-33.clerk.accounts.dev`, `pk_test_` keys). Dev instances cap at
+100 users and aren't intended for production — worth migrating to a production
+instance before the user count grows.
+
+### Step 2: allowlist the email for limits
 
 New signups default to the free tier with a **$10/month AI budget**. Application
 counts are unlimited for everyone, so that dollar cap is the only thing that
