@@ -2,7 +2,7 @@ import { Webhook } from "svix";
 import { headers } from "next/headers";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { PLAN_CONFIG } from "@/lib/stripe";
+import { PLAN_CONFIG, type PlanType } from "@/lib/stripe";
 
 let _supabase: SupabaseClient | null = null;
 function getSupabase(): SupabaseClient {
@@ -23,6 +23,41 @@ interface ClerkWebhookEvent {
     first_name: string | null;
     last_name: string | null;
   };
+}
+
+interface ProvisioningOverride {
+  plan_type: PlanType;
+  monthly_ai_cap_usd: number;
+  block_on_cap: boolean;
+}
+
+/** Default cost_config values, mirrored from the column defaults in migration 001. */
+const DEFAULT_PROVISIONING: ProvisioningOverride = {
+  plan_type: "free",
+  monthly_ai_cap_usd: 10.0,
+  block_on_cap: true,
+};
+
+/**
+ * Look up an elevated-limits override for this email so invited users are
+ * provisioned correctly at signup instead of needing a manual DB bump.
+ * Falls back to standard free-tier defaults when no row exists.
+ */
+async function getProvisioning(email: string): Promise<ProvisioningOverride> {
+  if (!email) return DEFAULT_PROVISIONING;
+
+  const { data, error } = await getSupabase()
+    .from("provisioning_overrides")
+    .select("plan_type, monthly_ai_cap_usd, block_on_cap")
+    .eq("email", email.toLowerCase())
+    .maybeSingle();
+
+  if (error) {
+    console.error("Provisioning override lookup failed:", error.message);
+    return DEFAULT_PROVISIONING;
+  }
+
+  return (data as ProvisioningOverride | null) ?? DEFAULT_PROVISIONING;
 }
 
 export async function POST(req: Request) {
@@ -70,6 +105,8 @@ export async function POST(req: Request) {
     const fullName =
       [first_name, last_name].filter(Boolean).join(" ") || "New User";
 
+    const provisioning = await getProvisioning(email);
+
     // Create profile row
     await getSupabase().from("profiles").insert({
       clerk_user_id: id,
@@ -77,17 +114,27 @@ export async function POST(req: Request) {
       email,
     });
 
-    // Create default cost config
+    // Create cost config (AI dollar cap is the only real spend gate)
     await getSupabase().from("cost_config").insert({
       clerk_user_id: id,
+      monthly_ai_cap_usd: provisioning.monthly_ai_cap_usd,
+      block_on_cap: provisioning.block_on_cap,
     });
 
-    // Create free-tier subscription for metering
+    // Create subscription for metering
     await getSupabase().from("subscriptions").insert({
       clerk_user_id: id,
-      plan_type: "free",
-      applications_cap: PLAN_CONFIG.free.applicationsCap,
+      plan_type: provisioning.plan_type,
+      applications_cap: PLAN_CONFIG[provisioning.plan_type].applicationsCap,
     });
+
+    // Record that the override was consumed (best effort -- never blocks signup)
+    if (provisioning !== DEFAULT_PROVISIONING) {
+      await getSupabase()
+        .from("provisioning_overrides")
+        .update({ applied_at: new Date().toISOString() })
+        .eq("email", email.toLowerCase());
+    }
   }
 
   return NextResponse.json({ received: true });
