@@ -244,13 +244,22 @@ export async function GET(req: Request) {
           url: j.url,
           first_seen_at: nowIso,
           last_seen_at: nowIso,
+          // `prior` above only selects rows with removed_at IS NULL, so a job
+          // that was tombstoned and later reposted comes back through the diff
+          // as "new" while its row still exists. The unique key is
+          // (target_company_id, job_external_id) with no removed_at component,
+          // so a plain insert collides and aborts the whole scan for this
+          // target. Clearing the tombstone on conflict resurrects the row.
+          removed_at: null,
         }));
         const SNAPSHOT_CHUNK = 500;
         for (let i = 0; i < snapshotRows.length; i += SNAPSHOT_CHUNK) {
           const chunk = snapshotRows.slice(i, i + SNAPSHOT_CHUNK);
           const { error: snapErr } = await supabase
             .from("company_job_snapshots")
-            .insert(chunk);
+            .upsert(chunk, {
+              onConflict: "target_company_id,job_external_id",
+            });
           if (snapErr) {
             throw new Error(
               `snapshot insert failed at chunk ${i}: ${snapErr.message}`
