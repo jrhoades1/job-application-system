@@ -5,8 +5,9 @@ How to get a brand-new person up and running on the Job Application Assistant.
 **App:** https://job-applications-three.vercel.app
 
 There are two halves: **what the new user does** (steps 1–6) and **what the admin
-does** (the section at the bottom). Do the admin allowlist step *before* the new
-user signs up, or their limits will be wrong and need fixing by hand afterward.
+does** (the section at the bottom). Do all three admin allowlist steps *before*
+the new user signs up, or they'll be blocked at sign-in, blocked at Gmail
+connect, or land on the wrong limits and need fixing by hand afterward.
 
 ---
 
@@ -101,6 +102,13 @@ step 6 for where those come from.
 
 You can skip this and add jobs by hand. Everything else works without it.
 
+If Google blocks you with **"Access blocked: job-applications-three.vercel.app
+has not completed the Google verification process ... Error 403: access_denied"**,
+your Gmail address hasn't been added to the Google Cloud test-user list yet.
+That's a third admin step, separate from the two allowlists above, and it isn't
+something you can fix from your side — go tell whoever set up your account.
+Retrying, switching browsers, or clearing cookies will not help.
+
 ### 6. Install the Chrome extension
 
 This is how real job descriptions get into the system. The extension reads the
@@ -147,9 +155,14 @@ broken you'll know exactly where.
 
 ## For the admin
 
-There are **two** separate allowlists, and both have to be done before the
-person signs up. Clerk decides whether they can create an account at all;
-`provisioning_overrides` decides what limits they get once they do.
+There are **three** separate allowlists, and all of them have to be done before
+the person signs up. Clerk decides whether they can create an account at all;
+`provisioning_overrides` decides what limits they get once they do; the Google
+Cloud test-user list decides whether they can connect Gmail.
+
+They fail closed with three different error messages and none of them point at
+each other, so do all three in one sitting rather than waiting for the user to
+report each wall in turn.
 
 ### Step 1: let them through Clerk
 
@@ -217,6 +230,38 @@ which has a 120-second function ceiling and a 15-second per-fetch timeout.
 
 The table is service-role only (RLS enabled, no policies), so it's not reachable
 from the browser. `applied_at` gets stamped when the webhook consumes the row.
+
+### Step 3: add their Gmail address as a Google Cloud test user
+
+Skip this and step 5 (Connect Gmail) fails for them with:
+
+> Access blocked: job-applications-three.vercel.app has not completed the Google
+> verification process ... The app is currently being tested, and can only be
+> accessed by developer-approved testers. Error 403: access_denied
+
+The OAuth consent screen behind `GOOGLE_CLIENT_ID` is still in **Testing**
+publishing status, so Google only issues tokens to accounts on an explicit test
+user list. Everyone else is rejected before the consent screen renders.
+
+Go to the [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+→ project `job-app-assistant-489114` → **APIs & Services → OAuth consent screen
+→ Audience → Test users → Add users**, and add their Gmail address. It takes
+effect immediately — have them retry Connect.
+
+Two limits that come with Testing status, both of which apply to *existing*
+users too, not just new ones:
+
+- **Refresh tokens expire after 7 days.** Every Gmail connection on this
+  deployment dies weekly and has to be re-consented. This is a known open issue
+  and cannot be fixed in code — see
+  `docs/bugs/2026-08-04-google-oauth-testing-mode-blocks-new-users.md`.
+- **The test user list caps at 100.**
+
+Publishing to Production removes both, but it is not a free toggle: the app
+requests `https://www.googleapis.com/auth/gmail.modify`, which Google classifies
+as a **restricted** scope. That requires brand verification plus an annual
+third-party CASA security assessment. Narrowing to `gmail.readonly` does not
+avoid it — that scope is restricted as well.
 
 ### If they already signed up before you allowlisted them
 
